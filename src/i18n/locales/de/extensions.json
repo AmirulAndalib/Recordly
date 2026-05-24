@@ -23,7 +23,7 @@
         "installed": "Installiert"
     },
     "detail": {
-		"von": "Von {{author}}",
+		"by": "Von {{author}}",
         "unknownAuthor": "Unbekannter Autor",
         "noDescription": "Keine Beschreibung",
         "downloads": "{{count}} Downloads",

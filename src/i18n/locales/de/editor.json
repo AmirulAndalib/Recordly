@@ -6,9 +6,9 @@
         "skipForward": "Vorwärts springen",
         "muteUnmute": "Stummschalten/Stummschaltung aufheben"
     },
-	"Anmerkungen": {
-        "Einstellungen": "Einstellungen für Anmerkungen",
-        "aktiv": "Aktiv",
+	"annotations": {
+        "settings": "Einstellungen für Anmerkungen",
+        "active": "Aktiv",
         "text": "Text",
         "image": "Bild",
         "arrow": "Pfeil",
