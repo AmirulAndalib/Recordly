@@ -204,6 +204,7 @@ interface RendererNativeExportCapabilities {
 interface Window {
 	electronAPI: {
 		hudOverlaySetIgnoreMouse: (ignore: boolean) => void;
+		hudOverlaySetSourceSelectionActive: (active: boolean) => void;
 		hudOverlayDrag: (phase: "start" | "move" | "end", screenX: number, screenY: number) => void;
 		hudOverlayHide: () => void;
 		hudOverlayClose: () => void;
@@ -542,6 +543,14 @@ interface Window {
 			tempPath: string;
 			fileName: string;
 			outputPath?: string | null;
+			captionSidecar?: {
+				format: "srt" | "vtt" | "both";
+				cues: Array<{
+					startMs: number;
+					endMs: number;
+					text: string;
+				}>;
+			};
 		}) => Promise<{
 			success: boolean;
 			path?: string;
@@ -613,10 +622,26 @@ interface Window {
 		saveExportedVideo: (
 			videoData: ArrayBuffer,
 			fileName: string,
+			captionSidecar?: {
+				format: "srt" | "vtt" | "both";
+				cues: Array<{
+					startMs: number;
+					endMs: number;
+					text: string;
+				}>;
+			},
 		) => Promise<{ success: boolean; path?: string; message?: string; canceled?: boolean }>;
 		writeExportedVideoToPath: (
 			videoData: ArrayBuffer,
 			outputPath: string,
+			captionSidecar?: {
+				format: "srt" | "vtt" | "both";
+				cues: Array<{
+					startMs: number;
+					endMs: number;
+					text: string;
+				}>;
+			},
 		) => Promise<{
 			success: boolean;
 			path?: string;

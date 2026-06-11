@@ -37,7 +37,6 @@ export function getHudOverlayWindowBounds(
 		height,
 	};
 }
-
 export function resizeHudOverlayFallbackBounds(
 	workArea: HudOverlayWorkArea,
 	currentBounds: HudOverlayWorkArea,

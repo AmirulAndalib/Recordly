@@ -167,6 +167,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	hudOverlaySetIgnoreMouse: (ignore: boolean) => {
 		ipcRenderer.send("hud-overlay-set-ignore-mouse", ignore);
 	},
+	hudOverlaySetSourceSelectionActive: (active: boolean) => {
+		ipcRenderer.send("hud-overlay-set-source-selection-active", active);
+	},
 	hudOverlayDrag: (phase: "start" | "move" | "end", screenX: number, screenY: number) => {
 		ipcRenderer.send("hud-overlay-drag", phase, screenX, screenY);
 	},
@@ -453,6 +456,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		tempPath: string;
 		fileName: string;
 		outputPath?: string | null;
+		captionSidecar?: {
+			format: "srt" | "vtt" | "both";
+			cues: Array<{
+				startMs: number;
+				endMs: number;
+				text: string;
+			}>;
+		};
 	}) => {
 		return ipcRenderer.invoke("finalize-exported-video", payload);
 	},
@@ -627,11 +638,38 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	openAccessibilityPreferences: () => {
 		return ipcRenderer.invoke("open-accessibility-preferences");
 	},
-	saveExportedVideo: (videoData: ArrayBuffer, fileName: string) => {
-		return ipcRenderer.invoke("save-exported-video", videoData, fileName);
+	saveExportedVideo: (
+		videoData: ArrayBuffer,
+		fileName: string,
+		captionSidecar?: {
+			format: "srt" | "vtt" | "both";
+			cues: Array<{
+				startMs: number;
+				endMs: number;
+				text: string;
+			}>;
+		},
+	) => {
+		return ipcRenderer.invoke("save-exported-video", videoData, fileName, captionSidecar);
 	},
-	writeExportedVideoToPath: (videoData: ArrayBuffer, outputPath: string) => {
-		return ipcRenderer.invoke("write-exported-video-to-path", videoData, outputPath);
+	writeExportedVideoToPath: (
+		videoData: ArrayBuffer,
+		outputPath: string,
+		captionSidecar?: {
+			format: "srt" | "vtt" | "both";
+			cues: Array<{
+				startMs: number;
+				endMs: number;
+				text: string;
+			}>;
+		},
+	) => {
+		return ipcRenderer.invoke(
+			"write-exported-video-to-path",
+			videoData,
+			outputPath,
+			captionSidecar,
+		);
 	},
 	openVideoFilePicker: () => {
 		return ipcRenderer.invoke("open-video-file-picker");
@@ -703,8 +741,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("set-current-recording-session", session, options);
 	},
 	onRecordingSessionChanged: (callback: (session: RecordingSessionData | null) => void) => {
-		const listener = (_event: Electron.IpcRendererEvent, payload: RecordingSessionData | null) =>
-			callback(payload);
+		const listener = (
+			_event: Electron.IpcRendererEvent,
+			payload: RecordingSessionData | null,
+		) => callback(payload);
 		ipcRenderer.on("recording-session-changed", listener);
 		return () => ipcRenderer.removeListener("recording-session-changed", listener);
 	},
@@ -891,7 +931,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 			success?: boolean;
 			value?: unknown;
 		};
-		return result?.success ? result.value ?? null : null;
+		return result?.success ? (result.value ?? null) : null;
 	},
 	setAppSetting: (key: string, value: unknown) => {
 		const result = ipcRenderer.sendSync("app-settings:set", key, value) as {

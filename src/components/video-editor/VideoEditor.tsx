@@ -2,7 +2,6 @@ import {
 	BookmarkSimple,
 	Check,
 	CaretDown as ChevronDown,
-	CaretUp as ChevronUp,
 	ClosedCaptioning,
 	Crop,
 	Cursor,
@@ -163,7 +162,10 @@ import {
 	RECORDLY_ISSUES_URL,
 } from "./TutorialHelp";
 import TimelineEditor, { type TimelineEditorHandle } from "./timeline/TimelineEditor";
-import { normalizeCursorTelemetry } from "./timeline/zoomSuggestionUtils";
+import {
+	normalizeCursorTelemetry,
+	shouldAutoApplyFreshRecordingZoomsForSource,
+} from "./timeline/zoomSuggestionUtils";
 import {
 	type AnnotationRegion,
 	type AudioRegion,
@@ -171,6 +173,7 @@ import {
 	type CaptionCue,
 	type ClipRegion,
 	type CropRegion,
+	type CursorClickEffectStyle,
 	type CursorStyle,
 	type CursorTelemetryPoint,
 	clampFocusToDepth,
@@ -221,12 +224,16 @@ import {
 
 type PendingExportSave = {
 	fileName: string;
-	// Exactly one of these is populated. `tempFilePath` is the preferred form
-	// for MP4 exports — the main process holds the finished file on disk, so
-	// "Save Again" just renames it instead of round-tripping through the
-	// renderer's ArrayBuffer heap.
 	arrayBuffer?: ArrayBuffer;
 	tempFilePath?: string;
+	captionSidecar?: {
+		format: "srt" | "vtt" | "both";
+		cues: Array<{
+			startMs: number;
+			endMs: number;
+			text: string;
+		}>;
+	};
 };
 
 type CancelableExporter = {
@@ -464,6 +471,21 @@ export default function VideoEditor() {
 	const [cursorMotionBlur, setCursorMotionBlur] = useState(
 		initialEditorPreferences.cursorMotionBlur,
 	);
+	const [cursorClickEffect, setCursorClickEffect] = useState<CursorClickEffectStyle>(
+		initialEditorPreferences.cursorClickEffect,
+	);
+	const [cursorClickEffectColor, setCursorClickEffectColor] = useState(
+		initialEditorPreferences.cursorClickEffectColor,
+	);
+	const [cursorClickEffectScale, setCursorClickEffectScale] = useState(
+		initialEditorPreferences.cursorClickEffectScale,
+	);
+	const [cursorClickEffectOpacity, setCursorClickEffectOpacity] = useState(
+		initialEditorPreferences.cursorClickEffectOpacity,
+	);
+	const [cursorClickEffectDurationMs, setCursorClickEffectDurationMs] = useState(
+		initialEditorPreferences.cursorClickEffectDurationMs,
+	);
 	const [cursorClickBounce, setCursorClickBounce] = useState(
 		initialEditorPreferences.cursorClickBounce,
 	);
@@ -507,6 +529,7 @@ export default function VideoEditor() {
 	const [autoCaptionSettings, setAutoCaptionSettings] = useState<AutoCaptionSettings>(
 		DEFAULT_AUTO_CAPTION_SETTINGS,
 	);
+	const [includeCaptionSidecar, setIncludeCaptionSidecar] = useState(true);
 	const [whisperExecutablePath, setWhisperExecutablePath] = useState<string | null>(
 		initialEditorPreferences.whisperExecutablePath,
 	);
@@ -582,6 +605,32 @@ export default function VideoEditor() {
 	const [gifSizePreset, setGifSizePreset] = useState<GifSizePreset>(
 		initialEditorPreferences.gifSizePreset,
 	);
+	const hasCaptionsForSidecar = autoCaptionSettings.enabled && autoCaptions.length > 0;
+	const captionSidecarCues = useMemo(
+		() =>
+			autoCaptions
+				.filter(
+					(cue) =>
+						Number.isFinite(cue.startMs) &&
+						Number.isFinite(cue.endMs) &&
+						cue.endMs > cue.startMs &&
+						typeof cue.text === "string" &&
+						cue.text.trim().length > 0,
+				)
+				.map((cue) => ({
+					startMs: cue.startMs,
+					endMs: cue.endMs,
+					text: cue.text,
+				})),
+		[autoCaptions],
+	);
+	const captionSidecarPayload =
+		hasCaptionsForSidecar && captionSidecarCues.length > 0 && includeCaptionSidecar
+			? {
+					format: "both" as const,
+					cues: captionSidecarCues,
+				}
+			: undefined;
 	const [exportedFilePath, setExportedFilePath] = useState<string | undefined>(undefined);
 	const [hasPendingExportSave, setHasPendingExportSave] = useState(false);
 	const [lastSavedSnapshot, setLastSavedSnapshot] = useState<EditorProjectData | null>(null);
@@ -630,8 +679,6 @@ export default function VideoEditor() {
 		const secs = Math.floor(seconds % 60);
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	}
-
-	const [timelineCollapsed, setTimelineCollapsed] = useState(false);
 
 	useEffect(() => {
 		void window.electronAPI?.getPlatform?.()?.then((platform) => {
@@ -696,12 +743,18 @@ export default function VideoEditor() {
 			cameraSpringDampingMultiplier,
 			cameraSpringMassMultiplier,
 			cursorMotionBlur,
+			cursorClickEffect,
+			cursorClickEffectColor,
+			cursorClickEffectScale,
+			cursorClickEffectOpacity,
+			cursorClickEffectDurationMs,
 			cursorClickBounce,
 			cursorClickBounceDuration,
 			cursorSway,
 			borderRadius,
 			padding: { ...padding },
 			frame,
+			cropRegion: { ...cropRegion },
 			webcam: { ...webcam },
 			aspectRatio,
 			exportEncodingMode,
@@ -747,12 +800,18 @@ export default function VideoEditor() {
 			cameraSpringDampingMultiplier,
 			cameraSpringMassMultiplier,
 			cursorMotionBlur,
+			cursorClickEffect,
+			cursorClickEffectColor,
+			cursorClickEffectScale,
+			cursorClickEffectOpacity,
+			cursorClickEffectDurationMs,
 			cursorClickBounce,
 			cursorClickBounceDuration,
 			cursorSway,
 			borderRadius,
 			padding,
 			frame,
+			cropRegion,
 			webcam,
 			aspectRatio,
 			exportEncodingMode,
@@ -839,12 +898,18 @@ export default function VideoEditor() {
 		setCameraSpringDampingMultiplier(snapshot.cameraSpringDampingMultiplier);
 		setCameraSpringMassMultiplier(snapshot.cameraSpringMassMultiplier);
 		setCursorMotionBlur(snapshot.cursorMotionBlur);
+		setCursorClickEffect(snapshot.cursorClickEffect);
+		setCursorClickEffectColor(snapshot.cursorClickEffectColor);
+		setCursorClickEffectScale(snapshot.cursorClickEffectScale);
+		setCursorClickEffectOpacity(snapshot.cursorClickEffectOpacity);
+		setCursorClickEffectDurationMs(snapshot.cursorClickEffectDurationMs);
 		setCursorClickBounce(snapshot.cursorClickBounce);
 		setCursorClickBounceDuration(snapshot.cursorClickBounceDuration);
 		setCursorSway(snapshot.cursorSway);
 		setBorderRadius(snapshot.borderRadius);
 		setPadding({ ...snapshot.padding });
 		setFrame(snapshot.frame);
+		setCropRegion({ ...snapshot.cropRegion });
 		setWebcam({ ...snapshot.webcam });
 		setAspectRatio(snapshot.aspectRatio);
 		setExportEncodingMode(snapshot.exportEncodingMode);
@@ -1111,6 +1176,11 @@ export default function VideoEditor() {
 					zoomSmoothness,
 					zoomClassicMode,
 					cursorMotionBlur,
+					cursorClickEffect,
+					cursorClickEffectColor,
+					cursorClickEffectScale,
+					cursorClickEffectOpacity,
+					cursorClickEffectDurationMs,
 					cursorClickBounce,
 					cursorClickBounceDuration,
 					cursorSway,
@@ -1180,6 +1250,11 @@ export default function VideoEditor() {
 		currentTime,
 		cursorClickBounce,
 		cursorClickBounceDuration,
+		cursorClickEffect,
+		cursorClickEffectColor,
+		cursorClickEffectScale,
+		cursorClickEffectOpacity,
+		cursorClickEffectDurationMs,
 		cursorMotionBlur,
 		cursorSize,
 		cursorSmoothing,
@@ -1243,7 +1318,12 @@ export default function VideoEditor() {
 	}, []);
 
 	const saveBlobExport = useCallback(
-		async (blob: Blob, fileName: string, outputPath: string | null = null) => {
+		async (
+			blob: Blob,
+			fileName: string,
+			outputPath: string | null = null,
+			captionSidecar?: PendingExportSave["captionSidecar"],
+		) => {
 			const extension = fileName.split(".").pop()?.toLowerCase() || "bin";
 			const hasExportStreamApi =
 				typeof window !== "undefined" &&
@@ -1260,10 +1340,12 @@ export default function VideoEditor() {
 							tempPath: tempFilePath,
 							fileName,
 							outputPath,
+							captionSidecar,
 						}),
 						pendingSave: {
 							fileName,
 							tempFilePath,
+							captionSidecar,
 						} satisfies PendingExportSave,
 					};
 				}
@@ -1302,11 +1384,20 @@ export default function VideoEditor() {
 			const arrayBuffer = await blob.arrayBuffer();
 			return {
 				saveResult: outputPath
-					? await window.electronAPI.writeExportedVideoToPath(arrayBuffer, outputPath)
-					: await window.electronAPI.saveExportedVideo(arrayBuffer, fileName),
+					? await window.electronAPI.writeExportedVideoToPath(
+							arrayBuffer,
+							outputPath,
+							captionSidecar,
+						)
+					: await window.electronAPI.saveExportedVideo(
+							arrayBuffer,
+							fileName,
+							captionSidecar,
+						),
 				pendingSave: {
 					fileName,
 					arrayBuffer,
+					captionSidecar,
 				} satisfies PendingExportSave,
 			};
 		},
@@ -1569,6 +1660,11 @@ export default function VideoEditor() {
 				zoomSmoothness: number;
 				zoomClassicMode: boolean;
 				cursorMotionBlur: number;
+				cursorClickEffect: CursorClickEffectStyle;
+				cursorClickEffectColor: string;
+				cursorClickEffectScale: number;
+				cursorClickEffectOpacity: number;
+				cursorClickEffectDurationMs: number;
 				cursorClickBounce: number;
 				cursorClickBounceDuration: number;
 				cursorSway: number;
@@ -1672,6 +1768,11 @@ export default function VideoEditor() {
 				zoomSmoothness,
 				zoomClassicMode,
 				cursorMotionBlur,
+				cursorClickEffect,
+				cursorClickEffectColor,
+				cursorClickEffectScale,
+				cursorClickEffectOpacity,
+				cursorClickEffectDurationMs,
 				cursorClickBounce,
 				cursorClickBounceDuration,
 				cursorSway,
@@ -1734,6 +1835,11 @@ export default function VideoEditor() {
 			zoomSmoothness,
 			zoomClassicMode,
 			cursorMotionBlur,
+			cursorClickEffect,
+			cursorClickEffectColor,
+			cursorClickEffectScale,
+			cursorClickEffectOpacity,
+			cursorClickEffectDurationMs,
 			cursorClickBounce,
 			cursorClickBounceDuration,
 			cursorSway,
@@ -1915,6 +2021,11 @@ export default function VideoEditor() {
 			setCameraSpringStiffnessMultiplier(normalizedEditor.cameraSpringStiffnessMultiplier);
 			setCameraSpringDampingMultiplier(normalizedEditor.cameraSpringDampingMultiplier);
 			setCameraSpringMassMultiplier(normalizedEditor.cameraSpringMassMultiplier);
+			setCursorClickEffect(normalizedEditor.cursorClickEffect);
+			setCursorClickEffectColor(normalizedEditor.cursorClickEffectColor);
+			setCursorClickEffectScale(normalizedEditor.cursorClickEffectScale);
+			setCursorClickEffectOpacity(normalizedEditor.cursorClickEffectOpacity);
+			setCursorClickEffectDurationMs(normalizedEditor.cursorClickEffectDurationMs);
 			setZoomSmoothness(normalizedEditor.zoomSmoothness);
 			setZoomClassicMode(normalizedEditor.zoomClassicMode);
 			setCursorMotionBlur(normalizedEditor.cursorMotionBlur);
@@ -2064,6 +2175,39 @@ export default function VideoEditor() {
 		[currentProjectPath, webcam.timeOffsetMs],
 	);
 
+	const resetSourceScopedEditorState = useCallback(() => {
+		setZoomRegions([]);
+		setTrimRegions([]);
+		setClipRegions([]);
+		clipInitializedRef.current = false;
+		autoFullTrackClipIdRef.current = null;
+		autoFullTrackClipEndMsRef.current = null;
+		setSpeedRegions([]);
+		setAnnotationRegions([]);
+		setAudioRegions([]);
+		setCursorTelemetry([]);
+		setCursorTelemetrySourcePath(null);
+		setSourceAudioTrackSettingsByClip({});
+		setDefaultSourceAudioTrackSettings({});
+		setHasClipSourceAudio(false);
+		setAutoCaptions([]);
+		setAutoCaptionSettings((prev) => ({ ...prev, enabled: false }));
+		setSelectedZoomId(null);
+		setSelectedClipId(null);
+		setSelectedAnnotationId(null);
+		setSelectedAudioId(null);
+		nextZoomIdRef.current = 1;
+		nextClipIdRef.current = 1;
+		nextAudioIdRef.current = 1;
+		nextAnnotationIdRef.current = 1;
+		nextAnnotationZIndexRef.current = 1;
+		pendingFreshRecordingAutoSuggestTelemetryCountRef.current = 0;
+		autoSuggestedVideoPathRef.current = null;
+		resetEditorHistoryStack(editorHistoryRef.current);
+		applyingHistoryRef.current = false;
+		syncHistoryButtons();
+	}, [syncHistoryButtons]);
+
 	const handleUploadWebcam = useCallback(async () => {
 		const result = await window.electronAPI.openVideoFilePicker();
 		if (!result.success || !result.path) {
@@ -2152,6 +2296,7 @@ export default function VideoEditor() {
 					setVideoPath(sourceVideoUrl);
 					setCurrentProjectPath(null);
 					setLastSavedSnapshot(null);
+					resetSourceScopedEditorState();
 					pendingFreshRecordingAutoZoomPathRef.current = autoApplyFreshRecordingAutoZooms
 						? sourceVideoUrl
 						: null;
@@ -2180,6 +2325,7 @@ export default function VideoEditor() {
 					setVideoPath(sourceVideoUrl);
 					setCurrentProjectPath(null);
 					setLastSavedSnapshot(null);
+					resetSourceScopedEditorState();
 					pendingFreshRecordingAutoZoomPathRef.current = null;
 					setWebcam((prev) => ({
 						...prev,
@@ -2237,6 +2383,7 @@ export default function VideoEditor() {
 					setVideoPath(sourceVideoUrl);
 					setCurrentProjectPath(null);
 					setLastSavedSnapshot(null);
+					resetSourceScopedEditorState();
 					pendingFreshRecordingAutoZoomPathRef.current = autoApplyFreshRecordingAutoZooms
 						? sourceVideoUrl
 						: null;
@@ -2259,6 +2406,7 @@ export default function VideoEditor() {
 					setVideoPath(sourceVideoUrl);
 					setCurrentProjectPath(null);
 					setLastSavedSnapshot(null);
+					resetSourceScopedEditorState();
 					pendingFreshRecordingAutoZoomPathRef.current = null;
 					applySessionPresentation(null);
 					setWebcam((prev) => ({
@@ -2285,6 +2433,7 @@ export default function VideoEditor() {
 		devOpenRecordingConfig.inputPath,
 		devOpenRecordingConfig.webcamInputPath,
 		initialEditorPreferences,
+		resetSourceScopedEditorState,
 		smokeExportConfig.enabled,
 		smokeExportConfig.inputPath,
 		smokeExportConfig.projectPath,
@@ -2377,6 +2526,11 @@ export default function VideoEditor() {
 			cameraSpringDampingMultiplier,
 			cameraSpringMassMultiplier,
 			cursorMotionBlur,
+			cursorClickEffect,
+			cursorClickEffectColor,
+			cursorClickEffectScale,
+			cursorClickEffectOpacity,
+			cursorClickEffectDurationMs,
 			cursorClickBounce,
 			cursorClickBounceDuration,
 			cursorSway,
@@ -2428,6 +2582,11 @@ export default function VideoEditor() {
 		cameraSpringDampingMultiplier,
 		cameraSpringMassMultiplier,
 		cursorMotionBlur,
+		cursorClickEffect,
+		cursorClickEffectColor,
+		cursorClickEffectScale,
+		cursorClickEffectOpacity,
+		cursorClickEffectDurationMs,
 		cursorClickBounce,
 		cursorClickBounceDuration,
 		cursorSway,
@@ -3187,17 +3346,19 @@ export default function VideoEditor() {
 		},
 	});
 
+	const getActivePlayback = useCallback(() => videoPlaybackRef.current, []);
+
 	const startPlayback = useCallback(() => {
-		const playback = videoPlaybackRef.current;
+		const playback = getActivePlayback();
 		const video = playback?.video;
 		if (!playback || !video) return;
 
 		audio.playSourceAudioPreview();
 		playback.play().catch((err) => console.error("Video play failed:", err));
-	}, [audio.playSourceAudioPreview]);
+	}, [audio.playSourceAudioPreview, getActivePlayback]);
 
 	function togglePlayPause() {
-		const playback = videoPlaybackRef.current;
+		const playback = getActivePlayback();
 		const video = playback?.video;
 		if (!playback || !video) return;
 
@@ -3214,7 +3375,7 @@ export default function VideoEditor() {
 
 	const handleSeek = useCallback(
 		(time: number, options: { pause?: boolean } = {}) => {
-			const playback = videoPlaybackRef.current;
+			const playback = getActivePlayback();
 			const video = playback?.video;
 			if (!video) return;
 
@@ -3224,7 +3385,7 @@ export default function VideoEditor() {
 
 			video.currentTime = mapTimelineTimeToSourceTime(time * 1000) / 1000;
 		},
-		[mapTimelineTimeToSourceTime],
+		[getActivePlayback, mapTimelineTimeToSourceTime],
 	);
 
 	const handleTimelineSeek = useCallback(
@@ -3233,6 +3394,22 @@ export default function VideoEditor() {
 		},
 		[handleSeek],
 	);
+
+	const handlePreviewSkipBack = useCallback(() => {
+		const currentMs = timelinePlayheadTime * 1000;
+		const keyframes = timelineRef.current?.keyframes ?? [];
+		const previous = [...keyframes].reverse().find((keyframe) => keyframe.time < currentMs - 50);
+		handleSeek(previous ? previous.time / 1000 : Math.max(0, timelinePlayheadTime - 5));
+	}, [handleSeek, timelinePlayheadTime]);
+
+	const handlePreviewSkipForward = useCallback(() => {
+		const currentMs = timelinePlayheadTime * 1000;
+		const keyframes = timelineRef.current?.keyframes ?? [];
+		const next = keyframes.find((keyframe) => keyframe.time > currentMs + 50);
+		handleSeek(
+			next ? next.time / 1000 : Math.min(timelineDuration, timelinePlayheadTime + 5),
+		);
+	}, [handleSeek, timelineDuration, timelinePlayheadTime]);
 
 	const handleSelectZoom = useCallback((id: string | null) => {
 		setSelectedZoomId(id);
@@ -3307,6 +3484,23 @@ export default function VideoEditor() {
 
 	useEffect(() => {
 		if (
+			videoPath &&
+			pendingFreshRecordingAutoZoomPathRef.current === videoPath &&
+			isPreviewReady &&
+			!shouldAutoApplyFreshRecordingZoomsForSource(
+				videoPlaybackRef.current?.video?.videoWidth,
+				videoPlaybackRef.current?.video?.videoHeight,
+			)
+		) {
+			pendingFreshRecordingAutoZoomPathRef.current = null;
+			if (pendingFreshRecordingAutoSuggestTimeoutRef.current !== null) {
+				window.clearTimeout(pendingFreshRecordingAutoSuggestTimeoutRef.current);
+				pendingFreshRecordingAutoSuggestTimeoutRef.current = null;
+			}
+			return;
+		}
+
+		if (
 			!videoPath ||
 			loading ||
 			!isPreviewReady ||
@@ -3363,6 +3557,27 @@ export default function VideoEditor() {
 		normalizedCursorTelemetry,
 		zoomRegions,
 	]);
+
+	useEffect(() => {
+		if (
+			!videoPath ||
+			!isPreviewReady ||
+			zoomRegions.length === 0 ||
+			autoSuggestedVideoPathRef.current !== videoPath ||
+			shouldAutoApplyFreshRecordingZoomsForSource(
+				videoPlaybackRef.current?.video?.videoWidth,
+				videoPlaybackRef.current?.video?.videoHeight,
+			)
+		) {
+			return;
+		}
+
+		autoSuggestedVideoPathRef.current = null;
+		setZoomRegions((prev) => {
+			const next = prev.filter((region) => region.mode !== "auto");
+			return next.length === prev.length ? prev : next;
+		});
+	}, [videoPath, isPreviewReady, zoomRegions]);
 
 	const handleZoomSpanChange = useCallback((id: string, span: Span) => {
 		setZoomRegions((prev) =>
@@ -4070,6 +4285,11 @@ export default function VideoEditor() {
 						zoomSmoothness,
 						zoomClassicMode,
 						cursorMotionBlur,
+						cursorClickEffect,
+						cursorClickEffectColor,
+						cursorClickEffectScale,
+						cursorClickEffectOpacity,
+						cursorClickEffectDurationMs,
 						cursorClickBounce,
 						cursorClickBounceDuration,
 						cursorSway,
@@ -4248,6 +4468,11 @@ export default function VideoEditor() {
 						zoomSmoothness,
 						zoomClassicMode,
 						cursorMotionBlur,
+						cursorClickEffect,
+						cursorClickEffectColor,
+						cursorClickEffectScale,
+						cursorClickEffectOpacity,
+						cursorClickEffectDurationMs,
 						cursorClickBounce,
 						cursorClickBounceDuration,
 						cursorSway,
@@ -4284,6 +4509,10 @@ export default function VideoEditor() {
 					if (result.success && (result.blob || result.tempFilePath)) {
 						const timestamp = Date.now();
 						const fileName = `export-${timestamp}.mp4`;
+						const sidecarForThisExport =
+							settings.includeCaptionSidecar && captionSidecarPayload
+								? captionSidecarPayload
+								: undefined;
 						markExportAsSaving();
 
 						let saveResult: {
@@ -4305,8 +4534,13 @@ export default function VideoEditor() {
 									smokeExportConfig.enabled && smokeExportConfig.outputPath
 										? smokeExportConfig.outputPath
 										: null,
+								captionSidecar: sidecarForThisExport,
 							});
-							pendingOnCancel = { fileName, tempFilePath: result.tempFilePath };
+							pendingOnCancel = {
+								fileName,
+								tempFilePath: result.tempFilePath,
+								captionSidecar: sidecarForThisExport,
+							};
 						} else if (result.blob) {
 							// Legacy fallback: some export paths still surface a Blob, but in
 							// Electron we stream it into a temp file first so save/finalize
@@ -4315,6 +4549,7 @@ export default function VideoEditor() {
 								result.blob,
 								fileName,
 								smokeExportConfig.enabled ? smokeExportConfig.outputPath : null,
+								sidecarForThisExport,
 							);
 							saveResult = blobSave.saveResult;
 							pendingOnCancel = blobSave.pendingSave;
@@ -4500,6 +4735,11 @@ export default function VideoEditor() {
 			zoomSmoothness,
 			zoomClassicMode,
 			cursorMotionBlur,
+			cursorClickEffect,
+			cursorClickEffectColor,
+			cursorClickEffectScale,
+			cursorClickEffectOpacity,
+			cursorClickEffectDurationMs,
 			cursorClickBounce,
 			cursorClickBounceDuration,
 			cursorSway,
@@ -4522,6 +4762,7 @@ export default function VideoEditor() {
 			annotationRegions,
 			autoCaptions,
 			autoCaptionSettings,
+			captionSidecarPayload,
 			isPlaying,
 			exportQuality,
 			effectiveZoomRegions,
@@ -4679,6 +4920,7 @@ export default function VideoEditor() {
 			sourceWidth,
 			sourceHeight,
 			exportFormat,
+			includeCaptionSidecar: hasCaptionsForSidecar && includeCaptionSidecar,
 			exportEncodingMode,
 			exportQuality,
 			mp4FrameRate,
@@ -4702,6 +4944,8 @@ export default function VideoEditor() {
 		gifFrameRate,
 		gifLoop,
 		gifSizePreset,
+		hasCaptionsForSidecar,
+		includeCaptionSidecar,
 		exportBackendPreference,
 		exportPipelineModel,
 		handleExport,
@@ -4746,11 +4990,13 @@ export default function VideoEditor() {
 				tempPath: pendingSave.tempFilePath,
 				fileName: pendingSave.fileName,
 				outputPath: null,
+				captionSidecar: pendingSave.captionSidecar,
 			});
 		} else if (pendingSave.arrayBuffer) {
 			saveResult = await window.electronAPI.saveExportedVideo(
 				pendingSave.arrayBuffer,
 				pendingSave.fileName,
+				pendingSave.captionSidecar,
 			);
 		} else {
 			saveResult = { success: false, message: "No pending export to save" };
@@ -4883,6 +5129,100 @@ export default function VideoEditor() {
 								percent: Math.round(exportProgress.percentage),
 							})
 		: t("editor.exportStatus.preparing", "Preparing export...");
+	const previewAspectRatioValue = getAspectRatioValue(
+		aspectRatio,
+		(() => {
+			const previewVideo = videoPlaybackRef.current?.video;
+			if (previewVideo && previewVideo.videoHeight > 0) {
+				return previewVideo.videoWidth / previewVideo.videoHeight;
+			}
+			return 16 / 9;
+		})(),
+	);
+	const renderPreviewPlayback = (
+		playbackRef: typeof videoPlaybackRef | undefined,
+		suspendRendering: boolean,
+		keySuffix: "inline" | "fullscreen",
+	) => (
+		<VideoPlayback
+			key={`${videoPath || "no-video"}:${previewVersion}:${keySuffix}`}
+			aspectRatio={aspectRatio}
+			ref={playbackRef}
+			videoPath={videoPath || ""}
+			onDurationChange={setDuration}
+			onPreviewReadyChange={setIsPreviewReady}
+			onTimeUpdate={setCurrentTime}
+			currentTime={currentTime}
+			onPlayStateChange={setIsPlaying}
+			onError={setError}
+			wallpaper={wallpaper}
+			zoomRegions={effectiveZoomRegions}
+			selectedZoomId={selectedZoomId}
+			onSelectZoom={handleSelectZoom}
+			onZoomFocusChange={handleZoomFocusChange}
+			isPlaying={isPlaying}
+			showShadow={shadowIntensity > 0}
+			shadowIntensity={shadowIntensity}
+			backgroundBlur={backgroundBlur}
+			connectZooms={connectZooms}
+			zoomInDurationMs={zoomInDurationMs}
+			zoomInOverlapMs={zoomInOverlapMs}
+			zoomOutDurationMs={zoomOutDurationMs}
+			connectedZoomGapMs={connectedZoomGapMs}
+			connectedZoomDurationMs={connectedZoomDurationMs}
+			zoomInEasing={zoomInEasing}
+			zoomOutEasing={zoomOutEasing}
+			connectedZoomEasing={connectedZoomEasing}
+			borderRadius={borderRadius}
+			padding={padding}
+			frame={frame}
+			cropRegion={cropRegion}
+			webcam={webcam}
+			webcamVideoPath={webcam.sourcePath ? resolvedWebcamVideoUrl : null}
+			trimRegions={trimRegions}
+			speedRegions={effectiveSpeedRegions}
+			annotationRegions={annotationRegions}
+			autoCaptions={autoCaptions}
+			autoCaptionSettings={autoCaptionSettings}
+			selectedAnnotationId={selectedAnnotationId}
+			onSelectAnnotation={handleSelectAnnotation}
+			onAnnotationPositionChange={handleAnnotationPositionChange}
+			onAnnotationSizeChange={handleAnnotationSizeChange}
+			cursorTelemetry={effectiveCursorTelemetry}
+			showCursor={effectiveShowCursor}
+			cursorStyle={cursorStyle}
+			cursorSize={cursorSize}
+			cursorSmoothing={cursorSmoothing}
+			cursorSpringStiffnessMultiplier={cursorSpringStiffnessMultiplier}
+			cursorSpringDampingMultiplier={cursorSpringDampingMultiplier}
+			cursorSpringMassMultiplier={cursorSpringMassMultiplier}
+			cameraSpringStiffnessMultiplier={cameraSpringStiffnessMultiplier}
+			cameraSpringDampingMultiplier={cameraSpringDampingMultiplier}
+			cameraSpringMassMultiplier={cameraSpringMassMultiplier}
+			zoomSmoothness={zoomSmoothness}
+			zoomClassicMode={zoomClassicMode}
+			zoomMotionBlur={zoomMotionBlur}
+			zoomMotionBlurTuning={zoomMotionBlurTuning}
+			cursorMotionBlur={cursorMotionBlur}
+			cursorClickEffect={cursorClickEffect}
+			cursorClickEffectColor={cursorClickEffectColor}
+			cursorClickEffectScale={cursorClickEffectScale}
+			cursorClickEffectOpacity={cursorClickEffectOpacity}
+			cursorClickEffectDurationMs={cursorClickEffectDurationMs}
+			cursorClickBounce={cursorClickBounce}
+			cursorClickBounceDuration={cursorClickBounceDuration}
+			cursorSway={cursorSway}
+			volume={
+				audio.shouldMutePreviewVideo || audio.isCurrentClipMuted
+					? 0
+					: Math.max(
+							0,
+							Math.min(1, previewVolume * audio.embeddedSourcePreviewGain),
+						)
+			}
+			suspendRendering={suspendRendering}
+		/>
+	);
 
 	const projectBrowser = (
 		<ProjectBrowserDialog
@@ -5396,6 +5736,9 @@ export default function VideoEditor() {
 									onGifLoopChange={setGifLoop}
 									gifSizePreset={gifSizePreset}
 									onGifSizePresetChange={setGifSizePreset}
+									showCaptionSidecarOption={hasCaptionsForSidecar && exportFormat === "mp4"}
+									includeCaptionSidecar={includeCaptionSidecar}
+									onIncludeCaptionSidecarChange={setIncludeCaptionSidecar}
 									mp4OutputDimensions={mp4OutputDimensions}
 									gifOutputDimensions={gifOutputDimensions}
 									onExport={handleStartExportFromDropdown}
@@ -5640,6 +5983,16 @@ export default function VideoEditor() {
 								onZoomClassicModeChange={setZoomClassicMode}
 								cursorMotionBlur={cursorMotionBlur}
 								onCursorMotionBlurChange={setCursorMotionBlur}
+								cursorClickEffect={cursorClickEffect}
+								cursorClickEffectColor={cursorClickEffectColor}
+								onCursorClickEffectChange={setCursorClickEffect}
+								onCursorClickEffectColorChange={setCursorClickEffectColor}
+								cursorClickEffectScale={cursorClickEffectScale}
+								onCursorClickEffectScaleChange={setCursorClickEffectScale}
+								cursorClickEffectOpacity={cursorClickEffectOpacity}
+								onCursorClickEffectOpacityChange={setCursorClickEffectOpacity}
+								cursorClickEffectDurationMs={cursorClickEffectDurationMs}
+								onCursorClickEffectDurationMsChange={setCursorClickEffectDurationMs}
 								cursorClickBounce={cursorClickBounce}
 								onCursorClickBounceChange={setCursorClickBounce}
 								cursorClickBounceDuration={cursorClickBounceDuration}
@@ -5756,130 +6109,21 @@ export default function VideoEditor() {
 								>
 									<div className="flex min-w-0 flex-1 items-center justify-center px-1">
 										<div
-											className="relative overflow-hidden rounded-[30px]"
+											className="relative"
 											style={{
 												width: "auto",
 												height: "100%",
-												aspectRatio: getAspectRatioValue(
-													aspectRatio,
-													(() => {
-														const previewVideo =
-															videoPlaybackRef.current?.video;
-														if (
-															previewVideo &&
-															previewVideo.videoHeight > 0
-														) {
-															return (
-																previewVideo.videoWidth /
-																previewVideo.videoHeight
-															);
-														}
-														return 16 / 9;
-													})(),
-												),
+												aspectRatio: previewAspectRatioValue,
 												maxWidth: "100%",
 												margin: "0 auto",
 												boxSizing: "border-box",
 											}}
 										>
-											<VideoPlayback
-												key={`${videoPath || "no-video"}:${previewVersion}`}
-												aspectRatio={aspectRatio}
-												ref={videoPlaybackRef}
-												videoPath={videoPath || ""}
-												onDurationChange={setDuration}
-												onPreviewReadyChange={setIsPreviewReady}
-												onTimeUpdate={setCurrentTime}
-												currentTime={currentTime}
-												onPlayStateChange={setIsPlaying}
-												onError={setError}
-												wallpaper={wallpaper}
-												zoomRegions={effectiveZoomRegions}
-												selectedZoomId={selectedZoomId}
-												onSelectZoom={handleSelectZoom}
-												onZoomFocusChange={handleZoomFocusChange}
-												isPlaying={isPlaying}
-												showShadow={shadowIntensity > 0}
-												shadowIntensity={shadowIntensity}
-												backgroundBlur={backgroundBlur}
-												connectZooms={connectZooms}
-												zoomInDurationMs={zoomInDurationMs}
-												zoomInOverlapMs={zoomInOverlapMs}
-												zoomOutDurationMs={zoomOutDurationMs}
-												connectedZoomGapMs={connectedZoomGapMs}
-												connectedZoomDurationMs={connectedZoomDurationMs}
-												zoomInEasing={zoomInEasing}
-												zoomOutEasing={zoomOutEasing}
-												connectedZoomEasing={connectedZoomEasing}
-												borderRadius={borderRadius}
-												padding={padding}
-												frame={frame}
-												cropRegion={cropRegion}
-												webcam={webcam}
-												webcamVideoPath={
-													webcam.sourcePath
-														? resolvedWebcamVideoUrl
-														: null
-												}
-												trimRegions={trimRegions}
-												speedRegions={effectiveSpeedRegions}
-												annotationRegions={annotationRegions}
-												autoCaptions={autoCaptions}
-												autoCaptionSettings={autoCaptionSettings}
-												selectedAnnotationId={selectedAnnotationId}
-												onSelectAnnotation={handleSelectAnnotation}
-												onAnnotationPositionChange={
-													handleAnnotationPositionChange
-												}
-												onAnnotationSizeChange={handleAnnotationSizeChange}
-												cursorTelemetry={effectiveCursorTelemetry}
-												showCursor={effectiveShowCursor}
-												cursorStyle={cursorStyle}
-												cursorSize={cursorSize}
-												cursorSmoothing={cursorSmoothing}
-												cursorSpringStiffnessMultiplier={
-													cursorSpringStiffnessMultiplier
-												}
-												cursorSpringDampingMultiplier={
-													cursorSpringDampingMultiplier
-												}
-												cursorSpringMassMultiplier={
-													cursorSpringMassMultiplier
-												}
-												cameraSpringStiffnessMultiplier={
-													cameraSpringStiffnessMultiplier
-												}
-												cameraSpringDampingMultiplier={
-													cameraSpringDampingMultiplier
-												}
-												cameraSpringMassMultiplier={
-													cameraSpringMassMultiplier
-												}
-												zoomSmoothness={zoomSmoothness}
-												zoomClassicMode={zoomClassicMode}
-												zoomMotionBlur={zoomMotionBlur}
-												zoomMotionBlurTuning={zoomMotionBlurTuning}
-												cursorMotionBlur={cursorMotionBlur}
-												cursorClickBounce={cursorClickBounce}
-												cursorClickBounceDuration={
-													cursorClickBounceDuration
-												}
-												cursorSway={cursorSway}
-												volume={
-													audio.shouldMutePreviewVideo ||
-													audio.isCurrentClipMuted
-														? 0
-														: Math.max(
-																0,
-																Math.min(
-																	1,
-																	previewVolume *
-																		audio.embeddedSourcePreviewGain,
-																),
-															)
-												}
-												suspendRendering={shouldSuspendPreviewRendering}
-											/>
+											{renderPreviewPlayback(
+												videoPlaybackRef,
+												shouldSuspendPreviewRendering,
+												"inline",
+											)}
 										</div>
 									</div>
 								</div>
@@ -5982,18 +6226,7 @@ export default function VideoEditor() {
 										size="icon"
 										className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 										title={t("editor.playback.skipBack")}
-										onClick={() => {
-											const currentMs = timelinePlayheadTime * 1000;
-											const kfs = timelineRef.current?.keyframes ?? [];
-											const prev = [...kfs]
-												.reverse()
-												.find((k) => k.time < currentMs - 50);
-											handleSeek(
-												prev
-													? prev.time / 1000
-													: Math.max(0, timelinePlayheadTime - 5),
-											);
-										}}
+										onClick={handlePreviewSkipBack}
 									>
 										<SkipBack className="w-3.5 h-3.5" weight="fill" />
 									</Button>
@@ -6015,19 +6248,7 @@ export default function VideoEditor() {
 										size="icon"
 										className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 										title={t("editor.playback.skipForward")}
-										onClick={() => {
-											const currentMs = timelinePlayheadTime * 1000;
-											const kfs = timelineRef.current?.keyframes ?? [];
-											const next = kfs.find((k) => k.time > currentMs + 50);
-											handleSeek(
-												next
-													? next.time / 1000
-													: Math.min(
-															timelineDuration,
-															timelinePlayheadTime + 5,
-														),
-											);
-										}}
+										onClick={handlePreviewSkipForward}
 									>
 										<SkipForward className="w-3.5 h-3.5" weight="fill" />
 									</Button>
@@ -6038,25 +6259,6 @@ export default function VideoEditor() {
 							</div>
 							{/* Right: collapse + volume */}
 							<div className="z-10 ml-auto flex items-center gap-2">
-								<Button
-									variant="ghost"
-									size="icon"
-									title={
-										timelineCollapsed
-											? t("editor.timeline.expand")
-											: t("editor.timeline.collapse")
-									}
-									className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
-									onClick={() => {
-										setTimelineCollapsed((p) => !p);
-									}}
-								>
-									{timelineCollapsed ? (
-										<ChevronUp className="w-3.5 h-3.5" />
-									) : (
-										<ChevronDown className="w-3.5 h-3.5" />
-									)}
-								</Button>
 								<div className="flex items-center gap-1.5">
 									<button
 										type="button"
@@ -6111,8 +6313,8 @@ export default function VideoEditor() {
 				<div
 					className="flex-shrink-0 flex flex-col"
 					style={{
-						height: timelineCollapsed ? undefined : "15%",
-						minHeight: timelineCollapsed ? 0 : 160,
+						height: "15%",
+						minHeight: 160,
 					}}
 				>
 					<TimelineEditor
