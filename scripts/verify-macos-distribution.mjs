@@ -26,6 +26,7 @@ const packageJson = JSON.parse(readFileSync(path.join(projectRoot, "package.json
 const productName = packageJson.productName ?? packageJson.name ?? "Recordly";
 const expectedBundleId = "dev.recordly.app";
 const commandTimeoutMs = 5 * 60 * 1000;
+const fileClassificationBatchSize = 100;
 const maxReportDetailLength = 4_000;
 
 function parseArguments(argv) {
@@ -281,10 +282,20 @@ function verifyEntitlements(appPath, label, tempRoot, check) {
 function verifyMachOBinaries(appPath, arch, check) {
 	check("packaged app: nested Mach-O signatures and architectures", () => {
 		const machOBinaries = [];
-		for (const filePath of walkRegularFiles(appPath)) {
-			const fileType = runProcess("file", ["-b", filePath]).stdout;
-			if (fileType.includes("Mach-O")) {
-				machOBinaries.push(filePath);
+		const regularFiles = walkRegularFiles(appPath);
+		for (let index = 0; index < regularFiles.length; index += fileClassificationBatchSize) {
+			const batch = regularFiles.slice(index, index + fileClassificationBatchSize);
+			const fileTypes = runProcess("file", ["-b", ...batch]).stdout.split(/\r?\n/);
+			if (fileTypes.length !== batch.length) {
+				throw new Error(
+					`file classification returned ${fileTypes.length} rows for ${batch.length} paths`,
+				);
+			}
+
+			for (let batchIndex = 0; batchIndex < batch.length; batchIndex += 1) {
+				if (fileTypes[batchIndex].includes("Mach-O")) {
+					machOBinaries.push(batch[batchIndex]);
+				}
 			}
 		}
 
@@ -408,7 +419,7 @@ export function verifyMacOSDistribution(argv = process.argv.slice(2)) {
 
 		check("DMG filesystem integrity", () => runProcess("hdiutil", ["verify", dmgPath]).output);
 		const dmgMountPath = path.join(tempRoot, "dmg");
-		check("DMG mounts read-only", () => {
+		check("DMG attaches read-only for inspection", () => {
 			runProcess("mkdir", ["-p", dmgMountPath]);
 			runProcess("hdiutil", [
 				"attach",
@@ -453,7 +464,15 @@ export function verifyMacOSDistribution(argv = process.argv.slice(2)) {
 		console.log(`[macos-distribution] verification report: ${options.reportPath}`);
 		return report;
 	} catch (error) {
-		writeReport(report, options.reportPath, options.summaryPath);
+		try {
+			writeReport(report, options.reportPath, options.summaryPath);
+		} catch (reportError) {
+			console.error(
+				`[macos-distribution] failed to write report: ${
+					reportError instanceof Error ? reportError.message : String(reportError)
+				}`,
+			);
+		}
 		throw error;
 	} finally {
 		if (mountedDmgPath) {

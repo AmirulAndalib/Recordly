@@ -83,6 +83,15 @@ describe("macOS distribution entitlement policy", () => {
 			"unexpected root application entitlement: com.apple.security.cs.allow-dyld-environment-variables",
 		]);
 	});
+
+	it("rejects disabled but unreviewed entitlement keys", () => {
+		expect(
+			collectEntitlementErrors({
+				...validEntitlements,
+				"com.apple.security.get-task-allow": false,
+			}),
+		).toEqual(["unexpected root application entitlement: com.apple.security.get-task-allow"]);
+	});
 });
 
 describe("macOS distribution architecture policy", () => {

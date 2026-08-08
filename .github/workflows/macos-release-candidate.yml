@@ -158,12 +158,27 @@ jobs:
           cert_path="$RUNNER_TEMP/recordly-developer-id.p12"
           cert_pem_path="$RUNNER_TEMP/recordly-developer-id.pem"
           printf '%s' "$APPLE_SIGNING_CERTIFICATE_P12_BASE64" | base64 --decode > "$cert_path"
-          openssl pkcs12 \
+          if ! openssl pkcs12 \
             -in "$cert_path" \
             -clcerts \
             -nokeys \
             -passin env:APPLE_SIGNING_CERTIFICATE_PASSWORD \
-            -out "$cert_pem_path"
+            -out "$cert_pem_path"; then
+            rm -f "$cert_pem_path"
+            pkcs12_help="$(openssl pkcs12 -help 2>&1 || true)"
+            if [[ "$pkcs12_help" != *"-legacy"* ]]; then
+              echo "PKCS#12 extraction failed and this OpenSSL has no legacy-provider fallback."
+              exit 1
+            fi
+            echo "Standard PKCS#12 extraction failed; retrying legacy Keychain compatibility."
+            openssl pkcs12 \
+              -legacy \
+              -in "$cert_path" \
+              -clcerts \
+              -nokeys \
+              -passin env:APPLE_SIGNING_CERTIFICATE_PASSWORD \
+              -out "$cert_pem_path"
+          fi
 
           openssl x509 -in "$cert_pem_path" -noout -checkend 86400
           cert_subject="$(openssl x509 -in "$cert_pem_path" -noout -subject -nameopt RFC2253 | sed 's/^subject=//')"
