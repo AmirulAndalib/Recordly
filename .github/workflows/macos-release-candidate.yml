@@ -131,11 +131,9 @@ jobs:
           npm run normalize:electron-main-cjs
           npm run smoke:electron-main-cjs
 
-      - name: Validate Apple credentials and signing certificate
+      - name: Validate Apple signing certificate
         shell: bash
         env:
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
           APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -143,7 +141,7 @@ jobs:
           set -euo pipefail
           umask 077
 
-          for name in APPLE_SIGNING_CERTIFICATE_P12_BASE64 APPLE_SIGNING_CERTIFICATE_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+          for name in APPLE_SIGNING_CERTIFICATE_P12_BASE64 APPLE_SIGNING_CERTIFICATE_PASSWORD APPLE_TEAM_ID; do
             if [[ -z "${!name:-}" ]]; then
               echo "Missing required macOS candidate secret: $name"
               exit 1
@@ -192,6 +190,31 @@ jobs:
           fi
 
           echo "Developer ID certificate preflight passed and remains valid for at least 24 hours."
+
+      - name: Authenticate Apple notarization credentials
+        timeout-minutes: 5
+        shell: bash
+        env:
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required macOS candidate secret: $name"
+              exit 1
+            fi
+          done
+
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            >/dev/null
+
+          echo "Apple notarization credential preflight passed."
 
       - name: Package, sign, and notarize macOS ${{ matrix.arch }}
         shell: bash
