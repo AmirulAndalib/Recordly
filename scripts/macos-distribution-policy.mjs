@@ -8,6 +8,8 @@ export const REQUIRED_MACOS_ENTITLEMENTS = Object.freeze([
 	"com.apple.security.device.camera",
 ]);
 
+const ALLOWED_MACOS_ENTITLEMENTS = new Set(REQUIRED_MACOS_ENTITLEMENTS);
+
 function readCodeSignValue(details, key) {
 	const prefix = `${key}=`;
 	return details
@@ -66,8 +68,20 @@ export function collectEntitlementErrors(entitlements) {
 		}
 	}
 
-	if (entitlements["com.apple.security.get-task-allow"] === true) {
-		errors.push("distribution build must not enable com.apple.security.get-task-allow");
+	for (const entitlement of Object.keys(entitlements).sort()) {
+		if (ALLOWED_MACOS_ENTITLEMENTS.has(entitlement)) {
+			continue;
+		}
+
+		if (
+			entitlement === "com.apple.security.get-task-allow" &&
+			entitlements[entitlement] === true
+		) {
+			errors.push("distribution build must not enable com.apple.security.get-task-allow");
+			continue;
+		}
+
+		errors.push(`unexpected root application entitlement: ${entitlement}`);
 	}
 
 	return errors;

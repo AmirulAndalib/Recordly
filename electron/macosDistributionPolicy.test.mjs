@@ -72,6 +72,17 @@ describe("macOS distribution entitlement policy", () => {
 			"distribution build must not enable com.apple.security.get-task-allow",
 		]);
 	});
+
+	it("rejects unreviewed root runtime exceptions", () => {
+		expect(
+			collectEntitlementErrors({
+				...validEntitlements,
+				"com.apple.security.cs.allow-dyld-environment-variables": true,
+			}),
+		).toEqual([
+			"unexpected root application entitlement: com.apple.security.cs.allow-dyld-environment-variables",
+		]);
+	});
 });
 
 describe("macOS distribution architecture policy", () => {
