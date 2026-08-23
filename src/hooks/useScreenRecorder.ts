@@ -213,10 +213,7 @@ export function resolveBrowserCaptureCursorPolicy({
 export function shouldUseNativeWindowsCaptureForSource(
 	source: Pick<ProcessedDesktopSource, "id"> | null | undefined,
 ): boolean {
-	return (
-		source?.id?.startsWith("screen:") === true ||
-		source?.id?.startsWith("window:") === true
-	);
+	return source?.id?.startsWith("screen:") === true || source?.id?.startsWith("window:") === true;
 }
 
 export function createProcessedMicrophoneConstraints(
@@ -1066,6 +1063,97 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		}
 	}, []);
 
+	const prepareRecordingStart = useCallback(async () => {
+		const platform = await window.electronAPI.getPlatform();
+		hideEditorOverlayCursorByDefault.current = false;
+		const existingSource = await window.electronAPI.getSelectedSource();
+		const selectedSource =
+			existingSource ?? (platform === "linux" ? LINUX_PORTAL_SOURCE : null);
+		if (!selectedSource) {
+			alert("Please select a source to record");
+			return null;
+		}
+
+		if (!existingSource && selectedSource.id === "screen:linux-portal") {
+			try {
+				await window.electronAPI.selectSource(selectedSource);
+			} catch (err) {
+				console.warn("Failed to persist Linux portal sentinel source:", err);
+			}
+		}
+
+		const permissionsReady = await preparePermissions();
+		if (!permissionsReady) {
+			return null;
+		}
+
+		recordingSessionTimestamp.current = Date.now();
+		resetRecordingClock(recordingSessionTimestamp.current);
+		await prepareWebcamRecorder();
+
+		const useNativeMacScreenCapture =
+			platform === "darwin" &&
+			(selectedSource.id?.startsWith("screen:") ||
+				selectedSource.id?.startsWith("window:")) &&
+			typeof window.electronAPI.startNativeScreenRecording === "function";
+
+		let useNativeWindowsCapture = false;
+		if (
+			platform === "win32" &&
+			shouldUseNativeWindowsCaptureForSource(selectedSource) &&
+			typeof window.electronAPI.isNativeWindowsCaptureAvailable === "function"
+		) {
+			try {
+				const nativeWindowsResult =
+					await window.electronAPI.isNativeWindowsCaptureAvailable();
+				useNativeWindowsCapture = nativeWindowsResult.available;
+				if (!useNativeWindowsCapture && !hasShownNativeWindowsFallbackToast.current) {
+					void logNativeCaptureDiagnostics("is-native-windows-capture-available");
+					hasShownNativeWindowsFallbackToast.current = true;
+					toast.info(
+						"Native Windows capture is unavailable. Falling back to browser capture.",
+					);
+				}
+			} catch {
+				useNativeWindowsCapture = false;
+				if (!hasShownNativeWindowsFallbackToast.current) {
+					hasShownNativeWindowsFallbackToast.current = true;
+					toast.info(
+						"Unable to check native Windows capture. Falling back to browser capture.",
+					);
+				}
+			}
+		}
+
+		let micLabel: string | undefined;
+		if ((useNativeMacScreenCapture || useNativeWindowsCapture) && microphoneEnabled) {
+			try {
+				const devices = await navigator.mediaDevices.enumerateDevices();
+				const mic = devices.find(
+					(d) => d.deviceId === microphoneDeviceId && d.kind === "audioinput",
+				);
+				micLabel = mic?.label || undefined;
+			} catch {
+				// Fall through - native process will use the default mic.
+			}
+		}
+
+		return {
+			platform,
+			selectedSource,
+			useNativeMacScreenCapture,
+			useNativeWindowsCapture,
+			micLabel,
+		};
+	}, [
+		logNativeCaptureDiagnostics,
+		microphoneDeviceId,
+		microphoneEnabled,
+		preparePermissions,
+		prepareWebcamRecorder,
+		resetRecordingClock,
+	]);
+
 	const stopRecording = useRef(() => {
 		setPaused(false);
 		if (nativeScreenRecording.current) {
@@ -1375,84 +1463,33 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		setStarting(true);
 
 		try {
-			const platform = await window.electronAPI.getPlatform();
-			hideEditorOverlayCursorByDefault.current = false;
-			const existingSource = await window.electronAPI.getSelectedSource();
-			const selectedSource =
-				existingSource ?? (platform === "linux" ? LINUX_PORTAL_SOURCE : null);
-			if (!selectedSource) {
-				alert("Please select a source to record");
+			const preparedStart = await prepareRecordingStart();
+			if (!preparedStart) {
 				return;
 			}
-			// Persist the synthetic Linux portal sentinel to main so that the
-			// setDisplayMediaRequestHandler can short-circuit getSources() and
-			// avoid triggering an extra portal dialog.
-			if (!existingSource && selectedSource.id === "screen:linux-portal") {
+
+			const { selectedSource, useNativeMacScreenCapture, useNativeWindowsCapture, micLabel } =
+				preparedStart;
+			const useNativeCapture =
+				useNativeMacScreenCapture || useNativeWindowsCapture;
+			const shouldWarmStartNativeCapture = useNativeCapture && countdownDelay > 0;
+			if (countdownDelay > 0 && !shouldWarmStartNativeCapture) {
+				setCountdownActive(true);
 				try {
-					await window.electronAPI.selectSource(selectedSource);
-				} catch (err) {
-					console.warn("Failed to persist Linux portal sentinel source:", err);
+					const result = await window.electronAPI.startCountdown(countdownDelay);
+					if (!result.success || result.cancelled) {
+						return;
+					}
+				} finally {
+					setCountdownActive(false);
 				}
+				recordingSessionTimestamp.current = Date.now();
+				resetRecordingClock(recordingSessionTimestamp.current);
 			}
 
-			const permissionsReady = await preparePermissions();
-			if (!permissionsReady) {
-				return;
-			}
-
-			recordingSessionTimestamp.current = Date.now();
-			resetRecordingClock(recordingSessionTimestamp.current);
-			await prepareWebcamRecorder();
-			const useNativeMacScreenCapture =
-				platform === "darwin" &&
-				(selectedSource.id?.startsWith("screen:") ||
-					selectedSource.id?.startsWith("window:")) &&
-				typeof window.electronAPI.startNativeScreenRecording === "function";
-
-			let useNativeWindowsCapture = false;
 			let nativeWindowsCaptureStartFailed = false;
-			if (
-				platform === "win32" &&
-				shouldUseNativeWindowsCaptureForSource(selectedSource) &&
-				typeof window.electronAPI.isNativeWindowsCaptureAvailable === "function"
-			) {
-				try {
-					const nativeWindowsResult =
-						await window.electronAPI.isNativeWindowsCaptureAvailable();
-					useNativeWindowsCapture = nativeWindowsResult.available;
-					if (!useNativeWindowsCapture && !hasShownNativeWindowsFallbackToast.current) {
-						void logNativeCaptureDiagnostics("is-native-windows-capture-available");
-						hasShownNativeWindowsFallbackToast.current = true;
-						toast.info(
-							"Native Windows capture is unavailable. Falling back to browser capture.",
-						);
-					}
-				} catch {
-					useNativeWindowsCapture = false;
-					if (!hasShownNativeWindowsFallbackToast.current) {
-						hasShownNativeWindowsFallbackToast.current = true;
-						toast.info(
-							"Unable to check native Windows capture. Falling back to browser capture.",
-						);
-					}
-				}
-			}
 
-			if (useNativeMacScreenCapture || useNativeWindowsCapture) {
-				// Resolve the selected mic label for native capture backends.
-				let micLabel: string | undefined;
-				if (microphoneEnabled) {
-					try {
-						const devices = await navigator.mediaDevices.enumerateDevices();
-						const mic = devices.find(
-							(d) => d.deviceId === microphoneDeviceId && d.kind === "audioinput",
-						);
-						micLabel = mic?.label || undefined;
-					} catch {
-						// Fall through — native process will use the default mic
-					}
-				}
-
+			if (useNativeCapture) {
 				const nativeResult = await window.electronAPI.startNativeScreenRecording(
 					selectedSource,
 					{
@@ -1491,11 +1528,53 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				}
 
 				if (nativeResult.success) {
+					nativeScreenRecording.current = true;
+					nativeWindowsRecording.current = useNativeWindowsCapture;
+					if (shouldWarmStartNativeCapture) {
+						const pauseResult = await window.electronAPI.pauseNativeScreenRecording();
+						if (!pauseResult.success) {
+							throw new Error(
+								pauseResult.error ??
+									pauseResult.message ??
+									"Failed to pause native capture before countdown",
+							);
+						}
+
+						setCountdownActive(true);
+						try {
+							const countdownResult =
+								await window.electronAPI.startCountdown(countdownDelay);
+							if (!countdownResult.success || countdownResult.cancelled) {
+								const stoppedResult =
+									await window.electronAPI.stopNativeScreenRecording();
+								if (stoppedResult.path) {
+									await window.electronAPI.deleteRecordingFile(
+										stoppedResult.path,
+									);
+								}
+								nativeScreenRecording.current = false;
+								nativeWindowsRecording.current = false;
+								cleanupCapturedMedia();
+								await stopWebcamRecorder();
+								return;
+							}
+						} finally {
+							setCountdownActive(false);
+						}
+
+						const resumeResult = await window.electronAPI.resumeNativeScreenRecording();
+						if (!resumeResult.success) {
+							throw new Error(
+								resumeResult.error ??
+									resumeResult.message ??
+									"Failed to resume native capture after countdown",
+							);
+						}
+					}
+
 					const mainStartedAt = Date.now();
 					micFallbackStartDelayMs.current = null;
 					beginWebcamCapture();
-					nativeScreenRecording.current = true;
-					nativeWindowsRecording.current = useNativeWindowsCapture;
 					resetRecordingClock(mainStartedAt);
 					webcamTimeOffsetMs.current =
 						webcamStartTime.current === null
@@ -1579,6 +1658,22 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 					return;
 				}
+			}
+
+			if (nativeWindowsCaptureStartFailed && countdownDelay > 0) {
+				setCountdownActive(true);
+				try {
+					const result = await window.electronAPI.startCountdown(countdownDelay);
+					if (!result.success || result.cancelled) {
+						cleanupCapturedMedia();
+						await stopWebcamRecorder();
+						return;
+					}
+				} finally {
+					setCountdownActive(false);
+				}
+				recordingSessionTimestamp.current = Date.now();
+				resetRecordingClock(recordingSessionTimestamp.current);
 			}
 
 			const browserCursorPolicy = resolveBrowserCaptureCursorPolicy({
@@ -1922,6 +2017,14 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			);
 			setRecording(false);
 			try {
+				if (nativeScreenRecording.current) {
+					nativeScreenRecording.current = false;
+					nativeWindowsRecording.current = false;
+					const stoppedResult = await window.electronAPI.stopNativeScreenRecording();
+					if (stoppedResult.path) {
+						await window.electronAPI.deleteRecordingFile(stoppedResult.path);
+					}
+				}
 				await window.electronAPI?.setRecordingState(false);
 			} catch (stateError) {
 				console.warn("Failed to reset main-process recording state:", stateError);
@@ -2083,19 +2186,6 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		if (recording) {
 			stopRecording.current();
 			return;
-		}
-
-		// Start recording with optional countdown
-		if (countdownDelay > 0) {
-			setCountdownActive(true);
-			try {
-				const result = await window.electronAPI.startCountdown(countdownDelay);
-				if (!result.success || result.cancelled) {
-					return;
-				}
-			} finally {
-				setCountdownActive(false);
-			}
 		}
 
 		startRecording();
