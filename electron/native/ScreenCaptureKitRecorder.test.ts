@@ -23,3 +23,20 @@ describe("ScreenCaptureKitRecorder finalization coordination", () => {
 		);
 	});
 });
+
+describe("ScreenCaptureKitRecorder resume timing", () => {
+	it("anchors warm-start resume timing to video before accepting audio", () => {
+		expect(recorderSource).toContain(
+			"guard outputType == .screen, let pauseStartedHostTime else",
+		);
+	});
+
+	it("drops non-monotonic video and audio samples", () => {
+		expect(recorderSource).toContain(
+			"CMTimeCompare(presentationTime, lastVideoPresentationTime) <= 0",
+		);
+		expect(recorderSource).toContain(
+			"CMTimeCompare(presentationTime, lastPresentationTime) > 0",
+		);
+	});
+});

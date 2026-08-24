@@ -473,7 +473,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				if (diagnostics.error) {
 					details.push(diagnostics.error);
 				}
-				if (diagnostics.outputPath) {
+				if (diagnostics.outputPath && (diagnostics.fileSizeBytes ?? 0) > 0) {
 					details.push(`Saved file: ${diagnostics.outputPath}`);
 				}
 
