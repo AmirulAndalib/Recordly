@@ -172,12 +172,29 @@ function loadUiohookModule() {
 	}
 }
 
+export function shouldStartGlobalInteractionHook(platform: NodeJS.Platform = process.platform) {
+	// On macOS, uiohook can block forever while its native event tap starts
+	// (notably when Accessibility permission is unavailable or stale). Because
+	// start() executes synchronously, that freezes Electron's main thread and
+	// makes every window, including the recording HUD, unresponsive. Cursor
+	// position and visual-state telemetry still come from the existing native
+	// macOS monitor and Electron sampler.
+	return platform !== "darwin";
+}
+
 export async function startInteractionCapture() {
 	if (!isCursorCaptureActive) {
 		return;
 	}
 
 	if (!["darwin", "win32", "linux"].includes(process.platform)) {
+		return;
+	}
+
+	if (!shouldStartGlobalInteractionHook()) {
+		console.warn(
+			"[CursorTelemetry] Skipping the blocking global interaction hook on macOS.",
+		);
 		return;
 	}
 

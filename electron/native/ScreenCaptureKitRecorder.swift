@@ -18,6 +18,10 @@ struct CaptureConfig: Codable {
 
 let targetCaptureFPS = 60
 let maxInlineAudioTailExtension = CMTime(seconds: 2.0, preferredTimescale: 600)
+/// How long finalization waits for a backed-up encoder queue before giving up on
+/// the optional tail frame: 100 polls x 10 ms = 1 s.
+let writerReadinessPollAttempts = 100
+let writerReadinessPollInterval: UInt64 = 10_000_000
 
 final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private let queue = DispatchQueue(label: "recordly.screencapturekit.video")
@@ -271,8 +275,6 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		lastVideoPresentationTime = .zero
 		lastVideoDuration = .zero
 		startWindowValidationIfNeeded()
-		print("Recording started")
-		fflush(stdout)
 	}
 
 	func stopCapture() async throws -> String {
@@ -283,17 +285,33 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		return try await finishCapture()
 	}
 
-	func pauseCapture() {
-		guard isRecording, !isPaused else { return }
-		isPaused = true
-		pauseStartedHostTime = CMClockGetTime(CMClockGetHostTimeClock())
-		pendingResumeAdjustment = false
+	func pauseCapture() async -> Bool {
+		await withCheckedContinuation { continuation in
+			queue.async {
+				guard self.isRecording, !self.isPaused else {
+					continuation.resume(returning: self.isRecording && self.isPaused)
+					return
+				}
+				self.isPaused = true
+				self.pauseStartedHostTime = CMClockGetTime(CMClockGetHostTimeClock())
+				self.pendingResumeAdjustment = false
+				continuation.resume(returning: true)
+			}
+		}
 	}
 
-	func resumeCapture() {
-		guard isRecording, isPaused else { return }
-		isPaused = false
-		pendingResumeAdjustment = true
+	func resumeCapture() async -> Bool {
+		await withCheckedContinuation { continuation in
+			queue.async {
+				guard self.isRecording, self.isPaused else {
+					continuation.resume(returning: self.isRecording && !self.isPaused)
+					return
+				}
+				self.isPaused = false
+				self.pendingResumeAdjustment = true
+				continuation.resume(returning: true)
+			}
+		}
 	}
 
 	func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
@@ -309,7 +327,9 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				return
 			}
 
-			guard let videoInput = videoInput, videoInput.isReadyForMoreMediaData else { return }
+			guard let videoInput = videoInput,
+				  assetWriter?.status == .writing,
+				  videoInput.isReadyForMoreMediaData else { return }
 
 			if firstSampleTime == .zero {
 				firstSampleTime = sampleBuffer.presentationTimeStamp
@@ -318,31 +338,38 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			lastSampleBuffer = sampleBuffer
 			let timing = CMSampleTimingInfo(duration: sampleBuffer.duration, presentationTimeStamp: presentationTime, decodeTimeStamp: sampleBuffer.decodeTimeStamp)
 			if let retimedSampleBuffer = try? CMSampleBuffer(copying: sampleBuffer, withNewTiming: [timing]) {
-				videoInput.append(retimedSampleBuffer)
-				lastVideoPresentationTime = presentationTime
-				lastVideoDuration = sampleBuffer.duration
-				frameCount += 1
+				if videoInput.append(retimedSampleBuffer) {
+					lastVideoPresentationTime = presentationTime
+					lastVideoDuration = sampleBuffer.duration
+					frameCount += 1
+					if frameCount == 1 {
+						// Signal readiness only after AVAssetWriter has accepted a
+						// real frame, so countdown warm-start cannot pause too early.
+						print("Recording started")
+						fflush(stdout)
+					}
+				}
 			}
 			return
 		}
 
 		if outputType == .audio {
 			guard let systemAudioInput else { return }
-			appendAudioSampleBuffer(sampleBuffer, to: systemAudioInput, firstSampleTime: &firstSystemAudioSampleTime, presentationTime: presentationTime)
+			appendAudioSampleBuffer(sampleBuffer, to: systemAudioInput, of: systemAudioWriter, firstSampleTime: &firstSystemAudioSampleTime, presentationTime: presentationTime)
 			// Also write system audio to the inline video track
 			if let inlineAudioInput, inlineAudioInput.isReadyForMoreMediaData {
-				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, firstSampleTime: &firstInlineAudioSampleTime, presentationTime: presentationTime)
+				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, of: assetWriter, firstSampleTime: &firstInlineAudioSampleTime, presentationTime: presentationTime)
 			}
 			return
 		}
 
 		if outputType.rawValue == microphoneOutputTypeRawValue {
 			if let microphoneOnlyInput {
-				appendAudioSampleBuffer(sampleBuffer, to: microphoneOnlyInput, firstSampleTime: &firstMicrophoneSampleTime, presentationTime: presentationTime)
+				appendAudioSampleBuffer(sampleBuffer, to: microphoneOnlyInput, of: microphoneOnlyWriter, firstSampleTime: &firstMicrophoneSampleTime, presentationTime: presentationTime)
 			}
 			// Write mic to inline video track only if there's no system audio (avoids double-writing)
 			if !capturesSystemAudio, let inlineAudioInput, inlineAudioInput.isReadyForMoreMediaData {
-				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, firstSampleTime: &firstInlineAudioSampleTime, presentationTime: presentationTime)
+				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, of: assetWriter, firstSampleTime: &firstInlineAudioSampleTime, presentationTime: presentationTime)
 			}
 			return
 		}
@@ -370,7 +397,16 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		stream = nil
 		isRecording = false
 
-		if let originalBuffer = lastSampleBuffer, let videoInput = videoInput {
+		// The tail frame only gives the last captured frame its full duration, so
+		// it must never put the file at risk.  Appending to an input whose encoder
+		// queue is still backed up — routine after a long high-resolution capture —
+		// raises an Objective-C exception that Swift cannot catch, aborting the
+		// helper before `finishWriting()` and leaving an mdat with no moov atom:
+		// an unplayable recording.  Wait briefly for the queue to drain, then skip
+		// the frame rather than lose the recording.
+		if let originalBuffer = lastSampleBuffer,
+		   let videoInput = videoInput,
+		   await waitUntilReady(videoInput, of: assetWriter) {
 			let additionalTime = lastVideoPresentationTime + frameDuration(for: originalBuffer)
 			let timing = CMSampleTimingInfo(duration: originalBuffer.duration, presentationTimeStamp: additionalTime, decodeTimeStamp: originalBuffer.decodeTimeStamp)
 			if let additionalSampleBuffer = try? CMSampleBuffer(copying: originalBuffer, withNewTiming: [timing]) {
@@ -378,19 +414,29 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			}
 		}
 
+		// `endSession`, `markAsFinished` and `finishWriting` all raise when the
+		// writer is no longer in the `.writing` state (a mid-capture failure, for
+		// example a full disk), which would abort the helper the same way.
 		let videoEndTime = lastVideoPresentationTime + (lastSampleBuffer.map { frameDuration(for: $0) } ?? .zero)
 		let endTime = resolvedCaptureEndTime(videoEndTime: videoEndTime)
-		assetWriter?.endSession(atSourceTime: endTime)
-		videoInput?.markAsFinished()
-		inlineAudioInput?.markAsFinished()
-		await assetWriter?.finishWriting()
+		if let assetWriter, assetWriter.status == .writing {
+			assetWriter.endSession(atSourceTime: endTime)
+			videoInput?.markAsFinished()
+			inlineAudioInput?.markAsFinished()
+			await assetWriter.finishWriting()
+		}
 
-		systemAudioInput?.markAsFinished()
-		await systemAudioWriter?.finishWriting()
+		if let systemAudioWriter, systemAudioWriter.status == .writing {
+			systemAudioInput?.markAsFinished()
+			await systemAudioWriter.finishWriting()
+		}
 
-		microphoneOnlyInput?.markAsFinished()
-		await microphoneOnlyWriter?.finishWriting()
+		if let microphoneOnlyWriter, microphoneOnlyWriter.status == .writing {
+			microphoneOnlyInput?.markAsFinished()
+			await microphoneOnlyWriter.finishWriting()
+		}
 
+		let finalizeFailure: Error? = assetWriter.flatMap { $0.status == .completed ? nil : ($0.error ?? unfinalizedWriterError(status: $0.status)) }
 		let path = outputURL?.path ?? ""
 		assetWriter = nil
 		videoInput = nil
@@ -420,7 +466,40 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		capturesMicrophone = false
 		writesSystemAudioToSeparateTrack = false
 		writesMicrophoneToSeparateTrack = false
+
+		// Report a half-written file as a failure instead of handing the editor a
+		// path it cannot decode.
+		if let finalizeFailure {
+			throw finalizeFailure
+		}
+
 		return path
+	}
+
+	/// Waits briefly for an input's encoder queue to drain.  Returns false when the
+	/// input stays backed up or its writer is no longer accepting data, in which
+	/// case the caller must skip the append: `AVAssetWriterInput.append` raises an
+	/// uncatchable Objective-C exception in both cases.
+	private func waitUntilReady(_ input: AVAssetWriterInput, of writer: AVAssetWriter?) async -> Bool {
+		guard let writer else { return false }
+
+		var attemptsRemaining = writerReadinessPollAttempts
+		while writer.status == .writing {
+			if input.isReadyForMoreMediaData {
+				return true
+			}
+			guard attemptsRemaining > 0 else { return false }
+			attemptsRemaining -= 1
+			try? await Task.sleep(nanoseconds: writerReadinessPollInterval)
+		}
+
+		return false
+	}
+
+	private func unfinalizedWriterError(status: AVAssetWriter.Status) -> Error {
+		NSError(domain: "RecordlyCapture", code: 10, userInfo: [
+			NSLocalizedDescriptionKey: "Recording could not be finalized (writer status \(status.rawValue))",
+		])
 	}
 
 	private func adjustedPresentationTime(for sampleBuffer: CMSampleBuffer, outputType: SCStreamOutputType) -> CMTime? {
@@ -497,8 +576,10 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		return videoEndTime + CMTimeMinimum(tailExtension, maxInlineAudioTailExtension)
 	}
 
-	private func appendAudioSampleBuffer(_ sampleBuffer: CMSampleBuffer, to input: AVAssetWriterInput, firstSampleTime: inout CMTime?, presentationTime: CMTime) {
-		guard input.isReadyForMoreMediaData else { return }
+	private func appendAudioSampleBuffer(_ sampleBuffer: CMSampleBuffer, to input: AVAssetWriterInput, of writer: AVAssetWriter?, firstSampleTime: inout CMTime?, presentationTime: CMTime) {
+		// A writer that failed mid-capture (a full disk, say) raises on every
+		// further append, which would abort the helper and lose the whole file.
+		guard writer?.status == .writing, input.isReadyForMoreMediaData else { return }
 
 		if firstSampleTime == nil {
 			firstSampleTime = presentationTime
@@ -596,47 +677,60 @@ final class RecorderService {
 	private let queue = DispatchQueue(label: "recordly.screencapturekit.commands")
 	private let completionGroup = DispatchGroup()
 
+	private func enqueue(_ operation: @escaping () async -> Void) {
+		queue.async {
+			let semaphore = DispatchSemaphore(value: 0)
+			Task {
+				await operation()
+				semaphore.signal()
+			}
+			semaphore.wait()
+		}
+	}
+
 	func start(configJSON: String) {
 		completionGroup.enter()
-		queue.async {
-			Task {
-				do {
-					try await self.recorder.startCapture(configJSON: configJSON)
-				} catch {
-					fputs("Error starting capture: \(error.localizedDescription)\n", stderr)
-					fflush(stderr)
-					self.completionGroup.leave()
-				}
+		enqueue {
+			do {
+				try await self.recorder.startCapture(configJSON: configJSON)
+			} catch {
+				fputs("Error starting capture: \(error.localizedDescription)\n", stderr)
+				fflush(stderr)
+				self.completionGroup.leave()
 			}
 		}
 	}
 
 	func stop() {
-		queue.async {
-			Task {
-				do {
-					let outputPath = try await self.recorder.stopCapture()
-					print("Recording stopped. Output path: \(outputPath)")
-					fflush(stdout)
-					self.completionGroup.leave()
-				} catch {
-					fputs("Error stopping capture: \(error.localizedDescription)\n", stderr)
-					fflush(stderr)
-					self.completionGroup.leave()
-				}
+		enqueue {
+			do {
+				let outputPath = try await self.recorder.stopCapture()
+				print("Recording stopped. Output path: \(outputPath)")
+				fflush(stdout)
+				self.completionGroup.leave()
+			} catch {
+				fputs("Error stopping capture: \(error.localizedDescription)\n", stderr)
+				fflush(stderr)
+				self.completionGroup.leave()
 			}
 		}
 	}
 
 	func pause() {
-		queue.async {
-			self.recorder.pauseCapture()
+		enqueue {
+			if await self.recorder.pauseCapture() {
+				print("Recording paused")
+				fflush(stdout)
+			}
 		}
 	}
 
 	func resume() {
-		queue.async {
-			self.recorder.resumeCapture()
+		enqueue {
+			if await self.recorder.resumeCapture() {
+				print("Recording resumed")
+				fflush(stdout)
+			}
 		}
 	}
 
@@ -715,4 +809,3 @@ DispatchQueue.global(qos: .utility).async {
 }
 
 service.waitUntilFinished()
-
