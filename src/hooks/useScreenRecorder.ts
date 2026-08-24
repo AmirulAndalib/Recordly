@@ -262,6 +262,63 @@ export function createBrowserRecordingOptions({
 	return options;
 }
 
+type NativeCaptureStopResult = {
+	success: boolean;
+	path?: string;
+	error?: string;
+	message?: string;
+};
+
+export type DiscardNativeCaptureResult = {
+	stopSucceeded: boolean;
+	deleteSucceeded: boolean;
+	path?: string;
+	error?: unknown;
+};
+
+export async function stopAndDiscardNativeCapture({
+	stopNativeScreenRecording,
+	deleteRecordingFile,
+}: {
+	stopNativeScreenRecording: () => Promise<NativeCaptureStopResult>;
+	deleteRecordingFile: (path: string) => Promise<unknown>;
+}): Promise<DiscardNativeCaptureResult> {
+	let stoppedResult: NativeCaptureStopResult;
+	try {
+		stoppedResult = await stopNativeScreenRecording();
+	} catch (error) {
+		return { stopSucceeded: false, deleteSucceeded: false, error };
+	}
+
+	if (!stoppedResult.success) {
+		return {
+			stopSucceeded: false,
+			deleteSucceeded: false,
+			error: stoppedResult.error ?? stoppedResult.message,
+		};
+	}
+
+	if (!stoppedResult.path) {
+		return { stopSucceeded: true, deleteSucceeded: true };
+	}
+
+	try {
+		await deleteRecordingFile(stoppedResult.path);
+		return {
+			stopSucceeded: true,
+			deleteSucceeded: true,
+			path: stoppedResult.path,
+		};
+	} catch (error) {
+		return {
+			stopSucceeded: true,
+			deleteSucceeded: false,
+			path: stoppedResult.path,
+			error,
+		};
+	}
+}
+
 function createMicrophoneTrackSettingsSnapshot(
 	stream: MediaStream,
 ): MicrophoneTrackSettingsSnapshot | null {
@@ -344,6 +401,10 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const recordingSessionTimestamp = useRef<number | null>(null);
 	const nativeScreenRecording = useRef(false);
 	const nativeWindowsRecording = useRef(false);
+	const nativeWarmStartActive = useRef(false);
+	const pendingNativeCleanupPath = useRef<string | null>(null);
+	const recordingStartGeneration = useRef(0);
+	const nativeStopRequestInFlight = useRef(false);
 	const startInFlight = useRef(false);
 	const hasPromptedForReselect = useRef(false);
 	const hasShownNativeWindowsFallbackToast = useRef(false);
@@ -1155,10 +1216,74 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		resetRecordingClock,
 	]);
 
-	const stopRecording = useRef(() => {
-		setPaused(false);
-		if (nativeScreenRecording.current) {
+	const discardActiveNativeCapture = useCallback(async () => {
+		const pendingPath = pendingNativeCleanupPath.current;
+		if (pendingPath) {
+			try {
+				await window.electronAPI.deleteRecordingFile(pendingPath);
+				pendingNativeCleanupPath.current = null;
+			} catch (error) {
+				console.warn("Failed to delete pending native capture file:", error);
+			}
+		}
+
+		if (!nativeScreenRecording.current) {
+			return pendingNativeCleanupPath.current === null;
+		}
+		if (nativeStopRequestInFlight.current) {
+			return false;
+		}
+
+		nativeStopRequestInFlight.current = true;
+		let result: DiscardNativeCaptureResult;
+		try {
+			result = await stopAndDiscardNativeCapture({
+				stopNativeScreenRecording: () => window.electronAPI.stopNativeScreenRecording(),
+				deleteRecordingFile: (path) => window.electronAPI.deleteRecordingFile(path),
+			});
+		} finally {
+			nativeStopRequestInFlight.current = false;
+		}
+
+		if (result.stopSucceeded) {
 			nativeScreenRecording.current = false;
+			nativeWindowsRecording.current = false;
+			nativeWarmStartActive.current = false;
+		}
+
+		if (!result.deleteSucceeded && result.path) {
+			pendingNativeCleanupPath.current = result.path;
+		}
+
+		if (!result.stopSucceeded || !result.deleteSucceeded) {
+			console.warn("Failed to fully discard native capture:", result.error);
+			return false;
+		}
+
+		return true;
+	}, []);
+
+	const stopRecording = useRef(() => {
+		recordingStartGeneration.current += 1;
+		setPaused(false);
+		if (nativeScreenRecording.current && nativeWarmStartActive.current) {
+			setRecording(false);
+			void (async () => {
+				await discardActiveNativeCapture();
+				cleanupCapturedMedia();
+				await Promise.allSettled([
+					stopMicFallbackRecorder(),
+					stopWebcamRecorder(),
+					window.electronAPI?.setRecordingState(false),
+				]);
+			})();
+			return;
+		}
+		if (nativeScreenRecording.current) {
+			if (nativeStopRequestInFlight.current) {
+				return;
+			}
+			nativeStopRequestInFlight.current = true;
 			setRecording(false);
 			setFinalizing(true);
 
@@ -1174,16 +1299,30 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				const micFallbackBlobPromise = stopMicFallbackRecorder();
 				const webcamPathPromise = stopWebcamRecorder();
 				const isNativeWindows = nativeWindowsRecording.current;
-				nativeWindowsRecording.current = false;
 
 				const ipcStopStart = performance.now();
 				console.log("[PERF:RENDERER] IPC: stopNativeScreenRecording: STARTED");
-				const result = await window.electronAPI.stopNativeScreenRecording();
+				let result: NativeCaptureStopResult;
+				try {
+					result = await window.electronAPI.stopNativeScreenRecording();
+				} catch (error) {
+					result = { success: false, error: getErrorMessage(error) };
+				}
+				nativeStopRequestInFlight.current = false;
 				console.log(
 					`[PERF:RENDERER] IPC: stopNativeScreenRecording: COMPLETED in ${(performance.now() - ipcStopStart).toFixed(2)}ms`,
 				);
+				if (result.success) {
+					nativeScreenRecording.current = false;
+					nativeWindowsRecording.current = false;
+					nativeWarmStartActive.current = false;
+				}
 
-				await window.electronAPI?.setRecordingState(false);
+				try {
+					await window.electronAPI?.setRecordingState(false);
+				} catch (stateError) {
+					console.warn("Failed to reset main-process recording state:", stateError);
+				}
 
 				if (!result.success || !result.path) {
 					console.error(
@@ -1393,8 +1532,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		const removeRecordingInterruptedListener = window.electronAPI?.onRecordingInterrupted?.(
 			(state) => {
 				void (async () => {
+					recordingStartGeneration.current += 1;
 					setRecording(false);
 					nativeScreenRecording.current = false;
+					nativeWindowsRecording.current = false;
+					nativeWarmStartActive.current = false;
 					cleanupCapturedMedia();
 					await window.electronAPI.setRecordingState(false);
 
@@ -1425,13 +1567,33 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		);
 
 		return () => {
+			recordingStartGeneration.current += 1;
 			cleanup?.();
 			removeRecordingStateListener?.();
 			removeRecordingInterruptedListener?.();
 
 			if (nativeScreenRecording.current) {
-				nativeScreenRecording.current = false;
-				void window.electronAPI.stopNativeScreenRecording();
+				if (nativeWarmStartActive.current) {
+					void discardActiveNativeCapture();
+				} else if (!nativeStopRequestInFlight.current) {
+					nativeStopRequestInFlight.current = true;
+					void window.electronAPI
+						.stopNativeScreenRecording()
+						.then((result) => {
+							if (result.success) {
+								nativeScreenRecording.current = false;
+								nativeWindowsRecording.current = false;
+							}
+						})
+						.catch((error) => {
+							console.warn("Failed to stop native capture during cleanup:", error);
+						})
+						.finally(() => {
+							nativeStopRequestInFlight.current = false;
+						});
+				}
+			} else if (pendingNativeCleanupPath.current) {
+				void discardActiveNativeCapture();
 			}
 
 			const recorder = mediaRecorder.current;
@@ -1442,12 +1604,15 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 			cleanupCapturedMedia();
 		};
-	}, [cleanupCapturedMedia, recoverNativeRecordingSession]);
+	}, [cleanupCapturedMedia, discardActiveNativeCapture, recoverNativeRecordingSession]);
 
 	const startRecording = async () => {
 		if (startInFlight.current) {
 			return;
 		}
+		const startGeneration = recordingStartGeneration.current + 1;
+		recordingStartGeneration.current = startGeneration;
+		const startWasCancelled = () => recordingStartGeneration.current !== startGeneration;
 
 		let hudSourceSelectionActive = false;
 		const setHudSourceSelectionActive = (active: boolean) => {
@@ -1465,7 +1630,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 		try {
 			const preparedStart = await prepareRecordingStart();
-			if (!preparedStart) {
+			if (!preparedStart || startWasCancelled()) {
+				cleanupCapturedMedia();
+				await stopWebcamRecorder();
 				return;
 			}
 
@@ -1477,7 +1644,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				setCountdownActive(true);
 				try {
 					const result = await window.electronAPI.startCountdown(countdownDelay);
-					if (!result.success || result.cancelled) {
+					if (!result.success || result.cancelled || startWasCancelled()) {
 						cleanupCapturedMedia();
 						await stopWebcamRecorder();
 						return;
@@ -1501,6 +1668,15 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						microphoneLabel: micLabel,
 					},
 				);
+				if (nativeResult.success && startWasCancelled()) {
+					nativeScreenRecording.current = true;
+					nativeWindowsRecording.current = useNativeWindowsCapture;
+					nativeWarmStartActive.current = shouldWarmStartNativeCapture;
+					await discardActiveNativeCapture();
+					cleanupCapturedMedia();
+					await stopWebcamRecorder();
+					return;
+				}
 				if (!nativeResult.success) {
 					if (useNativeWindowsCapture) {
 						nativeWindowsCaptureStartFailed = true;
@@ -1533,7 +1709,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					nativeScreenRecording.current = true;
 					nativeWindowsRecording.current = useNativeWindowsCapture;
 					if (shouldWarmStartNativeCapture) {
+						nativeWarmStartActive.current = true;
 						const pauseResult = await window.electronAPI.pauseNativeScreenRecording();
+						if (startWasCancelled()) {
+							return;
+						}
 						if (!pauseResult.success) {
 							throw new Error(
 								pauseResult.error ??
@@ -1546,16 +1726,14 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						try {
 							const countdownResult =
 								await window.electronAPI.startCountdown(countdownDelay);
-							if (!countdownResult.success || countdownResult.cancelled) {
-								const stoppedResult =
-									await window.electronAPI.stopNativeScreenRecording();
-								if (stoppedResult.path) {
-									await window.electronAPI.deleteRecordingFile(
-										stoppedResult.path,
-									);
+							if (
+								!countdownResult.success ||
+								countdownResult.cancelled ||
+								startWasCancelled()
+							) {
+								if (!startWasCancelled()) {
+									await discardActiveNativeCapture();
 								}
-								nativeScreenRecording.current = false;
-								nativeWindowsRecording.current = false;
 								cleanupCapturedMedia();
 								await stopWebcamRecorder();
 								return;
@@ -1565,6 +1743,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						}
 
 						const resumeResult = await window.electronAPI.resumeNativeScreenRecording();
+						if (startWasCancelled()) {
+							return;
+						}
 						if (!resumeResult.success) {
 							throw new Error(
 								resumeResult.error ??
@@ -1572,6 +1753,10 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 									"Failed to resume native capture after countdown",
 							);
 						}
+						nativeWarmStartActive.current = false;
+					}
+					if (startWasCancelled()) {
+						return;
 					}
 
 					const mainStartedAt = Date.now();
@@ -1646,6 +1831,12 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 								{ id: MICROPHONE_FALLBACK_ERROR_TOAST_ID, duration: 10000 },
 							);
 						}
+					}
+					if (startWasCancelled()) {
+						await stopMicFallbackRecorder();
+						await stopWebcamRecorder();
+						cleanupCapturedMedia();
+						return;
 					}
 
 					setRecording(true);
@@ -2018,15 +2209,10 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					: "Failed to start recording",
 			);
 			setRecording(false);
+			if (nativeScreenRecording.current) {
+				await discardActiveNativeCapture();
+			}
 			try {
-				if (nativeScreenRecording.current) {
-					nativeScreenRecording.current = false;
-					nativeWindowsRecording.current = false;
-					const stoppedResult = await window.electronAPI.stopNativeScreenRecording();
-					if (stoppedResult.path) {
-						await window.electronAPI.deleteRecordingFile(stoppedResult.path);
-					}
-				}
 				await window.electronAPI?.setRecordingState(false);
 			} catch (stateError) {
 				console.warn("Failed to reset main-process recording state:", stateError);
@@ -2134,6 +2320,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	}, [markRecordingResumed, paused, recording, resumeMicFallbackRecorder]);
 
 	const cancelRecording = useCallback(() => {
+		recordingStartGeneration.current += 1;
 		if (!recording) return;
 		setPaused(false);
 		markRecordingResumed(Date.now());
@@ -2152,19 +2339,10 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		resolvedWebcamPath.current = null;
 
 		if (nativeScreenRecording.current) {
-			nativeScreenRecording.current = false;
-			nativeWindowsRecording.current = false;
 			setRecording(false);
 			window.electronAPI?.setRecordingState(false);
 			void (async () => {
-				try {
-					const result = await window.electronAPI.stopNativeScreenRecording();
-					if (result?.path) {
-						await window.electronAPI.deleteRecordingFile(result.path);
-					}
-				} catch {
-					// Best-effort cleanup
-				}
+				await discardActiveNativeCapture();
 			})();
 			return;
 		}
@@ -2178,7 +2356,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			setRecording(false);
 			window.electronAPI?.setRecordingState(false);
 		}
-	}, [cleanupCapturedMedia, markRecordingResumed, recording]);
+	}, [cleanupCapturedMedia, discardActiveNativeCapture, markRecordingResumed, recording]);
 
 	const toggleRecording = async () => {
 		if (starting || countdownActive || finalizing) {

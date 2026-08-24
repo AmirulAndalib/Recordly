@@ -24,6 +24,11 @@ let writerReadinessPollAttempts = 100
 let writerReadinessPollInterval: UInt64 = 10_000_000
 
 final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
+	private struct CaptureFinalizationResult {
+		let outputResult: Result<String, Error>
+		let interactiveStopParticipated: Bool
+	}
+
 	private let queue = DispatchQueue(label: "recordly.screencapturekit.video")
 	private var assetWriter: AVAssetWriter?
 	private var videoInput: AVAssetWriterInput?
@@ -52,7 +57,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private var trackedWindowId: UInt32?
 	private var windowValidationTask: Task<Void, Never>?
 	private var isFinalizing = false
-	private var finalizationWaiters: [CheckedContinuation<Result<String, Error>, Never>] = []
+	private var interactiveStopParticipated = false
+	private var finalizationWaiters: [CheckedContinuation<CaptureFinalizationResult, Never>] = []
 	private var inlineAudioInput: AVAssetWriterInput?
 	private var firstInlineAudioSampleTime: CMTime?
 	private var capturesSystemAudio = false
@@ -280,7 +286,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	}
 
 	func stopCapture() async throws -> String {
-		return try await finalizeCapture()
+		let finalization = await finalizeCapture(interactive: true)
+		return try finalization.outputResult.get()
 	}
 
 	func pauseCapture() async -> Bool {
@@ -383,41 +390,51 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	/// Starts one finalization operation after all previously delivered samples on
 	/// the recorder queue have drained. Manual stop and automatic window-close
 	/// detection join the same operation instead of racing the asset writers.
-	private func finalizeCapture() async throws -> String {
-		let result: Result<String, Error> = await withCheckedContinuation { continuation in
+	private func finalizeCapture(interactive: Bool) async -> CaptureFinalizationResult {
+		await withCheckedContinuation { continuation in
 			queue.async {
 				if self.isFinalizing {
+					self.interactiveStopParticipated = self.interactiveStopParticipated || interactive
 					self.finalizationWaiters.append(continuation)
 					return
 				}
 
 				guard self.isRecording else {
-					continuation.resume(returning: .failure(NSError(
-						domain: "RecordlyCapture",
-						code: 9,
-						userInfo: [NSLocalizedDescriptionKey: "No recording in progress"]
-					)))
+					continuation.resume(returning: CaptureFinalizationResult(
+						outputResult: .failure(NSError(
+							domain: "RecordlyCapture",
+							code: 9,
+							userInfo: [NSLocalizedDescriptionKey: "No recording in progress"]
+						)),
+						interactiveStopParticipated: interactive
+					))
 					return
 				}
 
 				self.isFinalizing = true
+				self.interactiveStopParticipated = interactive
 				self.isRecording = false
 				self.windowValidationTask = nil
 				self.trackedWindowId = nil
 				self.finalizationWaiters.append(continuation)
 
 				Task {
-					let finalizationResult: Result<String, Error>
+					let outputResult: Result<String, Error>
 					do {
-						finalizationResult = .success(try await self.finishCapture())
+						outputResult = .success(try await self.finishCapture())
 					} catch {
-						finalizationResult = .failure(error)
+						outputResult = .failure(error)
 					}
 
 					self.queue.async {
+						let finalizationResult = CaptureFinalizationResult(
+							outputResult: outputResult,
+							interactiveStopParticipated: self.interactiveStopParticipated
+						)
 						let waiters = self.finalizationWaiters
 						self.finalizationWaiters.removeAll()
 						self.isFinalizing = false
+						self.interactiveStopParticipated = false
 						for waiter in waiters {
 							waiter.resume(returning: finalizationResult)
 						}
@@ -425,8 +442,6 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				}
 			}
 		}
-
-		return try result.get()
 	}
 
 	private func finishCapture() async throws -> String {
@@ -713,8 +728,12 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				if !windowStillAvailable {
 					print("WINDOW_UNAVAILABLE")
 					fflush(stdout)
+					let finalization = await self.finalizeCapture(interactive: false)
+					if finalization.interactiveStopParticipated {
+						return
+					}
 					do {
-						let outputPath = try await self.finalizeCapture()
+						let outputPath = try finalization.outputResult.get()
 						print("Recording stopped. Output path: \(outputPath)")
 						fflush(stdout)
 						exit(0)
