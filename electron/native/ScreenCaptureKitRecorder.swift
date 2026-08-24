@@ -653,19 +653,27 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				if Task.isCancelled { return }
 				guard self.isRecording else { return }
 
+				let availableContent: SCShareableContent
 				do {
-					let availableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-					let windowStillAvailable = availableContent.windows.contains(where: { $0.windowID == trackedWindowId })
-					if !windowStillAvailable {
-						print("WINDOW_UNAVAILABLE")
-						fflush(stdout)
+					availableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+				} catch {
+					continue
+				}
+
+				let windowStillAvailable = availableContent.windows.contains(where: { $0.windowID == trackedWindowId })
+				if !windowStillAvailable {
+					print("WINDOW_UNAVAILABLE")
+					fflush(stdout)
+					do {
 						let outputPath = try await self.finishCapture()
 						print("Recording stopped. Output path: \(outputPath)")
 						fflush(stdout)
 						exit(0)
+					} catch {
+						fputs("Error stopping capture: \(error.localizedDescription)\n", stderr)
+						fflush(stderr)
+						exit(1)
 					}
-				} catch {
-					continue
 				}
 			}
 		}

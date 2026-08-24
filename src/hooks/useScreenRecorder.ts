@@ -903,6 +903,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		webcamStopPromise.current = null;
 		pendingWebcamPathPromise.current = null;
 		resolvedWebcamPath.current = result ?? null;
+		webcamRecorder.current = null;
 		return result ?? null;
 	}, []);
 

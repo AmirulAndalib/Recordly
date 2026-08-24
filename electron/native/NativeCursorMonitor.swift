@@ -428,9 +428,15 @@ func mouseInteractionCallback(
 		action = "mouseup"
 		button = 2
 	case .otherMouseDown:
+		guard event.getIntegerValueField(.mouseEventButtonNumber) == 2 else {
+			return Unmanaged.passUnretained(event)
+		}
 		action = "mousedown"
 		button = 3
 	case .otherMouseUp:
+		guard event.getIntegerValueField(.mouseEventButtonNumber) == 2 else {
+			return Unmanaged.passUnretained(event)
+		}
 		action = "mouseup"
 		button = 3
 	default:
