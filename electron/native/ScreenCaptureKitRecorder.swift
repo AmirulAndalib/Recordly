@@ -436,7 +436,14 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			await microphoneOnlyWriter.finishWriting()
 		}
 
-		let finalizeFailure: Error? = assetWriter.flatMap { $0.status == .completed ? nil : ($0.error ?? unfinalizedWriterError(status: $0.status)) }
+		let finalizeFailure: Error? = [assetWriter, systemAudioWriter, microphoneOnlyWriter]
+			.compactMap { $0 }
+			.compactMap { writer in
+				writer.status == .completed
+					? nil
+					: (writer.error ?? unfinalizedWriterError(status: writer.status))
+			}
+			.first
 		let path = outputURL?.path ?? ""
 		assetWriter = nil
 		videoInput = nil
@@ -676,6 +683,7 @@ final class RecorderService {
 	private let recorder = ScreenCaptureRecorder()
 	private let queue = DispatchQueue(label: "recordly.screencapturekit.commands")
 	private let completionGroup = DispatchGroup()
+	private var succeeded = true
 
 	private func enqueue(_ operation: @escaping () async -> Void) {
 		queue.async {
@@ -694,6 +702,7 @@ final class RecorderService {
 			do {
 				try await self.recorder.startCapture(configJSON: configJSON)
 			} catch {
+				self.succeeded = false
 				fputs("Error starting capture: \(error.localizedDescription)\n", stderr)
 				fflush(stderr)
 				self.completionGroup.leave()
@@ -709,6 +718,7 @@ final class RecorderService {
 				fflush(stdout)
 				self.completionGroup.leave()
 			} catch {
+				self.succeeded = false
 				fputs("Error stopping capture: \(error.localizedDescription)\n", stderr)
 				fflush(stderr)
 				self.completionGroup.leave()
@@ -734,8 +744,9 @@ final class RecorderService {
 		}
 	}
 
-	func waitUntilFinished() {
+	func waitUntilFinished() -> Bool {
 		completionGroup.wait()
+		return succeeded
 	}
 }
 
@@ -808,4 +819,6 @@ DispatchQueue.global(qos: .utility).async {
 	}
 }
 
-service.waitUntilFinished()
+if !service.waitUntilFinished() {
+	exit(1)
+}

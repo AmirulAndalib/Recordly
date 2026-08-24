@@ -1470,14 +1470,15 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 			const { selectedSource, useNativeMacScreenCapture, useNativeWindowsCapture, micLabel } =
 				preparedStart;
-			const useNativeCapture =
-				useNativeMacScreenCapture || useNativeWindowsCapture;
+			const useNativeCapture = useNativeMacScreenCapture || useNativeWindowsCapture;
 			const shouldWarmStartNativeCapture = useNativeCapture && countdownDelay > 0;
 			if (countdownDelay > 0 && !shouldWarmStartNativeCapture) {
 				setCountdownActive(true);
 				try {
 					const result = await window.electronAPI.startCountdown(countdownDelay);
 					if (!result.success || result.cancelled) {
+						cleanupCapturedMedia();
+						await stopWebcamRecorder();
 						return;
 					}
 				} finally {
