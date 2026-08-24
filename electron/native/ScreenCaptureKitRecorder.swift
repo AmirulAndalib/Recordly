@@ -51,6 +51,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private var microphoneOutputURL: URL?
 	private var trackedWindowId: UInt32?
 	private var windowValidationTask: Task<Void, Never>?
+	private var isFinalizing = false
+	private var finalizationWaiters: [CheckedContinuation<Result<String, Error>, Never>] = []
 	private var inlineAudioInput: AVAssetWriterInput?
 	private var firstInlineAudioSampleTime: CMTime?
 	private var capturesSystemAudio = false
@@ -278,11 +280,7 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	}
 
 	func stopCapture() async throws -> String {
-		guard isRecording else {
-			throw NSError(domain: "RecordlyCapture", code: 9, userInfo: [NSLocalizedDescriptionKey: "No recording in progress"])
-		}
-
-		return try await finishCapture()
+		return try await finalizeCapture()
 	}
 
 	func pauseCapture() async -> Bool {
@@ -382,10 +380,56 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		fflush(stderr)
 	}
 
+	/// Starts one finalization operation after all previously delivered samples on
+	/// the recorder queue have drained. Manual stop and automatic window-close
+	/// detection join the same operation instead of racing the asset writers.
+	private func finalizeCapture() async throws -> String {
+		let result: Result<String, Error> = await withCheckedContinuation { continuation in
+			queue.async {
+				if self.isFinalizing {
+					self.finalizationWaiters.append(continuation)
+					return
+				}
+
+				guard self.isRecording else {
+					continuation.resume(returning: .failure(NSError(
+						domain: "RecordlyCapture",
+						code: 9,
+						userInfo: [NSLocalizedDescriptionKey: "No recording in progress"]
+					)))
+					return
+				}
+
+				self.isFinalizing = true
+				self.isRecording = false
+				self.windowValidationTask = nil
+				self.trackedWindowId = nil
+				self.finalizationWaiters.append(continuation)
+
+				Task {
+					let finalizationResult: Result<String, Error>
+					do {
+						finalizationResult = .success(try await self.finishCapture())
+					} catch {
+						finalizationResult = .failure(error)
+					}
+
+					self.queue.async {
+						let waiters = self.finalizationWaiters
+						self.finalizationWaiters.removeAll()
+						self.isFinalizing = false
+						for waiter in waiters {
+							waiter.resume(returning: finalizationResult)
+						}
+					}
+				}
+			}
+		}
+
+		return try result.get()
+	}
+
 	private func finishCapture() async throws -> String {
-		windowValidationTask?.cancel()
-		windowValidationTask = nil
-		trackedWindowId = nil
 
 		if let activeStream = stream {
 			do {
@@ -395,7 +439,6 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			}
 		}
 		stream = nil
-		isRecording = false
 
 		// The tail frame only gives the last captured frame its full duration, so
 		// it must never put the file at risk.  Appending to an input whose encoder
@@ -497,7 +540,13 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			}
 			guard attemptsRemaining > 0 else { return false }
 			attemptsRemaining -= 1
-			try? await Task.sleep(nanoseconds: writerReadinessPollInterval)
+			do {
+				try await Task.sleep(nanoseconds: writerReadinessPollInterval)
+			} catch is CancellationError {
+				return false
+			} catch {
+				return false
+			}
 		}
 
 		return false
@@ -665,7 +714,7 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 					print("WINDOW_UNAVAILABLE")
 					fflush(stdout)
 					do {
-						let outputPath = try await self.finishCapture()
+						let outputPath = try await self.finalizeCapture()
 						print("Recording stopped. Output path: \(outputPath)")
 						fflush(stdout)
 						exit(0)
