@@ -40,6 +40,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private var firstSampleTime: CMTime = .zero
 	private var firstSystemAudioSampleTime: CMTime?
 	private var firstMicrophoneSampleTime: CMTime?
+	private var lastSystemAudioPresentationTime: CMTime = .invalid
+	private var lastMicrophonePresentationTime: CMTime = .invalid
 	private var lastSampleBuffer: CMSampleBuffer?
 	private var lastVideoPresentationTime: CMTime = .zero
 	private var lastVideoDuration: CMTime = .zero
@@ -159,6 +161,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		microphoneOutputURL = nil
 		firstSystemAudioSampleTime = nil
 		firstMicrophoneSampleTime = nil
+		lastSystemAudioPresentationTime = .invalid
+		lastMicrophonePresentationTime = .invalid
 
 		guard let assistant = AVOutputSettingsAssistant(preset: .preset3840x2160) else {
 			throw NSError(domain: "RecordlyCapture", code: 5, userInfo: [NSLocalizedDescriptionKey: "Unable to create output settings assistant"])
@@ -324,6 +328,10 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		guard let presentationTime = adjustedPresentationTime(for: sampleBuffer, outputType: outputType) else { return }
 
 		if outputType == .screen {
+			if frameCount > 0 && CMTimeCompare(presentationTime, lastVideoPresentationTime) <= 0 {
+				return
+			}
+
 			guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
 					  let attachment = attachments.first,
 					  let statusRawValue = attachment[SCStreamFrameInfo.status] as? Int,
@@ -360,21 +368,21 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 
 		if outputType == .audio {
 			guard let systemAudioInput else { return }
-			appendAudioSampleBuffer(sampleBuffer, to: systemAudioInput, of: systemAudioWriter, firstSampleTime: &firstSystemAudioSampleTime, presentationTime: presentationTime)
+			appendAudioSampleBuffer(sampleBuffer, to: systemAudioInput, of: systemAudioWriter, firstSampleTime: &firstSystemAudioSampleTime, lastPresentationTime: &lastSystemAudioPresentationTime, presentationTime: presentationTime)
 			// Also write system audio to the inline video track
 			if let inlineAudioInput, inlineAudioInput.isReadyForMoreMediaData {
-				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, of: assetWriter, firstSampleTime: &firstInlineAudioSampleTime, presentationTime: presentationTime)
+				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, of: assetWriter, firstSampleTime: &firstInlineAudioSampleTime, lastPresentationTime: &lastInlineAudioPresentationTime, presentationTime: presentationTime)
 			}
 			return
 		}
 
 		if outputType.rawValue == microphoneOutputTypeRawValue {
 			if let microphoneOnlyInput {
-				appendAudioSampleBuffer(sampleBuffer, to: microphoneOnlyInput, of: microphoneOnlyWriter, firstSampleTime: &firstMicrophoneSampleTime, presentationTime: presentationTime)
+				appendAudioSampleBuffer(sampleBuffer, to: microphoneOnlyInput, of: microphoneOnlyWriter, firstSampleTime: &firstMicrophoneSampleTime, lastPresentationTime: &lastMicrophonePresentationTime, presentationTime: presentationTime)
 			}
 			// Write mic to inline video track only if there's no system audio (avoids double-writing)
 			if !capturesSystemAudio, let inlineAudioInput, inlineAudioInput.isReadyForMoreMediaData {
-				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, of: assetWriter, firstSampleTime: &firstInlineAudioSampleTime, presentationTime: presentationTime)
+				appendAudioSampleBuffer(sampleBuffer, to: inlineAudioInput, of: assetWriter, firstSampleTime: &firstInlineAudioSampleTime, lastPresentationTime: &lastInlineAudioPresentationTime, presentationTime: presentationTime)
 			}
 			return
 		}
@@ -516,6 +524,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		firstSampleTime = .zero
 		firstSystemAudioSampleTime = nil
 		firstMicrophoneSampleTime = nil
+		lastSystemAudioPresentationTime = .invalid
+		lastMicrophonePresentationTime = .invalid
 		firstInlineAudioSampleTime = nil
 		lastSampleBuffer = nil
 		lastVideoPresentationTime = .zero
@@ -579,7 +589,14 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		}
 
 		let sampleTime = sampleBuffer.presentationTimeStamp
-		if pendingResumeAdjustment, let pauseStartedHostTime {
+		if pendingResumeAdjustment {
+			// Audio and video callbacks share this queue but their timestamps can be
+			// offset slightly. Anchor the post-countdown adjustment to video and drop
+			// audio until that anchor exists; otherwise the first audio callback can
+			// make the following video timestamp move backwards and fail the writer.
+			guard outputType == .screen, let pauseStartedHostTime else {
+				return nil
+			}
 			let pauseGap = sampleTime - pauseStartedHostTime
 			if pauseGap > .zero {
 				accumulatedPausedDuration = accumulatedPausedDuration + pauseGap
@@ -647,10 +664,11 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		return videoEndTime + CMTimeMinimum(tailExtension, maxInlineAudioTailExtension)
 	}
 
-	private func appendAudioSampleBuffer(_ sampleBuffer: CMSampleBuffer, to input: AVAssetWriterInput, of writer: AVAssetWriter?, firstSampleTime: inout CMTime?, presentationTime: CMTime) {
+	private func appendAudioSampleBuffer(_ sampleBuffer: CMSampleBuffer, to input: AVAssetWriterInput, of writer: AVAssetWriter?, firstSampleTime: inout CMTime?, lastPresentationTime: inout CMTime, presentationTime: CMTime) {
 		// A writer that failed mid-capture (a full disk, say) raises on every
 		// further append, which would abort the helper and lose the whole file.
 		guard writer?.status == .writing, input.isReadyForMoreMediaData else { return }
+		guard !lastPresentationTime.isValid || CMTimeCompare(presentationTime, lastPresentationTime) > 0 else { return }
 
 		if firstSampleTime == nil {
 			firstSampleTime = presentationTime
@@ -661,9 +679,11 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		let timing = CMSampleTimingInfo(duration: sampleBuffer.duration, presentationTimeStamp: presentationTime, decodeTimeStamp: sampleBuffer.decodeTimeStamp)
 		if let retimedSampleBuffer = try? CMSampleBuffer(copying: sampleBuffer, withNewTiming: [timing]) {
 			let appended = input.append(retimedSampleBuffer)
-			if appended, input === inlineAudioInput {
-				lastInlineAudioPresentationTime = presentationTime
-				lastInlineAudioDuration = sampleBuffer.duration
+			if appended {
+				lastPresentationTime = presentationTime
+				if input === inlineAudioInput {
+					lastInlineAudioDuration = sampleBuffer.duration
+				}
 			}
 		}
 	}
