@@ -9,6 +9,17 @@ const NATIVE_EXPORT_INPUT_BYTES_PER_PIXEL = 4;
 const MIN_EDITED_TRACK_TEMPO_SPEED = 0.5;
 const MAX_EDITED_TRACK_TEMPO_SPEED = 2;
 
+export const FFMPEG_BT709_VIDEO_COLOR_ARGS = [
+	"-colorspace",
+	"bt709",
+	"-color_primaries",
+	"bt709",
+	"-color_trc",
+	"bt709",
+	"-color_range",
+	"tv",
+] as const;
+
 export type NativeExportEncodingMode = "fast" | "balanced" | "quality";
 
 export type NativeVideoExportAudioMode = "none" | "copy-source" | "trim-source" | "edited-track";
@@ -296,7 +307,7 @@ export function buildNativeVideoExportArgs(
 		"-i",
 		"pipe:0",
 		"-vf",
-		"vflip",
+		"vflip,scale=in_range=full:out_range=tv",
 		"-an",
 		"-c:v",
 		encoder,
@@ -309,7 +320,14 @@ export function buildNativeVideoExportArgs(
 		args.push(...getLibx264ModeArgs(options.encodingMode));
 	}
 
-	args.push("-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath);
+	args.push(
+		"-pix_fmt",
+		"yuv420p",
+		...FFMPEG_BT709_VIDEO_COLOR_ARGS,
+		"-movflags",
+		"+faststart",
+		outputPath,
+	);
 	return args;
 }
 
@@ -338,6 +356,7 @@ export function buildNativeCudaOverlayStaticLayoutArgs(
 		"h264_nvenc",
 		...getNvencStaticLayoutModeArgs(config.encodingMode),
 		...getBitrateArgs(config.bitrate),
+		...FFMPEG_BT709_VIDEO_COLOR_ARGS,
 		"-movflags",
 		"+faststart",
 		config.outputPath,
@@ -371,6 +390,7 @@ export function buildNativeCudaScaleCpuPadStaticLayoutArgs(
 		...getBitrateArgs(config.bitrate),
 		"-pix_fmt",
 		"yuv420p",
+		...FFMPEG_BT709_VIDEO_COLOR_ARGS,
 		"-movflags",
 		"+faststart",
 		config.outputPath,
@@ -533,6 +553,7 @@ export function buildNativePrecompositedStaticLayoutArgs(
 		...getBitrateArgs(config.bitrate),
 		"-pix_fmt",
 		"yuv420p",
+		...FFMPEG_BT709_VIDEO_COLOR_ARGS,
 		"-movflags",
 		"+faststart",
 		config.outputPath,

@@ -8,6 +8,7 @@ import {
 	buildNativePrecompositedStaticLayoutArgs,
 	buildNativeStaticBackgroundRenderArgs,
 	buildNativeStaticLayoutChunks,
+	buildNativeVideoExportArgs,
 	buildTrimmedSourceAudioFilter,
 	createNativeSquircleMaskPgmBuffer,
 	isNativeCudaOutOfMemory,
@@ -158,6 +159,38 @@ describe("native static layout command builders", () => {
 		expect(args).toContain("p1");
 		expect(args).not.toContain("yuv420p");
 		expect(args).toEqual(expect.arrayContaining(["-ss", "120.000", "-t", "60.000"]));
+		expect(args).toEqual(
+			expect.arrayContaining(["-colorspace", "bt709", "-color_range", "tv"]),
+		);
+	});
+
+	it("converts full-range canvas pixels and tags native H.264 as BT.709 video range", () => {
+		const args = buildNativeVideoExportArgs(
+			"h264_videotoolbox",
+			{
+				width: 1920,
+				height: 1080,
+				frameRate: 30,
+				bitrate: 30_000_000,
+				encodingMode: "quality",
+			},
+			"out.mp4",
+		);
+
+		expect(args).toEqual(
+			expect.arrayContaining([
+				"-vf",
+				"vflip,scale=in_range=full:out_range=tv",
+				"-colorspace",
+				"bt709",
+				"-color_primaries",
+				"bt709",
+				"-color_trc",
+				"bt709",
+				"-color_range",
+				"tv",
+			]),
+		);
 	});
 
 	it("builds the stable CUDA scale plus CPU pad fallback command", () => {
