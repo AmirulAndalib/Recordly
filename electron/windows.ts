@@ -464,7 +464,9 @@ export function createHudOverlayWindow(): BrowserWindow {
 		backgroundColor: "#00000000",
 		resizable: false,
 		alwaysOnTop: true,
-		skipTaskbar: true,
+		// The HUD is Recordly's persistent top-level window, so it owns the
+		// Windows taskbar entry while auxiliary overlays stay hidden there.
+		skipTaskbar: process.platform !== "win32",
 		hasShadow: false,
 		show: false,
 		focusable: false,

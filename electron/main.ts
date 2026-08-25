@@ -529,9 +529,9 @@ function createTray() {
 }
 
 function shouldUseTray() {
-	// macOS exposes Recordly as a regular Dock app. Windows and Linux keep the
-	// tray entry because they do not have the macOS Dock lifecycle.
-	return process.platform !== "darwin";
+	// macOS and Windows expose Recordly through their Dock/taskbar. Keep the
+	// tray entry only on Linux, where it remains the primary app entry point.
+	return process.platform === "linux";
 }
 
 function getPublicAssetPath(filename: string) {
