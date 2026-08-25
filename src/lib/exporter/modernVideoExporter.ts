@@ -25,6 +25,7 @@ import {
 	SNAP_TO_EDGES_RATIO_AUTO,
 } from "@/components/video-editor/videoPlayback/cursorFollowCamera";
 import { buildNativeCursorAtlas } from "@/components/video-editor/videoPlayback/cursorRenderer";
+import { getCursorViewportScale } from "@/components/video-editor/videoPlayback/cursorScale";
 import {
 	computePaddedLayout,
 	scalePreviewBorderRadius,
@@ -2089,7 +2090,7 @@ export class ModernVideoExporter {
 
 	private getNativeStaticLayoutCursorSize(contentWidth: number) {
 		const cursorStyle = this.config.cursorStyle ?? "tahoe";
-		const viewportScale = Math.max(0.55, contentWidth / 1920);
+		const viewportScale = getCursorViewportScale(contentWidth);
 		return (
 			28 *
 			(this.config.cursorSize ?? 3) *

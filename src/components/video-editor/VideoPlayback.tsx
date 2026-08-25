@@ -1084,6 +1084,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 			motionBlurFilter.resolution = filterResolution;
 			zoomBlurFilter.resolution = filterResolution;
+			cursorOverlayRef.current?.setFilterResolution(filterResolution);
 			videoEffectsContainer.filterArea = new Rectangle(0, 0, stageWidth, stageHeight);
 		}, []);
 
@@ -2173,6 +2174,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 						sway: cursorSwayRef.current,
 					});
 					cursorOverlayRef.current = cursorOverlay;
+					cursorOverlay.setFilterResolution(
+						app.renderer.resolution || window.devicePixelRatio || 1,
+					);
 					cursorContainer.addChild(cursorOverlay.container);
 				} else {
 					cursorOverlayRef.current = null;
