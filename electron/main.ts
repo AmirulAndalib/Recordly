@@ -528,6 +528,12 @@ function createTray() {
 	tray.on("double-click", () => focusOrCreateMainWindow());
 }
 
+function shouldUseTray() {
+	// macOS and Windows expose Recordly through their Dock/taskbar. Keep the
+	// tray entry only on Linux, where it remains the primary app entry point.
+	return process.platform === "linux";
+}
+
 function getPublicAssetPath(filename: string) {
 	return path.join(process.env.VITE_PUBLIC || RENDERER_DIST, filename);
 }
@@ -1002,9 +1008,14 @@ app.whenReady().then(async () => {
 			}
 		}, 100);
 	});
+	if (process.platform === "darwin" && app.dock) {
+		await app.dock.show();
+	}
 	syncDockIcon();
-	createTray();
-	updateTrayMenu();
+	if (shouldUseTray()) {
+		createTray();
+		updateTrayMenu();
+	}
 	setupApplicationMenu();
 	// Ensure recordings directory exists
 	await ensureRecordingsDir();
@@ -1031,8 +1042,10 @@ app.whenReady().then(async () => {
 		(recording: boolean, sourceName: string) => {
 			selectedSourceName = sourceName;
 			setHudOverlayRecordingActive(recording);
-			if (!tray) createTray();
-			updateTrayMenu(recording);
+			if (shouldUseTray()) {
+				if (!tray) createTray();
+				updateTrayMenu(recording);
+			}
 			if (recording) {
 				reassertHudOverlayMouseState();
 			}
