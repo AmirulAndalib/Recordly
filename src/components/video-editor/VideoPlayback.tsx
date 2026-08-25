@@ -171,9 +171,7 @@ import {
 	SNAP_TO_EDGES_RATIO_AUTO,
 } from "./videoPlayback/cursorFollowCamera";
 import { clampFocusToStage as clampFocusToStageUtil } from "./videoPlayback/focusUtils";
-import {
-	layoutVideoContent as layoutVideoContentUtil,
-} from "./videoPlayback/layoutUtils";
+import { layoutVideoContent as layoutVideoContentUtil } from "./videoPlayback/layoutUtils";
 import { updateOverlayIndicator } from "./videoPlayback/overlayUtils";
 import { createVideoEventHandlers } from "./videoPlayback/videoEventHandlers";
 import { getWebcamMediaTargetTimeSeconds, shouldSeekWebcamMedia } from "./videoPlayback/webcamSync";
@@ -1910,53 +1908,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		}, [pixiReady, videoReady, layoutVideoContent, cropRegion]);
 
 		useEffect(() => {
-			const previewFrame = previewFrameRef.current;
-			if (!previewFrame) {
-				return;
-			}
-			let frameId: number | null = null;
-
-			const applyPreviewFrameSquircle = () => {
-				const width = previewFrame.offsetWidth;
-				const height = previewFrame.offsetHeight;
-				if (width <= 0 || height <= 0) {
-					return;
-				}
-
-				const squirclePath = getSquircleSvgPath({
-					x: 0,
-					y: 0,
-					width,
-					height,
-					radius: 12,
-				});
-				previewFrame.style.clipPath = `path('${squirclePath}')`;
-				previewFrame.style.setProperty("-webkit-clip-path", `path('${squirclePath}')`);
-			};
-
-			applyPreviewFrameSquircle();
-
-			if (typeof ResizeObserver === "undefined") {
-				return;
-			}
-
-			const observer = new ResizeObserver(() => {
-				if (frameId !== null) {
-					cancelAnimationFrame(frameId);
-				}
-				frameId = requestAnimationFrame(applyPreviewFrameSquircle);
-			});
-
-			observer.observe(previewFrame);
-			return () => {
-				if (frameId !== null) {
-					cancelAnimationFrame(frameId);
-				}
-				observer.disconnect();
-			};
-		}, []);
-
-		useEffect(() => {
 			if (!pixiReady || !videoReady) return;
 			const container = containerRef.current;
 			if (!container) return;
@@ -2955,6 +2906,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			: resolvedWallpaperKind === "video"
 				? {}
 				: { background: resolvedWallpaper || "" };
+		// Overscan blurred wallpaper layers so the browser never samples transparent
+		// pixels beyond the preview bounds, which otherwise looks like a vignette.
+		const backgroundBlurOverscan = backgroundBlur > 0 ? Math.ceil(backgroundBlur * 2) : 0;
 		const fallbackVideoClassName = pixiRendererError
 			? "absolute inset-0 h-full w-full object-cover"
 			: "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0";
@@ -2985,7 +2939,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				style={{
 					width: "100%",
 					aspectRatio: formatAspectRatioForCSS(aspectRatio, nativeAspectRatio),
-					borderRadius: "12px",
+					borderRadius: 0,
+					clipPath: "none",
 				}}
 			>
 				{/* Background layer */}
@@ -3000,6 +2955,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 						playsInline
 						style={{
 							filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : "none",
+							inset: -backgroundBlurOverscan,
 						}}
 					/>
 				) : (
@@ -3008,6 +2964,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 						style={{
 							...backgroundStyle,
 							filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : "none",
+							inset: -backgroundBlurOverscan,
 						}}
 					/>
 				)}
