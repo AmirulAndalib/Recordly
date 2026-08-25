@@ -693,7 +693,12 @@ export function createUpdateToastWindow(): BrowserWindow {
 		win.setAlwaysOnTop(true, "status");
 	}
 
-	win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+	win.setVisibleOnAllWorkspaces(true, {
+		visibleOnFullScreen: true,
+		// Keep Recordly a foreground application so macOS does not temporarily
+		// remove its Dock icon while showing an overlay window.
+		skipTransformProcessType: process.platform === "darwin",
+	});
 	updateToastWindow = win;
 
 	win.on("closed", () => {
@@ -1001,7 +1006,12 @@ export function createCountdownWindow(): BrowserWindow {
 
 	countdownWindow = win;
 
-	win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+	win.setVisibleOnAllWorkspaces(true, {
+		visibleOnFullScreen: true,
+		// Keep Recordly a foreground application so macOS does not temporarily
+		// remove its Dock icon while showing the countdown.
+		skipTransformProcessType: process.platform === "darwin",
+	});
 
 	win.webContents.on("did-finish-load", () => {
 		if (!win.isDestroyed()) {
