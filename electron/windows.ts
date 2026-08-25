@@ -10,6 +10,7 @@ import {
 	resizeHudOverlayFallbackBounds,
 	shouldExpandHudOverlayFallback,
 } from "./hudOverlayBounds";
+import { getHudOverlayTaskbarOptions } from "./hudOverlayWindowOptions";
 import { getPackagedRendererBaseUrl } from "./rendererServer";
 
 const electronWindowsDir = path.dirname(fileURLToPath(import.meta.url));
@@ -466,10 +467,9 @@ export function createHudOverlayWindow(): BrowserWindow {
 		alwaysOnTop: true,
 		// The HUD is Recordly's persistent top-level window, so it owns the
 		// Windows taskbar entry while auxiliary overlays stay hidden there.
-		skipTaskbar: process.platform !== "win32",
+		...getHudOverlayTaskbarOptions(process.platform),
 		hasShadow: false,
 		show: false,
-		focusable: false,
 		webPreferences: {
 			preload: path.join(electronWindowsDir, "preload.mjs"),
 			nodeIntegration: false,
@@ -484,7 +484,13 @@ export function createHudOverlayWindow(): BrowserWindow {
 			return;
 		}
 		hasShownHudWindow = true;
-		win.show();
+		if (process.platform === "win32") {
+			// A focusable window is required for a Windows taskbar entry, but the
+			// always-on-top HUD must not steal focus when Recordly starts.
+			win.showInactive();
+		} else {
+			win.show();
+		}
 		win.moveTop();
 		if (process.platform === "win32" && isHudOverlayMousePassthroughSupported()) {
 			win.setIgnoreMouseEvents(false);

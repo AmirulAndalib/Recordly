@@ -2948,7 +2948,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					<video
 						key={resolvedWallpaper}
 						ref={bgVideoRef}
-						className="absolute inset-0 h-full w-full object-cover"
+						className="absolute object-cover"
 						src={resolvedWallpaper}
 						muted
 						loop
@@ -2956,6 +2956,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 						style={{
 							filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : "none",
 							inset: -backgroundBlurOverscan,
+							width: `calc(100% + ${backgroundBlurOverscan * 2}px)`,
+							height: `calc(100% + ${backgroundBlurOverscan * 2}px)`,
 						}}
 					/>
 				) : (

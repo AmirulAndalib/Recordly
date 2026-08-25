@@ -11,6 +11,7 @@ import {
 	buildNativeVideoExportArgs,
 	buildTrimmedSourceAudioFilter,
 	createNativeSquircleMaskPgmBuffer,
+	FFMPEG_BT709_VIDEO_COLOR_ARGS,
 	isNativeCudaOutOfMemory,
 } from "./nativeVideoExport";
 
@@ -151,17 +152,15 @@ describe("native static layout command builders", () => {
 
 		expect(args).toContain("-filter_complex");
 		expect(args).toContain(
-			"color=c=0x101010:s=1920x1080:r=60:d=60.000,format=nv12,hwupload_cuda[bg];" +
-				"[0:v]scale_cuda=w=1536:h=864:format=nv12,fps=60[fg];" +
+			"color=c=0x101010:s=1920x1080:r=60:d=60.000,format=nv12,setrange=limited,hwupload_cuda[bg];" +
+				"[0:v]scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv,fps=60,hwupload_cuda[fg];" +
 				"[bg][fg]overlay_cuda=192:108:shortest=0:repeatlast=1:eof_action=repeat,trim=duration=60.000,setpts=PTS-STARTPTS[out]",
 		);
 		expect(args).toContain("h264_nvenc");
 		expect(args).toContain("p1");
 		expect(args).not.toContain("yuv420p");
 		expect(args).toEqual(expect.arrayContaining(["-ss", "120.000", "-t", "60.000"]));
-		expect(args).toEqual(
-			expect.arrayContaining(["-colorspace", "bt709", "-color_range", "tv"]),
-		);
+		expect(args).toEqual(expect.arrayContaining([...FFMPEG_BT709_VIDEO_COLOR_ARGS]));
 	});
 
 	it("converts full-range canvas pixels and tags native H.264 as BT.709 video range", () => {
@@ -199,12 +198,13 @@ describe("native static layout command builders", () => {
 		expect(args).toEqual(
 			expect.arrayContaining([
 				"-vf",
-				"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
+				"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
 				"-map",
 				"0:v:0",
 				"-an",
 			]),
 		);
+		expect(args).toEqual(expect.arrayContaining([...FFMPEG_BT709_VIDEO_COLOR_ARGS]));
 	});
 
 	it("sanitizes unsupported background colors to the safe dark fallback", () => {
@@ -214,7 +214,7 @@ describe("native static layout command builders", () => {
 		});
 
 		expect(args).toContain(
-			"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
+			"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
 		);
 	});
 
@@ -262,12 +262,14 @@ describe("native static layout command builders", () => {
 
 		expect(args).toEqual(expect.arrayContaining(["-i", "background.png", "-i", "mask.pgm"]));
 		expect(filterComplex).toContain(
-			"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,fps=60,format=rgba",
+			"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=full,fps=60,format=rgba",
 		);
 		expect(filterComplex).toContain("[fgbase][mask]alphamerge[fg]");
 		expect(filterComplex).toContain("overlay=x=192:y=108:format=auto");
+		expect(filterComplex).toContain("scale=in_range=full:out_range=tv,format=yuv420p[out]");
 		expect(args).toContain("h264_nvenc");
 		expect(args).toEqual(expect.arrayContaining(["-pix_fmt", "yuv420p"]));
+		expect(args).toEqual(expect.arrayContaining([...FFMPEG_BT709_VIDEO_COLOR_ARGS]));
 	});
 
 	it("creates an opaque PGM mask for square video corners and a partial mask for radius", () => {
