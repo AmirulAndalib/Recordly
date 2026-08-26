@@ -1,4 +1,8 @@
-import { DEFAULT_ZOOM_IN_DURATION_MS, DEFAULT_ZOOM_OUT_DURATION_MS } from "./types";
+import {
+	DEFAULT_CURSOR_MOTION_BLUR,
+	DEFAULT_ZOOM_IN_DURATION_MS,
+	DEFAULT_ZOOM_OUT_DURATION_MS,
+} from "./types";
 
 export type CursorMotionPresetId = "focused" | "smooth";
 
@@ -35,7 +39,7 @@ const SHARED_CURSOR_PRESET_VALUES = {
 	cursorSize: 2.5,
 	cursorSmoothing: 0.67,
 	cursorSpringMassMultiplier: 1.29,
-	cursorMotionBlur: 0.4,
+	cursorMotionBlur: DEFAULT_CURSOR_MOTION_BLUR,
 	cursorClickBounce: 3.5,
 	cursorClickBounceDuration: 350,
 } as const;

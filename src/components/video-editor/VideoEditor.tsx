@@ -5573,7 +5573,7 @@ export default function VideoEditor() {
 			zoomInEasing={zoomInEasing}
 			zoomOutEasing={zoomOutEasing}
 			connectedZoomEasing={connectedZoomEasing}
-			borderRadius={borderRadius}
+			borderRadius={0}
 			padding={padding}
 			frame={frame}
 			cropRegion={cropRegion}
@@ -5911,7 +5911,7 @@ export default function VideoEditor() {
 					)}
 				</div>
 				<div
-					className="flex items-center justify-self-end pr-3"
+					className="flex items-center justify-self-end"
 					style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
 				>
 					<Popover open={presetPopoverOpen} onOpenChange={setPresetPopoverOpen}>
