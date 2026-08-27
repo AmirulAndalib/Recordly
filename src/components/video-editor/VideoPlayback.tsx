@@ -1260,7 +1260,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			const nextVolume = Math.max(0, Math.min(1, volume));
 			video.volume = nextVolume;
 			video.muted = nextVolume <= 0.001;
-		}, [volume, videoPath]);
+		}, [volume]);
 
 		useEffect(() => {
 			layoutVideoContentRef.current = layoutVideoContent;
@@ -1362,12 +1362,12 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			return () => {
 				cancelled = true;
 			};
-		}, [aspectRatio, borderRadius, cropRegion, frame, frameUpdateCounter, padding]);
+		}, [frame, frameUpdateCounter]);
 
 		// Always re-run geometric layout when layout props change, even if frame sprite isn't reloaded.
 		useEffect(() => {
-			layoutVideoContentRef.current?.();
-		}, [aspectRatio, borderRadius, cropRegion, padding]);
+			layoutVideoContent();
+		}, [layoutVideoContent]);
 
 		const selectedZoom = useMemo(() => {
 			if (!selectedZoomId) return null;
@@ -1545,6 +1545,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 		useEffect(() => {
 			suspendRenderingRef.current = suspendRendering;
+			if (!pixiReady) return;
 			const app = appRef.current;
 			if (!app?.ticker) {
 				return;
@@ -1656,6 +1657,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		}, [speedRegions]);
 
 		useEffect(() => {
+			if (!pixiReady) return;
 			const videoEffectsContainer = videoEffectsContainerRef.current;
 			const zoomBlurFilter = zoomBlurFilterRef.current;
 			const motionBlurFilter = motionBlurFilterRef.current;
@@ -1783,7 +1785,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			motionBlurStateRef.current = createMotionBlurState();
 			videoEffectsContainer.filters =
 				zoomMotionBlur > 0 ? [motionBlurFilter, zoomBlurFilter] : null;
-		}, [videoPath, zoomMotionBlur]);
+		}, [zoomMotionBlur]);
 
 		useEffect(() => {
 			zoomMotionBlurTuningRef.current = zoomMotionBlurTuning;
@@ -1905,7 +1907,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					}
 				});
 			});
-		}, [pixiReady, videoReady, layoutVideoContent, cropRegion]);
+		}, [pixiReady, videoReady, layoutVideoContent]);
 
 		useEffect(() => {
 			if (!pixiReady || !videoReady) return;
@@ -2013,11 +2015,13 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			syncWebcamMedia();
 		}, [syncWebcamMedia]);
 
+		// biome-ignore lint/correctness/useExhaustiveDependencies: The media path intentionally triggers source-specific state reset.
 		useEffect(() => {
 			setWebcamVideoDimensions(null);
 			lastWebcamSyncTimeRef.current = null;
 		}, [webcamVideoPath]);
 
+		// biome-ignore lint/correctness/useExhaustiveDependencies: The wallpaper identity intentionally resets media synchronization.
 		useEffect(() => {
 			lastBackgroundSyncTimeRef.current = null;
 		}, [wallpaper]);
@@ -2171,8 +2175,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				cursorContainerRef.current = null;
 				videoSpriteRef.current = null;
 			};
-		}, [initializePixiRenderer, onError]);
+		}, [initializePixiRenderer, onError, syncPreviewMotionBlurQuality]);
 
+		// biome-ignore lint/correctness/useExhaustiveDependencies: A new media path must reset the persistent video element.
 		useEffect(() => {
 			const video = videoRef.current;
 			if (!video) return;
@@ -2273,7 +2278,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 				videoSpriteRef.current = null;
 			};
-		}, [pixiReady, videoReady, onTimeUpdate, updateOverlayForRegion]);
+		}, [layoutVideoContent, onPlayStateChange, onTimeUpdate, pixiReady, videoReady]);
 
 		useEffect(() => {
 			if (!pixiReady || !videoReady) return;
@@ -2650,7 +2655,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		}, [
 			pixiReady,
 			videoReady,
-			clampFocusToStage,
 			applyWebcamBubbleLayout,
 			borderRadius,
 			padding,
