@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain } from "electron";
@@ -119,26 +118,8 @@ function isHudOverlayCaptureProtectionSupported(): boolean {
 	return process.platform !== "linux";
 }
 
-function getWindowsBuildNumber(): number | null {
-	if (process.platform !== "win32") {
-		return null;
-	}
-
-	const build = Number.parseInt(os.release().split(".")[2] ?? "", 10);
-	return Number.isFinite(build) ? build : null;
-}
-
 export function isHudOverlayMousePassthroughSupported(): boolean {
-	if (process.platform === "linux") {
-		return false;
-	}
-
-	const build = getWindowsBuildNumber();
-	if (build !== null && build < 22000) {
-		return false;
-	}
-
-	return true;
+	return process.platform !== "linux";
 }
 
 function loadHudOverlayCaptureProtectionSetting(): boolean {
@@ -289,9 +270,7 @@ function setHudOverlayFallbackExpanded(expanded: boolean) {
 
 function setHudOverlayMousePassthrough(ignore: boolean) {
 	hudOverlayIgnoringMouse =
-		hudOverlaySourceSelectionActive && !hudOverlayRecordingActive
-			? true
-			: ignore;
+		hudOverlaySourceSelectionActive && !hudOverlayRecordingActive ? true : ignore;
 
 	if (hudOverlayMouseReassertTimer) {
 		clearTimeout(hudOverlayMouseReassertTimer);
@@ -521,7 +500,6 @@ export function createHudOverlayWindow(): BrowserWindow {
 	// it permanently click-through without hover detection.  Re-initialise the
 	// pass-through-with-forwarding state whenever the window gains focus by toggling
 	// the flag off then back on so the native WS_EX_TRANSPARENT flag is fully reset.
-	// On Windows 10 (build < 22000) passthrough is disabled entirely, so skip this.
 	if (process.platform === "win32" && isHudOverlayMousePassthroughSupported()) {
 		win.on("focus", () => {
 			if (!win.isDestroyed()) {
