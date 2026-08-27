@@ -27,6 +27,7 @@ import {
 	stepSpringValue,
 } from "./motionSmoothing";
 import { cursorSetAssets, getCursorStyleSizeMultiplier } from "./uploadedCursorAssets";
+import { computeDirectionalMotionBlur } from "./zoomTransform";
 
 type CursorAssetKey = NonNullable<CursorTelemetryPoint["cursorType"]>;
 type StatefulCursorStyle = Extract<CursorStyle, "macos" | "tahoe" | "tahoe-inverted">;
@@ -112,7 +113,9 @@ export interface CursorRenderConfig {
 }
 
 const MIN_CURSOR_VIEWPORT_SCALE = 0;
-const CURSOR_MOTION_BLUR_BASE_MULTIPLIER = 0.08;
+// Preserve the cursor's stronger visual response while sharing the camera's
+// frame-rate normalization, kernel, and directional offset formula.
+const CURSOR_DIRECTIONAL_BLUR_STRENGTH = 4.8;
 const CURSOR_TIME_DISCONTINUITY_MS = 100;
 const CURSOR_SWAY_SMOOTHING_MULTIPLIER = 0.7;
 const CURSOR_SWAY_SMOOTHING_OFFSET = 0.18;
@@ -1569,17 +1572,16 @@ export class PixiCursorOverlay {
 		const deltaMs = Math.max(1, timeMs - this.lastRenderedTimeMs);
 		const dx = px - this.lastRenderedPoint.px;
 		const dy = py - this.lastRenderedPoint.py;
-		const velocityScale =
-			(1000 / deltaMs) * this.config.motionBlur * CURSOR_MOTION_BLUR_BASE_MULTIPLIER;
-		const velocity = {
-			x: dx * velocityScale,
-			y: dy * velocityScale,
-		};
-		const magnitude = Math.hypot(velocity.x, velocity.y);
+		const blur = computeDirectionalMotionBlur(
+			{ x: dx, y: dy },
+			this.config.motionBlur,
+			deltaMs / 1000,
+			CURSOR_DIRECTIONAL_BLUR_STRENGTH,
+		);
 
-		this.cursorMotionBlurFilter.velocity = magnitude > 0.05 ? velocity : { x: 0, y: 0 };
-		this.cursorMotionBlurFilter.kernelSize = magnitude > 3 ? 9 : magnitude > 1 ? 7 : 5;
-		this.cursorMotionBlurFilter.offset = magnitude > 0.5 ? -0.25 : 0;
+		this.cursorMotionBlurFilter.velocity = blur.velocity;
+		this.cursorMotionBlurFilter.kernelSize = blur.kernelSize;
+		this.cursorMotionBlurFilter.offset = blur.offset;
 	}
 
 	reset(): void {

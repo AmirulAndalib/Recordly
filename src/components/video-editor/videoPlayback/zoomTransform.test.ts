@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyZoomTransform, computeZoomTransform, createMotionBlurState } from "./zoomTransform";
+import {
+	applyZoomTransform,
+	computeDirectionalMotionBlur,
+	computeZoomTransform,
+	createMotionBlurState,
+} from "./zoomTransform";
 
 function createStubContainer() {
 	return {
@@ -7,6 +12,18 @@ function createStubContainer() {
 		position: { set: () => undefined },
 	};
 }
+
+describe("computeDirectionalMotionBlur", () => {
+	it("normalizes cursor and camera motion to the same 60fps baseline", () => {
+		const at60Fps = computeDirectionalMotionBlur({ x: 12, y: 0 }, 0.5, 1 / 60);
+		const at30Fps = computeDirectionalMotionBlur({ x: 12, y: 0 }, 0.5, 1 / 30);
+
+		expect(at60Fps.velocity).toEqual({ x: 6, y: 0 });
+		expect(at30Fps.velocity).toEqual({ x: 3, y: 0 });
+		expect(at60Fps.kernelSize).toBe(13);
+		expect(at60Fps.offset).toBeCloseTo(-6 / 32, 6);
+	});
+});
 
 describe("applyZoomTransform motion blur routing", () => {
 	it("keeps pure translation on the directional blur path", () => {
