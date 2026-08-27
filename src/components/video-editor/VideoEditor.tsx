@@ -739,11 +739,6 @@ export default function VideoEditor() {
 		}
 	}, []);
 
-	// Auto-activate builtin extensions at editor startup (idempotent)
-	useEffect(() => {
-		extensionHost.autoActivateBuiltins();
-	}, []);
-
 	const [supportedMp4SourceDimensions, setSupportedMp4SourceDimensions] =
 		useState<SupportedMp4Dimensions>({
 			width: 1920,

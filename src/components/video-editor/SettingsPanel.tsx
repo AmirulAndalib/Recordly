@@ -1406,7 +1406,7 @@ export function SettingsPanel({
 			setExtensionCursorPreviewUrls(Object.fromEntries(cursorPreviewEntries));
 		};
 
-		void extensionHost.autoActivateBuiltins().then(updateExtensionAssets);
+		void updateExtensionAssets();
 		const unsubscribe = extensionHost.onChange(() => {
 			void updateExtensionAssets();
 		});
