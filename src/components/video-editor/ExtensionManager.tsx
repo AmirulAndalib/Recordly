@@ -1,13 +1,10 @@
 import { PuzzlePiece } from "@phosphor-icons/react";
-import { useScopedT } from "@/contexts/I18nContext";
 
 export default function ExtensionManager() {
-	const t = useScopedT("extensions");
-
 	return (
 		<div className="flex h-full w-[332px] min-w-[280px] max-w-[332px] flex-[2] flex-col overflow-hidden rounded-2xl border border-foreground/10 bg-editor-panel shadow-xl">
 			<div className="flex h-12 shrink-0 items-center border-b border-foreground/10 px-4">
-				<h2 className="text-sm font-semibold text-foreground">{t("title")}</h2>
+				<h2 className="text-sm font-semibold text-foreground">Extensions</h2>
 			</div>
 
 			<div className="flex flex-1 items-center justify-center p-6">

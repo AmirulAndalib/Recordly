@@ -49,7 +49,6 @@ type PersistedEditorControls = Pick<
 	| "cursorSway"
 	| "borderRadius"
 	| "padding"
-	| "frame"
 	| "webcam"
 	| "aspectRatio"
 	| "exportEncodingMode"
@@ -137,7 +136,6 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	cursorSway: DEFAULT_EDITOR_CONTROLS.cursorSway,
 	borderRadius: DEFAULT_EDITOR_CONTROLS.borderRadius,
 	padding: DEFAULT_EDITOR_CONTROLS.padding,
-	frame: DEFAULT_EDITOR_CONTROLS.frame,
 	webcam: DEFAULT_EDITOR_CONTROLS.webcam,
 	aspectRatio: DEFAULT_EDITOR_CONTROLS.aspectRatio,
 	exportEncodingMode: DEFAULT_EDITOR_CONTROLS.exportEncodingMode,
@@ -336,7 +334,6 @@ function normalizeEditorControls(
 		cursorSway: sanitizedRaw.cursorSway ?? fallback.cursorSway,
 		borderRadius: sanitizedRaw.borderRadius ?? fallback.borderRadius,
 		padding: sanitizedRaw.padding ?? fallback.padding,
-		frame: sanitizedRaw.frame !== undefined ? sanitizedRaw.frame : fallback.frame,
 		webcam: sanitizedRaw.webcam ?? fallback.webcam,
 		aspectRatio: sanitizedRaw.aspectRatio ?? fallback.aspectRatio,
 		exportEncodingMode: sanitizedRaw.exportEncodingMode ?? fallback.exportEncodingMode,
@@ -401,7 +398,6 @@ function normalizeEditorControls(
 		cursorSway: normalized.cursorSway,
 		borderRadius: normalized.borderRadius,
 		padding: normalized.padding,
-		frame: normalized.frame,
 		webcam: normalized.webcam,
 		aspectRatio: normalized.aspectRatio,
 		exportEncodingMode: normalized.exportEncodingMode,

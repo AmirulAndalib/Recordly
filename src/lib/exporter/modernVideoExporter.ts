@@ -44,7 +44,6 @@ import {
 	getWebcamOverlaySizePx,
 	isWebcamCropRegionDefault,
 } from "@/components/video-editor/webcamOverlay";
-import { extensionHost } from "@/lib/extensions";
 import { getEffectiveVideoStreamDurationSeconds } from "@/lib/mediaTiming";
 import {
 	DEFAULT_WALLPAPER_PATH,
@@ -149,7 +148,6 @@ interface VideoExporterConfig extends ExportConfig {
 	cursorSway?: number;
 	zoomSmoothness?: number;
 	zoomClassicMode?: boolean;
-	frame?: string | null;
 	audioRegions?: AudioRegion[];
 	clipRegions?: ClipRegion[];
 	sourceAudioFallbackPaths?: string[];
@@ -643,7 +641,6 @@ export class ModernVideoExporter {
 					cursorSway: this.config.cursorSway,
 					zoomSmoothness: this.config.zoomSmoothness,
 					zoomClassicMode: this.config.zoomClassicMode,
-					frame: this.config.frame,
 				});
 				await this.renderer.initialize();
 				this.rendererInitTimeMs = this.getNowMs() - stageStartedAt;
@@ -720,10 +717,6 @@ export class ModernVideoExporter {
 						frameIndex++;
 						this.processedFrameCount = frameIndex;
 						this.reportProgress(frameIndex, totalFrames, "extracting");
-						extensionHost.emitEvent({
-							type: "export:frame",
-							data: { frameIndex, totalFrames },
-						});
 					},
 				);
 				this.decodeLoopTimeMs = this.getNowMs() - decodeLoopStartedAt;
@@ -1576,10 +1569,6 @@ export class ModernVideoExporter {
 			reasons.push("unsupported-rectangular-webcam-overlay");
 		}
 
-		if (this.config.frame) {
-			reasons.push("unsupported-frame-overlay");
-		}
-
 		const crop = this.config.cropRegion;
 		if (
 			!Number.isFinite(crop.x) ||
@@ -2249,7 +2238,6 @@ export class ModernVideoExporter {
 				speedRegions: this.config.speedRegions?.length ?? 0,
 				audioRegions: this.config.audioRegions?.length ?? 0,
 				annotationRegions: this.config.annotationRegions?.length ?? 0,
-				hasFrame: Boolean(this.config.frame),
 				backgroundBlur: this.config.backgroundBlur,
 				hasCursorOverlay:
 					this.config.showCursor === true &&

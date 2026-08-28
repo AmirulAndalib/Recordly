@@ -1,5 +1,4 @@
 import type React from "react";
-import { extensionHost } from "@/lib/extensions";
 import { enablePitchPreservingPlayback } from "@/lib/mediaTiming";
 import type { SpeedRegion, TrimRegion } from "../types";
 
@@ -47,7 +46,6 @@ export function createVideoEventHandlers(params: VideoEventHandlersParams) {
 	const emitTime = (timeValue: number) => {
 		currentTimeRef.current = timeValue * 1000;
 		onTimeUpdate(timeValue);
-		extensionHost.emitEvent({ type: "playback:timeupdate", timeMs: timeValue * 1000 });
 	};
 
 	// Helper function to check if current time is within a trim region

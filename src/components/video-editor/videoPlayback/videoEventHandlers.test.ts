@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/extensions", () => ({
-	extensionHost: {
-		emitEvent: vi.fn(),
-	},
-}));
-
-import { extensionHost } from "@/lib/extensions";
 import { createVideoEventHandlers } from "./videoEventHandlers";
 
 type PresentedFrameCallback = (now: DOMHighResTimeStamp, metadata: { mediaTime?: number }) => void;
@@ -34,7 +27,6 @@ function createMockVideo(overrides: Partial<MockVideo> = {}): MockVideo {
 }
 
 describe("createVideoEventHandlers", () => {
-	const emitEventMock = vi.mocked(extensionHost.emitEvent);
 	let requestAnimationFrameMock: ReturnType<typeof vi.fn>;
 	let cancelAnimationFrameMock: ReturnType<typeof vi.fn>;
 
@@ -43,7 +35,6 @@ describe("createVideoEventHandlers", () => {
 		cancelAnimationFrameMock = vi.fn();
 		vi.stubGlobal("requestAnimationFrame", requestAnimationFrameMock);
 		vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrameMock);
-		emitEventMock.mockReset();
 	});
 
 	afterEach(() => {
@@ -86,10 +77,6 @@ describe("createVideoEventHandlers", () => {
 
 		expect(onTimeUpdate).toHaveBeenCalledWith(1.25);
 		expect(currentTimeRef.current).toBe(1250);
-		expect(emitEventMock).toHaveBeenLastCalledWith({
-			type: "playback:timeupdate",
-			timeMs: 1250,
-		});
 	});
 
 	it("falls back to requestAnimationFrame when requestVideoFrameCallback is unavailable", () => {
