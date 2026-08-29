@@ -1842,6 +1842,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					cursorOverlayRef.current.destroy();
 					cursorOverlayRef.current = null;
 				}
+				if (videoEffectsContainerRef.current) {
+					videoEffectsContainerRef.current.filters = null;
+				}
 				zoomBlurFilterRef.current?.destroy();
 				motionBlurFilterRef.current?.destroy();
 				zoomBlurFilterRef.current = null;
@@ -1952,7 +1955,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				}
 				videoContainer.mask = null;
 				maskGraphicsRef.current = null;
-				videoEffectsContainer.filters = null;
 				videoTexture.destroy(false);
 
 				videoSpriteRef.current = null;
