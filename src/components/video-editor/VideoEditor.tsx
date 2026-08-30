@@ -31,6 +31,7 @@ import type { Span } from "dnd-timeline";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { EditorAnnouncementBanner } from "@/components/announcements/EditorAnnouncementBanner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -51,6 +52,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Toaster } from "@/components/ui/sonner";
 import { useI18n } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
+import { OPEN_EDITOR_SECTION_EVENT } from "@/lib/announcementActions";
+import { type AnnouncementEditorSection, isAnnouncementEditorSection } from "@/lib/announcements";
 import {
 	calculateOutputDimensions,
 	DEFAULT_MP4_CODEC,
@@ -607,6 +610,17 @@ export default function VideoEditor() {
 		initialEditorPreferences.aspectRatio,
 	);
 	const [activeEffectSection, setActiveEffectSection] = useState<EditorEffectSection>("scene");
+	useEffect(() => {
+		const handleOpenEditorSection = (event: Event) => {
+			const section = (event as CustomEvent<AnnouncementEditorSection>).detail;
+			if (isAnnouncementEditorSection(section)) {
+				setActiveEffectSection(section);
+			}
+		};
+
+		window.addEventListener(OPEN_EDITOR_SECTION_EVENT, handleOpenEditorSection);
+		return () => window.removeEventListener(OPEN_EDITOR_SECTION_EVENT, handleOpenEditorSection);
+	}, []);
 	const [exportQuality, setExportQuality] = useState<ExportQuality>(
 		initialEditorPreferences.exportQuality,
 	);
@@ -6197,6 +6211,7 @@ export default function VideoEditor() {
 					</DropdownMenu>
 				</div>
 			</div>
+			<EditorAnnouncementBanner />
 
 			<div className="relative flex min-h-0 flex-1 flex-col gap-3 p-4">
 				<div className="flex min-h-0 flex-1 gap-3 relative z-10">
