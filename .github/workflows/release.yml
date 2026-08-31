@@ -615,6 +615,11 @@ jobs:
 
           mkdir -p release-assets/upload
 
+          if [ "$IS_PRERELEASE" = "true" ] && [ "$RELEASE_SCOPE" != "all" ]; then
+            echo "Prerelease beta updates must include all platforms so every opted-in client can resolve beta metadata."
+            exit 1
+          fi
+
           required_metadata=(
             release-assets/windows-x64/latest.yml
             release-assets/linux-x64/latest-linux.yml
