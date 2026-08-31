@@ -5,17 +5,17 @@ import { BUNDLED_ANNOUNCEMENT_FEED } from "@/content/announcements";
 import { useI18n } from "@/contexts/I18nContext";
 import { runAnnouncementAction } from "@/lib/announcementActions";
 import {
-	type Announcement,
-	type AnnouncementAudience,
-	parseAnnouncementFeed,
-	selectAnnouncements,
-} from "@/lib/announcements";
-import {
 	dismissAnnouncements,
 	readAnnouncementImpressionCounts,
 	readDismissedAnnouncementIds,
 	recordAnnouncementImpression,
 } from "@/lib/announcementState";
+import {
+	type Announcement,
+	type AnnouncementAudience,
+	parseAnnouncementFeed,
+	selectAnnouncements,
+} from "@/lib/announcements";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -174,13 +174,6 @@ export function AnnouncementDialog({ audience }: { audience: AnnouncementAudienc
 		setCurrentIndex((index) => Math.min(index, remaining.length - 1));
 	};
 
-	const dismissAll = () => {
-		dismissAnnouncements(announcements.map((announcement) => announcement.id));
-		setAnnouncements([]);
-		setCurrentIndex(0);
-		setOpen(false);
-	};
-
 	const openAction = async () => {
 		if (!current?.action) {
 			return;
@@ -209,7 +202,11 @@ export function AnnouncementDialog({ audience }: { audience: AnnouncementAudienc
 			open={open}
 			onOpenChange={(nextOpen) => {
 				if (!nextOpen) {
-					dismissAll();
+					if (controls.dismiss) {
+						dismissCurrent();
+					} else {
+						setOpen(false);
+					}
 				}
 			}}
 		>

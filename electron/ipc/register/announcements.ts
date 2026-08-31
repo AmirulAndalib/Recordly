@@ -56,13 +56,13 @@ async function requestAnnouncementFeed(feedUrl: string): Promise<unknown> {
 		}
 
 		cachedFeed = JSON.parse(text) as unknown;
+		cachedAt = Date.now();
+		hasCachedResult = true;
 		return cachedFeed;
 	} catch (error) {
 		console.warn("Failed to load announcement feed:", error);
 		return cachedFeed;
 	} finally {
-		cachedAt = Date.now();
-		hasCachedResult = true;
 		clearTimeout(timeout);
 	}
 }

@@ -613,6 +613,23 @@ jobs:
           shopt -s nullglob
 
           mkdir -p release-assets/upload
+
+          required_metadata=(
+            release-assets/windows-x64/latest.yml
+            release-assets/linux-x64/latest-linux.yml
+          )
+
+          if [ "$RELEASE_SCOPE" = "all" ]; then
+            required_metadata+=(release-assets/macos-merged/latest-mac.yml)
+          fi
+
+          for file in "${required_metadata[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Required update metadata is missing: $file"
+              exit 1
+            fi
+          done
+
           assets=(
             release-assets/windows-x64/*.exe
             release-assets/windows-x64/*.blockmap
@@ -632,7 +649,7 @@ jobs:
           fi
 
           assets+=(
-            release-assets/windows-x64/latest*.yml
+            release-assets/windows-x64/latest.yml
             release-assets/linux-x64/latest-linux.yml
           )
 
