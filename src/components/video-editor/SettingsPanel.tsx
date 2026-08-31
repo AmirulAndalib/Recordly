@@ -2566,7 +2566,7 @@ export function SettingsPanel({
 							<div className="mt-0.5 text-[10px] text-muted-foreground/70">
 								{tSettings(
 									"updates.experimentalDescription",
-									"Receive first-line test builds published as prereleases. These may be less stable.",
+									"This is the front line of user testing - highly experimental so expect bugs",
 								)}
 							</div>
 						</div>

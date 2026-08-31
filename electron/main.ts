@@ -9,7 +9,6 @@ import {
 	webContents as electronWebContents,
 	ipcMain,
 	Menu,
-	Notification,
 	nativeImage,
 	session,
 	shell,
@@ -30,7 +29,6 @@ import { ensureMediaServer } from "./mediaServer";
 import { hardenWebContentsNavigation, shouldHardenWebContentsType } from "./navigationPolicy";
 import { shouldGrantDisplayCapture, shouldGrantMediaPermission } from "./permissionPolicy";
 import { ensurePackagedRendererServer, getPackagedRendererBaseUrl } from "./rendererServer";
-import type { UpdateToastPayload } from "./updater";
 import {
 	checkForAppUpdates,
 	deferUpdateReminder,
@@ -179,8 +177,6 @@ let editorHasUnsavedChanges = false;
 let isForceClosing = false;
 let isCreatingMainWindow = false;
 let isCreatingEditorWindow = false;
-let activeUpdateNotification: Notification | null = null;
-let activeUpdateNotificationKey: string | null = null;
 const shouldEnforceSingleInstanceLock = !IS_DEV;
 const hasSingleInstanceLock = shouldEnforceSingleInstanceLock
 	? app.requestSingleInstanceLock()
@@ -256,6 +252,14 @@ function getRecordingTrayIcon() {
 }
 
 function showHudOverlayFromTray() {
+	const updateToast = getUpdateToastWindow();
+	if (updateToast?.isVisible()) {
+		updateToast.show();
+		updateToast.moveTop();
+		updateToast.focus();
+		return true;
+	}
+
 	const hud = getHudOverlayWindow();
 	if (!hud) {
 		return false;
@@ -324,6 +328,14 @@ function focusOrCreateMainWindow() {
 		void app.whenReady().then(() => {
 			focusOrCreateMainWindow();
 		});
+		return;
+	}
+
+	const updateToast = getUpdateToastWindow();
+	if (updateToast?.isVisible()) {
+		updateToast.show();
+		updateToast.moveTop();
+		updateToast.focus();
 		return;
 	}
 
@@ -559,124 +571,12 @@ function syncDockIcon() {
 	}
 }
 
-function getUpdateNotificationTitle(payload: UpdateToastPayload) {
-	switch (payload.phase) {
-		case "available":
-			return `Recordly ${payload.version} is available`;
-		case "downloading":
-			return `Downloading Recordly ${payload.version}`;
-		case "ready":
-			return `Recordly ${payload.version} is ready`;
-		case "error":
-			return `Recordly ${payload.version} needs attention`;
-	}
-}
-
-function getUpdateNotificationBody(payload: UpdateToastPayload) {
-	switch (payload.phase) {
-		case "available":
-			return "Click to install the update and restart Recordly.";
-		case "downloading":
-			return "Recordly is downloading the update and will restart when it is ready.";
-		case "ready":
-			return "Click to install the downloaded update and restart.";
-		case "error":
-			return payload.primaryAction === "install-and-restart"
-				? "Click to try the install again."
-				: "Click to retry checking for updates.";
-	}
-}
-
-function clearActiveUpdateNotification() {
-	if (activeUpdateNotification) {
-		activeUpdateNotification.close();
-		activeUpdateNotification = null;
-	}
-	activeUpdateNotificationKey = null;
-}
-
 function sendUpdateToastToWindows(channel: "update-toast-state", payload: unknown) {
-	if (process.platform !== "darwin") {
-		if (!payload) {
-			clearActiveUpdateNotification();
-			return true;
-		}
-
-		const updatePayload = payload as UpdateToastPayload;
-		if (updatePayload.phase === "downloading") {
-			return true;
-		}
-
-		if (!Notification.isSupported()) {
-			return false;
-		}
-
-		const notificationKey = [
-			updatePayload.phase,
-			updatePayload.version,
-			updatePayload.detail,
-		].join(":");
-		if (activeUpdateNotificationKey === notificationKey) {
-			return true;
-		}
-
-		clearActiveUpdateNotification();
-		const notification = new Notification({
-			title: getUpdateNotificationTitle(updatePayload),
-			body: getUpdateNotificationBody(updatePayload),
-			icon: getAppImage(getPlatformAppIconFilename(128)),
-			silent: false,
-		});
-
-		notification.on("click", () => {
-			focusOrCreateMainWindow();
-			switch (updatePayload.phase) {
-				case "available":
-					void downloadAvailableUpdate(sendUpdateToastToWindows, {
-						installAfterDownload: true,
-					});
-					break;
-				case "ready":
-					installDownloadedUpdateNow(sendUpdateToastToWindows);
-					break;
-				case "error":
-					if (updatePayload.primaryAction === "install-and-restart") {
-						void downloadAvailableUpdate(sendUpdateToastToWindows, {
-							installAfterDownload: true,
-						});
-					} else {
-						void checkForAppUpdates(getUpdateDialogWindow, { manual: true });
-					}
-					break;
-				default:
-					break;
-			}
-		});
-
-		notification.on("close", () => {
-			if (activeUpdateNotification === notification) {
-				activeUpdateNotification = null;
-				activeUpdateNotificationKey = null;
-			}
-		});
-
-		notification.show();
-		// On Win10, showing a native notification can break setIgnoreMouseEvents
-		// forwarding on the transparent HUD overlay.  Re-assert it after a short
-		// delay so the renderer's hover detection keeps working.
-		reassertHudOverlayMouseState();
-		activeUpdateNotification = notification;
-		activeUpdateNotificationKey = notificationKey;
-		return true;
-	}
-
 	if (!payload) {
 		const existingWindow = getUpdateToastWindow();
-		if (!existingWindow) {
-			return false;
+		if (existingWindow) {
+			existingWindow.webContents.send(channel, null);
 		}
-
-		existingWindow.webContents.send(channel, null);
 		hideUpdateToastWindow();
 		return true;
 	}
@@ -1095,6 +995,11 @@ app.whenReady().then(async () => {
 
 	createWindow();
 	setupAutoUpdates(getUpdateDialogWindow, sendUpdateToastToWindows);
+	if (IS_DEV && process.env.RECORDLY_DEV_PREVIEW_UPDATE === "1") {
+		setTimeout(() => {
+			previewUpdateToast(sendUpdateToastToWindows);
+		}, 750);
+	}
 
 	// Register the display media handler so that renderer's getDisplayMedia()
 	// calls land on the pre-selected source without showing a system picker.

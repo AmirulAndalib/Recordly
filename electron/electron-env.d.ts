@@ -49,6 +49,7 @@ interface UpdateToastState {
 	phase: "available" | "downloading" | "ready" | "error";
 	delayMs: number;
 	isPreview?: boolean;
+	isExperimental?: boolean;
 	progressPercent?: number;
 	transferredBytes?: number;
 	totalBytes?: number;
