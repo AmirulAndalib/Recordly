@@ -26,7 +26,7 @@ export async function buildFfmpegCaptureArgs(source: SelectedSource, outputPath:
 	const buildOutputArgs = (inputRange: "auto" | "full") => [
 		"-an",
 		"-vf",
-		`scale=in_range=${inputRange}:out_range=tv:sws_dither=bayer`,
+		`scale=in_range=${inputRange}:out_range=tv:out_color_matrix=bt709:sws_dither=bayer`,
 		"-c:v",
 		"libx264",
 		"-preset",
