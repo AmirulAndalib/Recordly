@@ -153,7 +153,7 @@ describe("native static layout command builders", () => {
 		expect(args).toContain("-filter_complex");
 		expect(args).toContain(
 			"color=c=0x101010:s=1920x1080:r=60:d=60.000,format=nv12,setrange=limited,hwupload_cuda[bg];" +
-				"[0:v]scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv,fps=60,hwupload_cuda[fg];" +
+				"[0:v]scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv:sws_dither=a_dither,fps=60,hwupload_cuda[fg];" +
 				"[bg][fg]overlay_cuda=192:108:shortest=0:repeatlast=1:eof_action=repeat,trim=duration=60.000,setpts=PTS-STARTPTS[out]",
 		);
 		expect(args).toContain("h264_nvenc");
@@ -179,7 +179,7 @@ describe("native static layout command builders", () => {
 		expect(args).toEqual(
 			expect.arrayContaining([
 				"-vf",
-				"vflip,scale=in_range=full:out_range=tv",
+				"vflip,scale=in_range=full:out_range=tv:sws_dither=a_dither",
 				"-colorspace",
 				"bt709",
 				"-color_primaries",
@@ -198,7 +198,7 @@ describe("native static layout command builders", () => {
 		expect(args).toEqual(
 			expect.arrayContaining([
 				"-vf",
-				"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
+				"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv:sws_dither=a_dither,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
 				"-map",
 				"0:v:0",
 				"-an",
@@ -214,7 +214,7 @@ describe("native static layout command builders", () => {
 		});
 
 		expect(args).toContain(
-			"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
+			"scale_cuda=w=1536:h=864:format=nv12:passthrough=0,hwdownload,format=nv12,scale=in_range=auto:out_range=tv:sws_dither=a_dither,fps=60,pad=w=1920:h=1080:x=192:y=108:color=0x101010",
 		);
 	});
 
@@ -266,7 +266,9 @@ describe("native static layout command builders", () => {
 		);
 		expect(filterComplex).toContain("[fgbase][mask]alphamerge[fg]");
 		expect(filterComplex).toContain("overlay=x=192:y=108:format=auto");
-		expect(filterComplex).toContain("scale=in_range=full:out_range=tv,format=yuv420p[out]");
+		expect(filterComplex).toContain(
+			"scale=in_range=full:out_range=tv:sws_dither=a_dither,format=yuv420p[out]",
+		);
 		expect(args).toContain("h264_nvenc");
 		expect(args).toEqual(expect.arrayContaining(["-pix_fmt", "yuv420p"]));
 		expect(args).toEqual(expect.arrayContaining([...FFMPEG_BT709_VIDEO_COLOR_ARGS]));

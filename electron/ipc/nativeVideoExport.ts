@@ -20,9 +20,9 @@ export const FFMPEG_BT709_VIDEO_COLOR_ARGS = [
 	"tv",
 ] as const;
 
-const FFMPEG_AUTO_TO_VIDEO_RANGE_FILTER = "scale=in_range=auto:out_range=tv";
+const FFMPEG_AUTO_TO_VIDEO_RANGE_FILTER = "scale=in_range=auto:out_range=tv:sws_dither=a_dither";
 const FFMPEG_AUTO_TO_FULL_RANGE_FILTER = "scale=in_range=auto:out_range=full";
-const FFMPEG_FULL_TO_VIDEO_RANGE_FILTER = "scale=in_range=full:out_range=tv";
+const FFMPEG_FULL_TO_VIDEO_RANGE_FILTER = "scale=in_range=full:out_range=tv:sws_dither=a_dither";
 
 export type NativeExportEncodingMode = "fast" | "balanced" | "quality";
 
@@ -311,7 +311,7 @@ export function buildNativeVideoExportArgs(
 		"-i",
 		"pipe:0",
 		"-vf",
-		"vflip,scale=in_range=full:out_range=tv",
+		`vflip,${FFMPEG_FULL_TO_VIDEO_RANGE_FILTER}`,
 		"-an",
 		"-c:v",
 		encoder,
