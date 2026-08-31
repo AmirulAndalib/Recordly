@@ -815,6 +815,12 @@ interface Window {
 		skipUpdateVersion: () => Promise<{ success: boolean; message?: string }>;
 		getCurrentUpdateToastPayload: () => Promise<UpdateToastState | null>;
 		getUpdateStatusSummary: () => Promise<UpdateStatusSummary>;
+		getExperimentalUpdatesEnabled: () => Promise<boolean>;
+		setExperimentalUpdatesEnabled: (enabled: boolean) => Promise<{
+			success: boolean;
+			enabled: boolean;
+			error?: string;
+		}>;
 		previewUpdateToast: () => Promise<{ success: boolean }>;
 		checkForAppUpdates: () => Promise<{ success: boolean; logPath: string }>;
 		onUpdateToastStateChanged: (
@@ -866,6 +872,8 @@ interface Window {
 		}>;
 		/** Returns the app version from package.json */
 		getAppVersion: () => Promise<string>;
+		/** Returns the configured remote announcement feed, or null when unavailable. */
+		getAnnouncements: () => Promise<unknown | null>;
 		/** Hide the OS cursor before browser capture starts. */
 		hideOsCursor: () => Promise<{ success: boolean }>;
 		/** Recording preferences (mic, system audio) */

@@ -132,10 +132,53 @@ describe("applyZoomTransform motion blur routing", () => {
 			frameTimeMs: 1016,
 		});
 
-		expect(Math.abs(zoomBlurFilter.strength)).toBeGreaterThan(0);
+		expect(zoomBlurFilter.strength).toBeGreaterThan(0);
 		expect(Math.hypot(motionBlurFilter.velocity.x, motionBlurFilter.velocity.y)).toBe(0);
 		expect(zoomBlurFilter.center.x).toBeCloseTo(stageSize.width / 2, 0);
 		expect(zoomBlurFilter.center.y).toBeCloseTo(stageSize.height / 2, 0);
 		expect(zoomBlurFilter.radius).toBe(-1);
+	});
+
+	it("keeps a zoom on the radial path even when its center moves farther than its size", () => {
+		const motionBlurState = createMotionBlurState();
+		const motionBlurFilter = {
+			velocity: { x: 0, y: 0 },
+			kernelSize: 5,
+			offset: 0,
+		};
+		const zoomBlurFilter = {
+			strength: 0,
+			center: { x: 0, y: 0 },
+			innerRadius: 0,
+			radius: -1,
+		};
+		const sharedParams = {
+			cameraContainer: createStubContainer() as never,
+			zoomBlurFilter: zoomBlurFilter as never,
+			motionBlurFilter: motionBlurFilter as never,
+			stageSize: { width: 1280, height: 720 },
+			baseMask: { x: 80, y: 60, width: 1120, height: 600 },
+			zoomScale: 1,
+			focusX: 0.5,
+			focusY: 0.5,
+			isPlaying: true,
+			motionBlurAmount: 1,
+			motionBlurState,
+		};
+
+		applyZoomTransform({
+			...sharedParams,
+			transformOverride: { scale: 1, x: 0, y: 0 },
+			frameTimeMs: 1000,
+		});
+		applyZoomTransform({
+			...sharedParams,
+			transformOverride: { scale: 1.01, x: 120, y: 0 },
+			frameTimeMs: 1016,
+		});
+
+		expect(zoomBlurFilter.strength).toBeGreaterThan(0);
+		expect(Math.hypot(motionBlurFilter.velocity.x, motionBlurFilter.velocity.y)).toBe(0);
+		expect(zoomBlurFilter.innerRadius).toBe(0);
 	});
 });

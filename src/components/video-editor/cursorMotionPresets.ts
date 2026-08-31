@@ -1,8 +1,4 @@
-import {
-	DEFAULT_CURSOR_MOTION_BLUR,
-	DEFAULT_ZOOM_IN_DURATION_MS,
-	DEFAULT_ZOOM_OUT_DURATION_MS,
-} from "./types";
+import { DEFAULT_ZOOM_IN_DURATION_MS, DEFAULT_ZOOM_OUT_DURATION_MS } from "./types";
 
 export type CursorMotionPresetId = "focused" | "smooth";
 
@@ -17,7 +13,6 @@ export interface CursorMotionPreset {
 	cursorSpringStiffnessMultiplier: number;
 	cursorSpringDampingMultiplier: number;
 	cursorSpringMassMultiplier: number;
-	cursorMotionBlur: number;
 	cursorClickBounce: number;
 	cursorClickBounceDuration: number;
 }
@@ -30,7 +25,6 @@ export interface CursorMotionPresetSelectionInput {
 	cursorSpringStiffnessMultiplier: number;
 	cursorSpringDampingMultiplier: number;
 	cursorSpringMassMultiplier: number;
-	cursorMotionBlur: number;
 	cursorClickBounce: number;
 	cursorClickBounceDuration: number;
 }
@@ -39,7 +33,6 @@ const SHARED_CURSOR_PRESET_VALUES = {
 	cursorSize: 2.5,
 	cursorSmoothing: 0.67,
 	cursorSpringMassMultiplier: 1.29,
-	cursorMotionBlur: DEFAULT_CURSOR_MOTION_BLUR,
 	cursorClickBounce: 3.5,
 	cursorClickBounceDuration: 350,
 } as const;
@@ -80,7 +73,6 @@ export function getMatchingCursorMotionPresetId(
 			preset.cursorSpringStiffnessMultiplier === values.cursorSpringStiffnessMultiplier &&
 			preset.cursorSpringDampingMultiplier === values.cursorSpringDampingMultiplier &&
 			preset.cursorSpringMassMultiplier === values.cursorSpringMassMultiplier &&
-			preset.cursorMotionBlur === values.cursorMotionBlur &&
 			preset.cursorClickBounce === values.cursorClickBounce &&
 			preset.cursorClickBounceDuration === values.cursorClickBounceDuration
 		) {

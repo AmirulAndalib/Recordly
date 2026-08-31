@@ -40,3 +40,12 @@ describe("ScreenCaptureKitRecorder resume timing", () => {
 		);
 	});
 });
+
+describe("ScreenCaptureKitRecorder colour metadata", () => {
+	it("tags recordings as BT.709", () => {
+		expect(recorderSource).toContain("AVVideoColorPropertiesKey");
+		expect(recorderSource).toContain("AVVideoColorPrimaries_ITU_R_709_2");
+		expect(recorderSource).toContain("AVVideoTransferFunction_ITU_R_709_2");
+		expect(recorderSource).toContain("AVVideoYCbCrMatrix_ITU_R_709_2");
+	});
+});

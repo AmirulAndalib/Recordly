@@ -835,6 +835,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getUpdateStatusSummary: () => {
 		return ipcRenderer.invoke("get-update-status-summary");
 	},
+	getExperimentalUpdatesEnabled: () => {
+		return ipcRenderer.invoke("get-experimental-updates-enabled");
+	},
+	setExperimentalUpdatesEnabled: (enabled: boolean) => {
+		return ipcRenderer.invoke("set-experimental-updates-enabled", enabled);
+	},
 	previewUpdateToast: () => {
 		return ipcRenderer.invoke("preview-update-toast");
 	},
@@ -966,6 +972,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("mux-native-windows-recording", expectedDurationMs),
 	hideOsCursor: () => ipcRenderer.invoke("hide-cursor"),
 	getAppVersion: () => ipcRenderer.invoke("app:getVersion"),
+	getAnnouncements: () => ipcRenderer.invoke("announcements:get"),
 	getRecordingPreferences: () => ipcRenderer.invoke("get-recording-preferences"),
 	getRecordingAudioLabConfig: () => ipcRenderer.invoke("get-recording-audio-lab-config"),
 	setRecordingPreferences: (prefs: {

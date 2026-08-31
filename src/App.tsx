@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { AnnouncementDialog } from "./components/announcements/AnnouncementDialog";
+import { LiveAnnouncementNotifications } from "./components/announcements/LiveAnnouncementNotifications";
 import { CountdownOverlay } from "./components/countdown/CountdownOverlay";
 import { LaunchWindow } from "./components/launch/LaunchWindow";
 import { SourceSelector } from "./components/launch/SourceSelector";
@@ -72,10 +74,14 @@ export default function App() {
 			return <UpdateToastWindow />;
 		case "editor":
 			return (
-				<ShortcutsProvider>
-					<VideoEditor />
-					<ShortcutsConfigDialog />
-				</ShortcutsProvider>
+				<>
+					<ShortcutsProvider>
+						<VideoEditor />
+						<ShortcutsConfigDialog />
+					</ShortcutsProvider>
+					<AnnouncementDialog audience="editor" />
+					<LiveAnnouncementNotifications audience="editor" />
+				</>
 			);
 		default:
 			return (

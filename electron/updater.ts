@@ -4,6 +4,7 @@ import type { MessageBoxOptions, MessageBoxReturnValue } from "electron";
 import { app, BrowserWindow, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 import { USER_DATA_PATH } from "./appPaths";
+import { readAppSetting, writeAppSetting } from "./appSettingsStore";
 
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export const UPDATE_REMINDER_DELAY_MS = 3 * 60 * 60 * 1000;
@@ -16,6 +17,7 @@ const DEV_UPDATE_PREVIEW_VERSION = "9.9.9";
 const DEV_UPDATE_PREVIEW_PROGRESS_STEP_MS = 300;
 const DEV_UPDATE_PREVIEW_PROGRESS_INCREMENT = 20;
 const ONE_MEGABYTE = 1024 * 1024;
+const EXPERIMENTAL_UPDATES_SETTING_KEY = "experimentalUpdatesEnabled";
 
 export type UpdateToastPhase = "available" | "downloading" | "ready" | "error";
 
@@ -122,6 +124,25 @@ function configureUpdateFeed() {
 		channel: "latest",
 	});
 	writeUpdaterLog(`Using overridden update feed: ${UPDATE_FEED_URL_OVERRIDE}`);
+}
+
+export function getExperimentalUpdatesEnabled() {
+	return readAppSetting(EXPERIMENTAL_UPDATES_SETTING_KEY) === true;
+}
+
+function applyExperimentalUpdatesPreference() {
+	const enabled = getExperimentalUpdatesEnabled();
+	autoUpdater.allowPrerelease = enabled;
+	writeUpdaterLog(`Update channel configured: ${enabled ? "experimental" : "stable"}.`);
+	return enabled;
+}
+
+export function setExperimentalUpdatesEnabled(enabled: boolean) {
+	writeAppSetting(EXPERIMENTAL_UPDATES_SETTING_KEY, enabled);
+	autoUpdater.allowPrerelease = enabled;
+	skippedVersion = null;
+	writeUpdaterLog(`Experimental updates ${enabled ? "enabled" : "disabled"} by user.`);
+	return enabled;
 }
 
 function canUseAutoUpdates() {
@@ -616,6 +637,7 @@ export async function checkForAppUpdates(
 
 	manualCheckRequested = Boolean(options?.manual);
 	updateCheckInProgress = true;
+	applyExperimentalUpdatesPreference();
 	setUpdateStatusSummary({ status: "checking", detail: "Checking for updates..." });
 	writeUpdaterLog(`Starting ${manualCheckRequested ? "manual" : "automatic"} update check.`);
 
@@ -650,6 +672,7 @@ export function setupAutoUpdates(
 
 	updaterInitialized = true;
 	configureUpdateFeed();
+	applyExperimentalUpdatesPreference();
 	autoUpdater.autoDownload = false;
 	autoUpdater.autoInstallOnAppQuit = false;
 	writeUpdaterLog(`Updater initialized. logPath=${UPDATER_LOG_PATH}`);

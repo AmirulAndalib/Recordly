@@ -1,14 +1,9 @@
-import { readFileSync, writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import { app, ipcMain } from "electron";
+import { hasAppSetting, readAppSettingsStore, writeAppSettingsStore } from "../../appSettingsStore";
 import { hideCursor } from "../../cursorHider";
 import { closeCountdownWindow, createCountdownWindow, getCountdownWindow } from "../../windows";
-import {
-	APP_SETTINGS_FILE,
-	COUNTDOWN_SETTINGS_FILE,
-	RECORDINGS_SETTINGS_FILE,
-	SHORTCUTS_FILE,
-} from "../constants";
+import { COUNTDOWN_SETTINGS_FILE, RECORDINGS_SETTINGS_FILE, SHORTCUTS_FILE } from "../constants";
 import {
 	countdownCancelled,
 	countdownInProgress,
@@ -40,28 +35,6 @@ function getBrowserMicrophoneProfileFromEnv() {
 			: DEFAULT_BROWSER_MICROPHONE_PROFILE,
 		requestedBrowserMicrophoneProfile: requested,
 	};
-}
-
-function readAppSettingsStore(): Record<string, unknown> {
-	try {
-		const content = readFileSync(APP_SETTINGS_FILE, "utf-8");
-		const parsed = parseJsonWithByteOrderMark<unknown>(content);
-		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-			return {};
-		}
-
-		return parsed as Record<string, unknown>;
-	} catch {
-		return {};
-	}
-}
-
-function writeAppSettingsStore(store: Record<string, unknown>) {
-	writeFileSync(APP_SETTINGS_FILE, JSON.stringify(store, null, 2), "utf-8");
-}
-
-function hasAppSetting(store: Record<string, unknown>, key: string): boolean {
-	return Reflect.getOwnPropertyDescriptor(store, key) !== undefined;
 }
 
 export function registerSettingsHandlers() {

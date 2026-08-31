@@ -37,11 +37,13 @@ import {
 	dismissUpdateToast,
 	downloadAvailableUpdate,
 	getCurrentUpdateToastPayload,
+	getExperimentalUpdatesEnabled,
 	getUpdaterLogPath,
 	getUpdateStatusSummary,
 	installDownloadedUpdateNow,
 	previewUpdateToast,
 	setupAutoUpdates,
+	setExperimentalUpdatesEnabled,
 	skipAvailableUpdateVersion,
 } from "./updater";
 import {
@@ -736,6 +738,29 @@ ipcMain.handle("get-current-update-toast-payload", () => {
 
 ipcMain.handle("get-update-status-summary", () => {
 	return getUpdateStatusSummary();
+});
+
+ipcMain.handle("get-experimental-updates-enabled", () => {
+	return getExperimentalUpdatesEnabled();
+});
+
+ipcMain.handle("set-experimental-updates-enabled", async (_event, enabled: unknown) => {
+	if (typeof enabled !== "boolean") {
+		return { success: false, enabled: getExperimentalUpdatesEnabled() };
+	}
+
+	try {
+		const savedValue = setExperimentalUpdatesEnabled(enabled);
+		await checkForAppUpdates(getUpdateDialogWindow);
+		return { success: true, enabled: savedValue };
+	} catch (error) {
+		console.error("Failed to update experimental updates preference:", error);
+		return {
+			success: false,
+			enabled: getExperimentalUpdatesEnabled(),
+			error: String(error),
+		};
+	}
 });
 
 ipcMain.handle("preview-update-toast", () => {

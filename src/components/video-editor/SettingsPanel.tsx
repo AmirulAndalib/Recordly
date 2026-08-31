@@ -22,10 +22,6 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getAssetPath, getRenderableVideoUrl, getWallpaperThumbnailUrl } from "@/lib/assetPath";
-import {
-	TEMPORAL_MOTION_BLUR_DEFAULT_SAMPLE_COUNT,
-	TEMPORAL_MOTION_BLUR_DEFAULT_SHUTTER_FRACTION,
-} from "@/lib/exporter/temporalMotionBlur";
 import { cn } from "@/lib/utils";
 import type { BuiltInWallpaper } from "@/lib/wallpapers";
 import {
@@ -64,7 +60,6 @@ import type {
 	WebcamPositionPreset,
 	ZoomDepth,
 	ZoomMode,
-	ZoomMotionBlurTuning,
 	ZoomTransitionEasing,
 } from "./types";
 import {
@@ -78,7 +73,6 @@ import {
 	DEFAULT_CURSOR_CLICK_EFFECT_DURATION_MS,
 	DEFAULT_CURSOR_CLICK_EFFECT_OPACITY,
 	DEFAULT_CURSOR_CLICK_EFFECT_SCALE,
-	DEFAULT_CURSOR_MOTION_BLUR,
 	DEFAULT_CURSOR_SIZE,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_CURSOR_SWAY,
@@ -92,7 +86,6 @@ import {
 	DEFAULT_WEBCAM_SHADOW,
 	DEFAULT_WEBCAM_SIZE,
 	DEFAULT_ZOOM_IN_DURATION_MS,
-	DEFAULT_ZOOM_MOTION_BLUR_TUNING,
 	DEFAULT_ZOOM_OUT_DURATION_MS,
 } from "./types";
 import { fromCursorSwaySliderValue, toCursorSwaySliderValue } from "./videoPlayback/cursorSway";
@@ -548,14 +541,6 @@ interface SettingsPanelProps {
 	onShadowChange?: (intensity: number) => void;
 	backgroundBlur?: number;
 	onBackgroundBlurChange?: (amount: number) => void;
-	zoomMotionBlurTuning?: ZoomMotionBlurTuning;
-	onZoomMotionBlurTuningChange?: (tuning: ZoomMotionBlurTuning) => void;
-	zoomTemporalMotionBlur?: number;
-	onZoomTemporalMotionBlurChange?: (amount: number) => void;
-	zoomMotionBlurSampleCount?: number | null;
-	onZoomMotionBlurSampleCountChange?: (count: number | null) => void;
-	zoomMotionBlurShutterFraction?: number | null;
-	onZoomMotionBlurShutterFractionChange?: (fraction: number | null) => void;
 	connectZooms?: boolean;
 	onConnectZoomsChange?: (enabled: boolean) => void;
 	autoApplyFreshRecordingAutoZooms?: boolean;
@@ -600,8 +585,6 @@ interface SettingsPanelProps {
 	onCameraSpringMassMultiplierChange?: (multiplier: number) => void;
 	zoomClassicMode?: boolean;
 	onZoomClassicModeChange?: (enabled: boolean) => void;
-	cursorMotionBlur?: number;
-	onCursorMotionBlurChange?: (amount: number) => void;
 	cursorClickEffect?: CursorClickEffectStyle;
 	onCursorClickEffectChange?: (effect: CursorClickEffectStyle) => void;
 	cursorClickEffectColor?: string;
@@ -1009,8 +992,6 @@ export function SettingsPanel({
 	onShadowChange,
 	backgroundBlur = 0,
 	onBackgroundBlurChange,
-	zoomMotionBlurTuning = DEFAULT_ZOOM_MOTION_BLUR_TUNING,
-	onZoomMotionBlurTuningChange,
 	connectZooms = true,
 	onConnectZoomsChange,
 	autoApplyFreshRecordingAutoZooms = true,
@@ -1043,8 +1024,6 @@ export function SettingsPanel({
 	onCameraSpringMassMultiplierChange,
 	zoomClassicMode = false,
 	onZoomClassicModeChange,
-	cursorMotionBlur = DEFAULT_CURSOR_MOTION_BLUR,
-	onCursorMotionBlurChange,
 	cursorClickEffect = DEFAULT_CURSOR_CLICK_EFFECT,
 	onCursorClickEffectChange,
 	cursorClickEffectColor = DEFAULT_CURSOR_CLICK_EFFECT_COLOR,
@@ -1119,6 +1098,8 @@ export function SettingsPanel({
 	const [customImages, setCustomImages] = useState<string[]>(
 		initialEditorPreferences.customWallpapers,
 	);
+	const [experimentalUpdatesEnabled, setExperimentalUpdatesEnabled] = useState(false);
+	const [savingExperimentalUpdates, setSavingExperimentalUpdates] = useState(false);
 	const removeBackgroundStateRef = useRef<{
 		aspectRatio: AspectRatio;
 		padding: Padding;
@@ -1134,6 +1115,44 @@ export function SettingsPanel({
 			...autoCaptionSettings,
 			...partial,
 		});
+	};
+
+	useEffect(() => {
+		let cancelled = false;
+		void window.electronAPI
+			.getExperimentalUpdatesEnabled()
+			.then((enabled) => {
+				if (!cancelled) setExperimentalUpdatesEnabled(enabled);
+			})
+			.catch((error) => {
+				console.error("Failed to load experimental updates preference:", error);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	const updateExperimentalUpdatesPreference = async (enabled: boolean) => {
+		const previousValue = experimentalUpdatesEnabled;
+		setExperimentalUpdatesEnabled(enabled);
+		setSavingExperimentalUpdates(true);
+		try {
+			const result = await window.electronAPI.setExperimentalUpdatesEnabled(enabled);
+			setExperimentalUpdatesEnabled(result.enabled);
+			if (!result.success) {
+				toast.error(
+					result.error ||
+						tSettings("updates.saveFailed", "Failed to change the update channel."),
+				);
+			}
+		} catch (error) {
+			setExperimentalUpdatesEnabled(previousValue);
+			toast.error(
+				`${tSettings("updates.saveFailed", "Failed to change the update channel.")} ${String(error)}`,
+			);
+		} finally {
+			setSavingExperimentalUpdates(false);
+		}
 	};
 
 	useEffect(() => {
@@ -1506,7 +1525,6 @@ export function SettingsPanel({
 	};
 
 	const resetZoomSection = () => {
-		onZoomMotionBlurTuningChange?.(initialEditorPreferences.zoomMotionBlurTuning);
 		onCameraSpringStiffnessMultiplierChange?.(
 			initialEditorPreferences.cameraSpringStiffnessMultiplier,
 		);
@@ -1532,7 +1550,6 @@ export function SettingsPanel({
 			initialEditorPreferences.cursorSpringDampingMultiplier,
 		);
 		onCursorSpringMassMultiplierChange?.(initialEditorPreferences.cursorSpringMassMultiplier);
-		onCursorMotionBlurChange?.(initialEditorPreferences.cursorMotionBlur);
 		onCursorClickEffectChange?.(initialEditorPreferences.cursorClickEffect);
 		onCursorClickEffectColorChange?.(initialEditorPreferences.cursorClickEffectColor);
 		onCursorClickEffectScaleChange?.(initialEditorPreferences.cursorClickEffectScale);
@@ -1553,7 +1570,6 @@ export function SettingsPanel({
 				cursorSpringStiffnessMultiplier,
 				cursorSpringDampingMultiplier,
 				cursorSpringMassMultiplier,
-				cursorMotionBlur,
 				cursorClickBounce,
 				cursorClickBounceDuration,
 			}) ?? "focused"
@@ -1561,7 +1577,6 @@ export function SettingsPanel({
 	}, [
 		cursorClickBounce,
 		cursorClickBounceDuration,
-		cursorMotionBlur,
 		cursorSize,
 		cursorSmoothing,
 		cursorSpringDampingMultiplier,
@@ -1580,7 +1595,6 @@ export function SettingsPanel({
 		onCursorSpringStiffnessMultiplierChange?.(preset.cursorSpringStiffnessMultiplier);
 		onCursorSpringDampingMultiplierChange?.(preset.cursorSpringDampingMultiplier);
 		onCursorSpringMassMultiplierChange?.(preset.cursorSpringMassMultiplier);
-		onCursorMotionBlurChange?.(preset.cursorMotionBlur);
 		onCursorClickBounceChange?.(preset.cursorClickBounce);
 		onCursorClickBounceDurationChange?.(preset.cursorClickBounceDuration);
 	};
@@ -2542,6 +2556,32 @@ export function SettingsPanel({
 					</Select>
 				</section>
 
+				<section className="flex flex-col gap-2">
+					<SectionLabel>{tSettings("updates.title", "Updates")}</SectionLabel>
+					<div className="flex items-center justify-between gap-3 rounded-lg bg-foreground/[0.03] px-2.5 py-2">
+						<div>
+							<div className="text-[11px] font-medium text-foreground">
+								{tSettings("updates.experimental", "Experimental updates")}
+							</div>
+							<div className="mt-0.5 text-[10px] text-muted-foreground/70">
+								{tSettings(
+									"updates.experimentalDescription",
+									"Receive first-line test builds published as prereleases. These may be less stable.",
+								)}
+							</div>
+						</div>
+						<Switch
+							checked={experimentalUpdatesEnabled}
+							disabled={savingExperimentalUpdates}
+							onCheckedChange={(enabled) =>
+								void updateExperimentalUpdatesPreference(enabled)
+							}
+							aria-label={tSettings("updates.experimental", "Experimental updates")}
+							className="data-[state=checked]:bg-[#2563EB] scale-75"
+						/>
+					</div>
+				</section>
+
 				<section className="flex flex-col gap-1.5">
 					<div className="flex items-center justify-between gap-3 rounded-lg bg-foreground/[0.03] px-2.5 py-2">
 						<div>
@@ -2651,104 +2691,6 @@ export function SettingsPanel({
 									{tSettings("effects.openNativeCaptureWarning", "Open warning")}
 								</Button>
 							</div>
-						</div>
-
-						<div className="space-y-1.5 rounded-lg border border-foreground/10 bg-background/60 px-3 py-3">
-							<div>
-								<div className="text-[11px] font-medium text-foreground">
-									{tSettings("effects.motionBlurDebug", "Motion Blur Debug")}
-								</div>
-								<div className="mt-0.5 text-[10px] text-muted-foreground">
-									{tSettings(
-										"effects.motionBlurDebugHint",
-										"Development-only tuning for the split move-vs-zoom blur path. Pan controls drive the streak filter, and zoom controls drive the focus-centered zoom filter.",
-									)}
-								</div>
-							</div>
-							<SliderControl
-								label={tSettings("effects.motionBlurPanThreshold", "Pan threshold")}
-								value={zoomMotionBlurTuning.panVelocityThreshold}
-								defaultValue={
-									initialEditorPreferences.zoomMotionBlurTuning
-										.panVelocityThreshold
-								}
-								min={0}
-								max={240}
-								step={1}
-								onChange={(value) =>
-									onZoomMotionBlurTuningChange?.({
-										...zoomMotionBlurTuning,
-										panVelocityThreshold: value,
-									})
-								}
-								formatValue={(value) => `${Math.round(value)} px/s`}
-								parseInput={(text) =>
-									parseFloat(text.replace(/px\/s$/i, "").trim())
-								}
-							/>
-							<SliderControl
-								label={tSettings("effects.motionBlurPanStrength", "Pan max blur")}
-								value={zoomMotionBlurTuning.maxDirectionalBlurPx}
-								defaultValue={
-									initialEditorPreferences.zoomMotionBlurTuning
-										.maxDirectionalBlurPx
-								}
-								min={0}
-								max={96}
-								step={0.1}
-								onChange={(value) =>
-									onZoomMotionBlurTuningChange?.({
-										...zoomMotionBlurTuning,
-										maxDirectionalBlurPx: value,
-									})
-								}
-								formatValue={(value) => `${value.toFixed(1)} px`}
-								parseInput={(text) => parseFloat(text.replace(/px$/i, "").trim())}
-							/>
-							<SliderControl
-								label={tSettings(
-									"effects.motionBlurZoomThreshold",
-									"Zoom threshold",
-								)}
-								value={zoomMotionBlurTuning.zoomVelocityThreshold}
-								defaultValue={
-									initialEditorPreferences.zoomMotionBlurTuning
-										.zoomVelocityThreshold
-								}
-								min={0}
-								max={0.4}
-								step={0.005}
-								onChange={(value) =>
-									onZoomMotionBlurTuningChange?.({
-										...zoomMotionBlurTuning,
-										zoomVelocityThreshold: value,
-									})
-								}
-								formatValue={(value) => value.toFixed(3)}
-								parseInput={(text) => parseFloat(text)}
-							/>
-							<SliderControl
-								label={tSettings(
-									"effects.motionBlurZoomStrength",
-									"Zoom blur strength",
-								)}
-								value={zoomMotionBlurTuning.maxRadialBlurStrength}
-								defaultValue={
-									initialEditorPreferences.zoomMotionBlurTuning
-										.maxRadialBlurStrength
-								}
-								min={0}
-								max={1.5}
-								step={0.005}
-								onChange={(value) =>
-									onZoomMotionBlurTuningChange?.({
-										...zoomMotionBlurTuning,
-										maxRadialBlurStrength: value,
-									})
-								}
-								formatValue={(value) => value.toFixed(3)}
-								parseInput={(text) => parseFloat(text)}
-							/>
 						</div>
 
 						<div className="space-y-1.5 rounded-lg border border-foreground/10 bg-background/60 px-3 py-3">
@@ -2995,19 +2937,6 @@ export function SettingsPanel({
 						)}
 					</div>
 				)}
-				{showDevMotionControls ? (
-					<div className="rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2">
-						<div className="text-[10px] text-muted-foreground">
-							{tSettings(
-								"effects.exportBlurMovedToDev",
-								"Export blur tuning is available in Settings > Dev.",
-							)}
-						</div>
-						<div className="mt-1 text-[12px] font-medium text-foreground">
-							{`${TEMPORAL_MOTION_BLUR_DEFAULT_SAMPLE_COUNT} samples · ${Math.round(TEMPORAL_MOTION_BLUR_DEFAULT_SHUTTER_FRACTION * 100)}% shutter`}
-						</div>
-					</div>
-				) : null}
 				{selectedZoomId && (
 					<Button
 						onClick={() => {
@@ -3343,17 +3272,6 @@ export function SettingsPanel({
 								max={10}
 								step={0.05}
 								onChange={(v) => onCursorSizeChange?.(v)}
-								formatValue={(v) => `${v.toFixed(2)}×`}
-								parseInput={(text) => parseFloat(text.replace(/×$/, ""))}
-							/>
-							<SliderControl
-								label={tSettings("effects.cursorMotionBlur")}
-								value={cursorMotionBlur}
-								defaultValue={DEFAULT_CURSOR_MOTION_BLUR}
-								min={0}
-								max={2}
-								step={0.05}
-								onChange={(v) => onCursorMotionBlurChange?.(v)}
 								formatValue={(v) => `${v.toFixed(2)}×`}
 								parseInput={(text) => parseFloat(text.replace(/×$/, ""))}
 							/>
