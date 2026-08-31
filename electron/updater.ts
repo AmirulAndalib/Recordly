@@ -5,6 +5,10 @@ import { app, BrowserWindow, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 import { USER_DATA_PATH } from "./appPaths";
 import { readAppSetting, writeAppSetting } from "./appSettingsStore";
+import {
+	EXPERIMENTAL_UPDATE_DESCRIPTION,
+	getUpdateChannelConfiguration,
+} from "./updateChannel";
 
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export const UPDATE_REMINDER_DELAY_MS = 3 * 60 * 60 * 1000;
@@ -14,6 +18,8 @@ const UPDATE_FEED_URL_OVERRIDE = process.env.RECORDLY_UPDATE_FEED_URL?.trim() ??
 const UPDATER_LOG_PATH =
 	process.env.RECORDLY_UPDATER_LOG_PATH?.trim() || path.join(USER_DATA_PATH, "updater.log");
 const DEV_UPDATE_PREVIEW_VERSION = "9.9.9";
+const DEV_UPDATE_PREVIEW_IS_EXPERIMENTAL =
+	process.env.RECORDLY_DEV_PREVIEW_EXPERIMENTAL_UPDATE === "1";
 const DEV_UPDATE_PREVIEW_PROGRESS_STEP_MS = 300;
 const DEV_UPDATE_PREVIEW_PROGRESS_INCREMENT = 20;
 const ONE_MEGABYTE = 1024 * 1024;
@@ -43,6 +49,7 @@ export interface UpdateToastPayload {
 	phase: UpdateToastPhase;
 	delayMs: number;
 	isPreview?: boolean;
+	isExperimental?: boolean;
 	progressPercent?: number;
 	transferredBytes?: number;
 	totalBytes?: number;
@@ -132,14 +139,21 @@ export function getExperimentalUpdatesEnabled() {
 
 function applyExperimentalUpdatesPreference() {
 	const enabled = getExperimentalUpdatesEnabled();
-	autoUpdater.allowPrerelease = enabled;
-	writeUpdaterLog(`Update channel configured: ${enabled ? "experimental" : "stable"}.`);
+	const { channel, allowPrerelease, allowDowngrade } = getUpdateChannelConfiguration(enabled);
+	autoUpdater.channel = channel;
+	autoUpdater.allowPrerelease = allowPrerelease;
+	// Changing channels enables downgrades inside electron-updater. Recordly never
+	// needs that behaviour: opting out waits for the next stable version instead.
+	autoUpdater.allowDowngrade = allowDowngrade;
+	writeUpdaterLog(
+		`Update channel configured: ${enabled ? "experimental" : "stable"} (${channel}).`,
+	);
 	return enabled;
 }
 
 export function setExperimentalUpdatesEnabled(enabled: boolean) {
 	writeAppSetting(EXPERIMENTAL_UPDATES_SETTING_KEY, enabled);
-	autoUpdater.allowPrerelease = enabled;
+	applyExperimentalUpdatesPreference();
 	skippedVersion = null;
 	writeUpdaterLog(`Experimental updates ${enabled ? "enabled" : "disabled"} by user.`);
 	return enabled;
@@ -192,12 +206,22 @@ function emitUpdateToastState(
 	return sendToRenderer("update-toast-state", payload);
 }
 
-function createAvailableUpdateToastPayload(version: string): UpdateToastPayload {
+function getCurrentToastExperimentalFlag() {
+	return currentToastPayload?.isExperimental ?? getExperimentalUpdatesEnabled();
+}
+
+function createAvailableUpdateToastPayload(
+	version: string,
+	isExperimental = getExperimentalUpdatesEnabled(),
+): UpdateToastPayload {
 	return {
 		version,
 		phase: "available",
-		detail: "Install the latest version now, or remind yourself to come back to it later.",
+		detail: isExperimental
+			? EXPERIMENTAL_UPDATE_DESCRIPTION
+			: "Install the latest version now, or remind yourself to come back to it later.",
 		delayMs: UPDATE_REMINDER_DELAY_MS,
+		isExperimental,
 		primaryAction: "install-and-restart",
 	};
 }
@@ -205,6 +229,7 @@ function createAvailableUpdateToastPayload(version: string): UpdateToastPayload 
 function createDownloadingUpdateToastPayload(
 	version: string,
 	progress: DownloadProgressSnapshot = {},
+	isExperimental = getCurrentToastExperimentalFlag(),
 ): UpdateToastPayload {
 	const normalizedProgress = Math.max(
 		0,
@@ -238,6 +263,7 @@ function createDownloadingUpdateToastPayload(
 					? `${remainingMb.toFixed(1)} MB left before Recordly restarts.`
 					: "Downloading the update now. Recordly will restart when it finishes.",
 		delayMs: UPDATE_REMINDER_DELAY_MS,
+		isExperimental,
 		progressPercent: normalizedProgress,
 		transferredBytes,
 		totalBytes,
@@ -247,22 +273,31 @@ function createDownloadingUpdateToastPayload(
 	};
 }
 
-function createDownloadedUpdateToastPayload(version: string): UpdateToastPayload {
+function createDownloadedUpdateToastPayload(
+	version: string,
+	isExperimental = getCurrentToastExperimentalFlag(),
+): UpdateToastPayload {
 	return {
 		version,
 		phase: "ready",
 		detail: "The update is ready. Install and restart now, or remind yourself later.",
 		delayMs: UPDATE_REMINDER_DELAY_MS,
+		isExperimental,
 		primaryAction: "install-and-restart",
 	};
 }
 
-function createUpdateErrorToastPayload(version: string, error: unknown): UpdateToastPayload {
+function createUpdateErrorToastPayload(
+	version: string,
+	error: unknown,
+	isExperimental = getCurrentToastExperimentalFlag(),
+): UpdateToastPayload {
 	return {
 		version,
 		phase: "error",
 		detail: `The update could not be downloaded. ${String(error)}`,
 		delayMs: UPDATE_REMINDER_DELAY_MS,
+		isExperimental,
 		primaryAction: "install-and-restart",
 	};
 }
@@ -531,9 +566,12 @@ export function previewUpdateToast(sendToRenderer: UpdateToastSender) {
 	return emitUpdateToastState(sendToRenderer, {
 		version: DEV_UPDATE_PREVIEW_VERSION,
 		phase: "available",
-		detail: "This is a development preview of the in-app update toast.",
+		detail: DEV_UPDATE_PREVIEW_IS_EXPERIMENTAL
+			? EXPERIMENTAL_UPDATE_DESCRIPTION
+			: "This is a development preview of the in-app update toast.",
 		delayMs: UPDATE_REMINDER_DELAY_MS,
 		isPreview: true,
+		isExperimental: DEV_UPDATE_PREVIEW_IS_EXPERIMENTAL,
 	});
 }
 

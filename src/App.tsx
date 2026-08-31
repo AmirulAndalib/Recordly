@@ -15,7 +15,6 @@ import { loadAllCustomFonts } from "./lib/customFonts";
 export default function App() {
 	const [windowType, setWindowType] = useState("");
 	const { t } = useI18n();
-	const isMacOS = /mac/i.test(navigator.platform);
 	const appIconSrc = "/app-icons/recordly-128.png";
 
 	useEffect(() => {
@@ -28,7 +27,7 @@ export default function App() {
 			type === "hud-overlay" ||
 			type === "source-selector" ||
 			type === "countdown" ||
-			(type === "update-toast" && isMacOS)
+			type === "update-toast"
 		) {
 			document.body.style.background = "transparent";
 			document.documentElement.style.background = "transparent";
@@ -49,7 +48,7 @@ export default function App() {
 		loadAllCustomFonts().catch((error) => {
 			console.error("Failed to load custom fonts:", error);
 		});
-	}, [isMacOS]);
+	}, []);
 
 	useEffect(() => {
 		document.title =
