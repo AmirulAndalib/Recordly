@@ -46,6 +46,7 @@ import {
 	DEFAULT_CURSOR_CLICK_EFFECT_DURATION_MS,
 	DEFAULT_CURSOR_CLICK_EFFECT_OPACITY,
 	DEFAULT_CURSOR_CLICK_EFFECT_SCALE,
+	DEFAULT_CURSOR_MOTION_BLUR,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_CURSOR_SWAY,
 	DEFAULT_FIGURE_DATA,
@@ -851,9 +852,6 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 		cursorSpringMassMultiplier: isFiniteNumber(editor.cursorSpringMassMultiplier)
 			? clamp(editor.cursorSpringMassMultiplier, 0.25, 3)
 			: DEFAULT_MOTION_PRESET.cursorSpringMassMultiplier,
-		cursorMotionBlur: isFiniteNumber((editor as Partial<ProjectEditorState>).cursorMotionBlur)
-			? clamp((editor as Partial<ProjectEditorState>).cursorMotionBlur as number, 0, 2)
-			: DEFAULT_MOTION_PRESET.cursorMotionBlur,
 		cursorClickBounce: isFiniteNumber((editor as Partial<ProjectEditorState>).cursorClickBounce)
 			? clamp((editor as Partial<ProjectEditorState>).cursorClickBounce as number, 0, 5)
 			: DEFAULT_MOTION_PRESET.cursorClickBounce,
@@ -942,7 +940,7 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 		zoomSmoothness: DEFAULT_ZOOM_SMOOTHNESS,
 		zoomClassicMode:
 			typeof editor.zoomClassicMode === "boolean" ? editor.zoomClassicMode : false,
-		cursorMotionBlur: normalizedMotionPreset.cursorMotionBlur,
+		cursorMotionBlur: DEFAULT_CURSOR_MOTION_BLUR,
 		cursorClickBounce: normalizedMotionPreset.cursorClickBounce,
 		cursorClickBounceDuration: normalizedMotionPreset.cursorClickBounceDuration,
 		cursorSway: isFiniteNumber((editor as Partial<ProjectEditorState>).cursorSway)

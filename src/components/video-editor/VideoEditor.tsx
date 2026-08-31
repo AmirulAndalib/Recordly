@@ -6372,16 +6372,6 @@ export default function VideoEditor() {
 								onShadowChange={setShadowIntensity}
 								backgroundBlur={backgroundBlur}
 								onBackgroundBlurChange={setBackgroundBlur}
-								zoomMotionBlurTuning={zoomMotionBlurTuning}
-								onZoomMotionBlurTuningChange={setZoomMotionBlurTuning}
-								zoomTemporalMotionBlur={zoomTemporalMotionBlur}
-								onZoomTemporalMotionBlurChange={setZoomTemporalMotionBlur}
-								zoomMotionBlurSampleCount={zoomMotionBlurSampleCount}
-								onZoomMotionBlurSampleCountChange={setZoomMotionBlurSampleCount}
-								zoomMotionBlurShutterFraction={zoomMotionBlurShutterFraction}
-								onZoomMotionBlurShutterFractionChange={
-									setZoomMotionBlurShutterFraction
-								}
 								autoApplyFreshRecordingAutoZooms={autoApplyFreshRecordingAutoZooms}
 								onAutoApplyFreshRecordingAutoZoomsChange={
 									setAutoApplyFreshRecordingAutoZooms
@@ -6436,8 +6426,6 @@ export default function VideoEditor() {
 								onCameraSpringMassMultiplierChange={setCameraSpringMassMultiplier}
 								zoomClassicMode={zoomClassicMode}
 								onZoomClassicModeChange={setZoomClassicMode}
-								cursorMotionBlur={cursorMotionBlur}
-								onCursorMotionBlurChange={setCursorMotionBlur}
 								cursorClickEffect={cursorClickEffect}
 								cursorClickEffectColor={cursorClickEffectColor}
 								onCursorClickEffectChange={setCursorClickEffect}

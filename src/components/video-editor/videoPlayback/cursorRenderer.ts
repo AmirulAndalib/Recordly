@@ -114,7 +114,7 @@ export interface CursorRenderConfig {
 const MIN_CURSOR_VIEWPORT_SCALE = 0;
 // Keep the cursor visually responsive while sharing the camera's frame-rate
 // normalization, kernel, and directional offset formula.
-const CURSOR_DIRECTIONAL_BLUR_STRENGTH = 3.2;
+const CURSOR_DIRECTIONAL_BLUR_STRENGTH = 2;
 const CURSOR_TIME_DISCONTINUITY_MS = 100;
 const CURSOR_SWAY_SMOOTHING_MULTIPLIER = 0.7;
 const CURSOR_SWAY_SMOOTHING_OFFSET = 0.18;

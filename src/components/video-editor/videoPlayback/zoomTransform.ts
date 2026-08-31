@@ -6,6 +6,10 @@ import { DEFAULT_ZOOM_MOTION_BLUR_TUNING, type ZoomMotionBlurTuning } from "../t
 const MIN_DIRECTIONAL_BLUR_MAGNITUDE = 0.01;
 const DIRECTIONAL_BLUR_KERNEL_SIZE = 13;
 const DIRECTIONAL_BLUR_OFFSET_DIVISOR = 32;
+const SPATIAL_PAN_SHUTTER_MULTIPLIER = 4;
+// Spatial equivalent of a longer exposure. This extends the one-pass zoom
+// trail without multiplying scene renders like temporal accumulation does.
+const SPATIAL_ZOOM_SHUTTER_MULTIPLIER = 4;
 
 export interface DirectionalMotionBlur {
 	velocity: { x: number; y: number };
@@ -285,6 +289,7 @@ function resolveZoomBlurStrength(
 	return (
 		motionBlurAmount *
 		fpsScale *
+		SPATIAL_ZOOM_SHUTTER_MULTIPLIER *
 		(motionBlurTuning.maxRadialBlurStrength /
 			DEFAULT_ZOOM_MOTION_BLUR_TUNING.maxRadialBlurStrength)
 	);
@@ -305,6 +310,9 @@ function computeSizeDelta(previousQuad: TransformQuad, currentQuad: TransformQua
 }
 
 function computeZoomStrength(previousQuad: TransformQuad, currentQuad: TransformQuad) {
+	// Keep the spatial approximation sampling inward. Sampling outward during
+	// expansion can leave the filter's captured texture and produce transparent
+	// or black frames; true directionality requires temporal/overscanned input.
 	return Math.abs(1 - currentQuad.diagonal / Math.max(0.0001, previousQuad.diagonal));
 }
 
@@ -325,22 +333,22 @@ function classifyMotionMode(
 				Math.max(0.0001, currentQuad.diagonal) / Math.max(0.0001, previousQuad.diagonal),
 			),
 		) / Math.max(0.0001, deltaSeconds);
-	const moveActive = moveVelocity >= motionBlurTuning.panVelocityThreshold;
-	const zoomActive = zoomVelocity >= motionBlurTuning.zoomVelocityThreshold;
+	const moveActive = moveDistance > 0.001 && moveVelocity > motionBlurTuning.panVelocityThreshold;
+	const zoomActive =
+		zoomDistance > 0.001 && zoomVelocity > motionBlurTuning.zoomVelocityThreshold;
 
 	if (!moveActive && !zoomActive) {
 		return null;
 	}
 
-	if (moveActive && !zoomActive) {
-		return "move";
-	}
-
-	if (zoomActive && !moveActive) {
+	// Any meaningful scale change is a zoom. The inferred zoom center already
+	// accounts for the translation caused by an off-center zoom, so routing it
+	// through pan blur would turn a straight radial zoom into a directional smear.
+	if (zoomActive) {
 		return "zoom";
 	}
 
-	return zoomDistance > moveDistance ? "zoom" : "move";
+	return "move";
 }
 
 function createZeroPoint(): Point2D {
@@ -373,8 +381,9 @@ function analyzeCameraStep({
 		moveDelta,
 		motionBlurAmount,
 		deltaSeconds,
-		motionBlurTuning.maxDirectionalBlurPx /
-			DEFAULT_ZOOM_MOTION_BLUR_TUNING.maxDirectionalBlurPx,
+		SPATIAL_PAN_SHUTTER_MULTIPLIER *
+			(motionBlurTuning.maxDirectionalBlurPx /
+				DEFAULT_ZOOM_MOTION_BLUR_TUNING.maxDirectionalBlurPx),
 	);
 
 	return {
