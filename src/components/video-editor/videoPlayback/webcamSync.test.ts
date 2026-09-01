@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	getWebcamMediaTargetTimeSeconds,
 	getWebcamPreviewTargetTimeSeconds,
+	isWebcamMediaSynchronized,
 	shouldSeekWebcamMedia,
 } from "./webcamSync";
 
@@ -95,6 +96,46 @@ describe("shouldSeekWebcamMedia", () => {
 				previousTimelineTime: 0,
 				timelineTime: 0,
 				webcamCurrentTime: 1 / 60,
+			}),
+		).toBe(false);
+	});
+});
+
+describe("isWebcamMediaSynchronized", () => {
+	it("waits for current frame data and a completed seek", () => {
+		expect(
+			isWebcamMediaSynchronized({
+				currentTime: 10,
+				targetTime: 10,
+				readyState: 1,
+				isSeeking: false,
+			}),
+		).toBe(false);
+		expect(
+			isWebcamMediaSynchronized({
+				currentTime: 10,
+				targetTime: 10,
+				readyState: 2,
+				isSeeking: true,
+			}),
+		).toBe(false);
+	});
+
+	it("accepts a loaded webcam only when it is anchored to the timeline", () => {
+		expect(
+			isWebcamMediaSynchronized({
+				currentTime: 9.95,
+				targetTime: 10,
+				readyState: 2,
+				isSeeking: false,
+			}),
+		).toBe(true);
+		expect(
+			isWebcamMediaSynchronized({
+				currentTime: 9.5,
+				targetTime: 10,
+				readyState: 2,
+				isSeeking: false,
 			}),
 		).toBe(false);
 	});

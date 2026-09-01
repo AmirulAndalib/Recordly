@@ -1365,25 +1365,41 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				// We don't await this to keep the UI responsive
 				void (async () => {
 					try {
-						// Await the webcam path in the background
-						const webcamPath = await webcamPathPromise;
-						console.log(
-							"[useScreenRecorder] Background native processing: webcamPath is",
-							webcamPath,
-						);
+						// Webcam persistence, microphone sidecars, and Windows muxing are
+						// independent. Run them concurrently so the editor can keep playing
+						// the main video and reveal the webcam as soon as only that file is ready.
+						const webcamReadyPromise = webcamPathPromise.then(async (webcamPath) => {
+							console.log(
+								"[useScreenRecorder] Background native processing: webcamPath is",
+								webcamPath,
+							);
 
-						// Store sidecars
-						await storeMicrophoneSidecar(
+							if (webcamPath) {
+								await window.electronAPI.setCurrentRecordingSession({
+									videoPath: finalPath,
+									webcamPath,
+									timeOffsetMs: webcamTimeOffsetMs.current,
+									hideOverlayCursorByDefault:
+										hideEditorOverlayCursorByDefault.current,
+								});
+							}
+
+							return webcamPath;
+						});
+						const microphoneReadyPromise = storeMicrophoneSidecar(
 							micFallbackBlobPromise,
 							finalPath,
 							fallbackStartDelayMs,
 							fallbackTrackSettings,
 						);
-
-						// Perform muxing/renaming if on Windows
-						if (isNativeWindows) {
-							await window.electronAPI.muxNativeWindowsRecording(expectedDurationMs);
-						}
+						const muxReadyPromise = isNativeWindows
+							? window.electronAPI.muxNativeWindowsRecording(expectedDurationMs)
+							: Promise.resolve(null);
+						const [webcamPath] = await Promise.all([
+							webcamReadyPromise,
+							microphoneReadyPromise,
+							muxReadyPromise,
+						]);
 
 						console.log(
 							"[useScreenRecorder] Emitting setCurrentRecordingSession with:",
