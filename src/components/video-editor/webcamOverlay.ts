@@ -1,9 +1,16 @@
 import type { CropRegion, WebcamCorner, WebcamPositionPreset } from "./types";
 
 const MIN_WEBCAM_OVERLAY_SIZE_PX = 56;
+export const WEBCAM_REFERENCE_VIEWPORT_WIDTH = 1920;
 
 function clamp(value: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, value));
+}
+
+export function scaleWebcamOverlayPixels(value: number, containerWidth: number): number {
+	const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+	const safeWidth = Number.isFinite(containerWidth) ? Math.max(0, containerWidth) : 0;
+	return safeValue * (safeWidth / WEBCAM_REFERENCE_VIEWPORT_WIDTH);
 }
 
 export function getWebcamPositionForPreset(preset: WebcamPositionPreset): { x: number; y: number } {

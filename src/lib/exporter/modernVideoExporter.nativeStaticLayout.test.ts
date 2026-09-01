@@ -387,6 +387,7 @@ describe("ModernVideoExporter native static-layout eligibility", () => {
 			"unsupported-background-video",
 			"unsupported-annotation-overlay",
 			"unsupported-caption-overlay",
+			"native-webcam-style-mismatch",
 			"unsupported-webcam-source",
 		]);
 	});
@@ -676,7 +677,7 @@ describe("ModernVideoExporter native static-layout eligibility", () => {
 		).toBeNull();
 	});
 
-	it("allows slow-speed webcam timelines through native source-time mapping", () => {
+	it("uses the shared renderer for slow-speed webcam timelines", () => {
 		const speedRegions: SpeedRegion[] = [
 			{ id: "speed-1", startMs: 1_000, endMs: 4_000, speed: 0.5 },
 		];
@@ -697,10 +698,10 @@ describe("ModernVideoExporter native static-layout eligibility", () => {
 				videoInfo,
 				63,
 			),
-		).toBeNull();
+		).toBe("native-webcam-style-mismatch");
 	});
 
-	it("skips native static layout for rectangular webcam overlays", () => {
+	it("uses the shared renderer for rectangular webcam overlays", () => {
 		const exporter = createExporter({
 			webcam: {
 				enabled: true,
@@ -719,10 +720,10 @@ describe("ModernVideoExporter native static-layout eligibility", () => {
 				videoInfo,
 				60,
 			),
-		).toBe("unsupported-rectangular-webcam-overlay");
+		).toBe("native-webcam-style-mismatch");
 	});
 
-	it("allows native speed timelines with a resolvable webcam source", () => {
+	it("uses the shared renderer for native speed timelines with a webcam", () => {
 		const speedRegions: SpeedRegion[] = [
 			{ id: "speed-1", startMs: 1_000, endMs: 4_000, speed: 1.5 },
 		];
@@ -750,6 +751,6 @@ describe("ModernVideoExporter native static-layout eligibility", () => {
 				videoInfo,
 				59,
 			),
-		).toBeNull();
+		).toBe("native-webcam-style-mismatch");
 	});
 });

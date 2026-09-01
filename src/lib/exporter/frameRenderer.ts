@@ -54,6 +54,7 @@ import {
 	getWebcamCropSourceRect,
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
+	scaleWebcamOverlayPixels,
 } from "@/components/video-editor/webcamOverlay";
 import { getAssetPath, getExportableVideoUrl, getRenderableAssetUrl } from "@/lib/assetPath";
 import { drawSquircleOnCanvas, drawSquircleOnGraphics } from "@/lib/geometry/squircle";
@@ -2067,7 +2068,7 @@ export class FrameRenderer {
 				: "videoHeight" in webcamFrameSource
 					? webcamFrameSource.videoHeight
 					: webcamFrameSource.height) || sourceWidth;
-		const margin = webcam.margin ?? 24;
+		const margin = scaleWebcamOverlayPixels(webcam.margin ?? 24, width);
 		const widthPercent = webcam.width ?? webcam.size ?? 50;
 		const heightPercent = getCropMatchedWebcamHeightPercent(
 			widthPercent,
@@ -2096,7 +2097,7 @@ export class FrameRenderer {
 			positionY: webcam.positionY ?? 1,
 			legacyCorner: webcam.corner,
 		});
-		const radius = Math.max(0, webcam.cornerRadius ?? 18);
+		const radius = scaleWebcamOverlayPixels(webcam.cornerRadius ?? 18, width);
 		const bubbleWidth = Math.max(1, Math.ceil(dimensions.width));
 		const bubbleHeight = Math.max(1, Math.ceil(dimensions.height));
 		if (bubbleCanvas.width !== bubbleWidth || bubbleCanvas.height !== bubbleHeight) {

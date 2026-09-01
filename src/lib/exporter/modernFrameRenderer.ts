@@ -64,6 +64,7 @@ import {
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
 	isWebcamCropRegionDefault,
+	scaleWebcamOverlayPixels,
 } from "@/components/video-editor/webcamOverlay";
 import { getAssetPath, getExportableVideoUrl, getRenderableAssetUrl } from "@/lib/assetPath";
 import { drawSquircleOnCanvas, drawSquircleOnGraphics } from "@/lib/geometry/squircle";
@@ -2825,7 +2826,7 @@ export class FrameRenderer {
 			return;
 		}
 
-		const margin = webcam.margin ?? 24;
+		const margin = scaleWebcamOverlayPixels(webcam.margin ?? 24, this.config.width);
 		const widthPercent = webcam.width ?? webcam.size ?? 50;
 		const aspectSourceWidth =
 			liveSourceDimensions.width > 0
@@ -2862,7 +2863,7 @@ export class FrameRenderer {
 			positionY: webcam.positionY ?? 1,
 			legacyCorner: webcam.corner,
 		});
-		const radius = Math.max(0, webcam.cornerRadius ?? 18);
+		const radius = scaleWebcamOverlayPixels(webcam.cornerRadius ?? 18, this.config.width);
 		const shadowStrength = clampUnitInterval(webcam.shadow ?? 0);
 
 		this.webcamRootContainer.visible = true;

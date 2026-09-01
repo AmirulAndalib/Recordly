@@ -6,7 +6,16 @@ import {
 	getWebcamOverlayPosition,
 	isWebcamCropRegionDefault,
 	normalizeWebcamCropRegion,
+	scaleWebcamOverlayPixels,
 } from "./webcamOverlay";
+
+describe("scaleWebcamOverlayPixels", () => {
+	it("keeps webcam pixel controls proportional between preview and export", () => {
+		expect(scaleWebcamOverlayPixels(24, 960)).toBe(12);
+		expect(scaleWebcamOverlayPixels(24, 1920)).toBe(24);
+		expect(scaleWebcamOverlayPixels(24, 3840)).toBe(48);
+	});
+});
 
 describe("normalizeWebcamCropRegion", () => {
 	it("defaults to the full webcam frame", () => {
