@@ -463,7 +463,6 @@ export function createHudOverlayWindow(): BrowserWindow {
 	if (process.platform === "darwin") {
 		win.setVisibleOnAllWorkspaces(true, {
 			visibleOnFullScreen: true,
-			skipTransformProcessType: true,
 		});
 	}
 

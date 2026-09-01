@@ -1052,8 +1052,16 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 				: isFiniteNumber(webcam.cornerRadius)
 					? convertLegacyWebcamRadiusToRoundness(
 							webcam.cornerRadius,
-							isFiniteNumber(webcam.width) ? webcam.width : DEFAULT_WEBCAM_SIZE,
-							isFiniteNumber(webcam.height) ? webcam.height : DEFAULT_WEBCAM_SIZE,
+							isFiniteNumber(webcam.width)
+								? webcam.width
+								: isFiniteNumber(webcam.size)
+									? webcam.size
+									: DEFAULT_WEBCAM_SIZE,
+							isFiniteNumber(webcam.height)
+								? webcam.height
+								: isFiniteNumber(webcam.size)
+									? webcam.size
+									: DEFAULT_WEBCAM_SIZE,
 						)
 					: DEFAULT_WEBCAM_ROUNDNESS,
 			shadow: isFiniteNumber(webcam.shadow)

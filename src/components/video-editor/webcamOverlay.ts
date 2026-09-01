@@ -32,7 +32,8 @@ export function convertLegacyWebcamRadiusToRoundness(
 	const referenceShortSide =
 		WEBCAM_REFERENCE_VIEWPORT_HEIGHT *
 		(clamp(Math.min(widthPercent, heightPercent), 10, 100) / 100);
-	return clamp((Math.max(0, radiusPixels) / (referenceShortSide / 2)) * 100, 0, 100);
+	const normalizedRadius = clamp(Math.max(0, radiusPixels) / (referenceShortSide / 2), 0, 1);
+	return normalizedRadius ** 2 * 100;
 }
 
 export function getWebcamPositionForPreset(preset: WebcamPositionPreset): { x: number; y: number } {

@@ -20,7 +20,7 @@ describe("webcam roundness", () => {
 	});
 
 	it("converts legacy reference pixels without changing the approximate shape", () => {
-		expect(convertLegacyWebcamRadiusToRoundness(90, 40, 40)).toBeCloseTo(41.67, 1);
+		expect(convertLegacyWebcamRadiusToRoundness(90, 40, 40)).toBeCloseTo(17.36, 1);
 	});
 });
 
