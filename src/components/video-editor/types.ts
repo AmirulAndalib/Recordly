@@ -147,7 +147,9 @@ export interface WebcamOverlaySettings {
 	width: number;
 	height: number;
 	reactToZoom: boolean;
-	cornerRadius: number;
+	roundness: number;
+	/** Legacy pixel value retained only while loading older projects. */
+	cornerRadius?: number;
 	shadow: number;
 	margin: number;
 }
@@ -189,7 +191,7 @@ export const DEFAULT_ZOOM_OUT_EASING: ZoomTransitionEasing = "recordly";
 export const DEFAULT_CONNECTED_ZOOM_EASING: ZoomTransitionEasing = "glide";
 export const DEFAULT_WEBCAM_SIZE = 40;
 export const DEFAULT_WEBCAM_REACT_TO_ZOOM = true;
-export const DEFAULT_WEBCAM_CORNER_RADIUS = 90;
+export const DEFAULT_WEBCAM_ROUNDNESS = 42;
 export const DEFAULT_WEBCAM_SHADOW = 0.67;
 export const DEFAULT_WEBCAM_MARGIN = 24;
 export const DEFAULT_WEBCAM_POSITION_PRESET: WebcamPositionPreset = "bottom-right";
@@ -211,7 +213,7 @@ export const DEFAULT_WEBCAM_OVERLAY: WebcamOverlaySettings = {
 	width: DEFAULT_WEBCAM_SIZE,
 	height: DEFAULT_WEBCAM_SIZE,
 	reactToZoom: DEFAULT_WEBCAM_REACT_TO_ZOOM,
-	cornerRadius: DEFAULT_WEBCAM_CORNER_RADIUS,
+	roundness: DEFAULT_WEBCAM_ROUNDNESS,
 	shadow: DEFAULT_WEBCAM_SHADOW,
 	margin: DEFAULT_WEBCAM_MARGIN,
 };

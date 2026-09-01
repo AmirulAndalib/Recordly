@@ -42,6 +42,21 @@ describe("ScreenCaptureKitRecorder resume timing", () => {
 });
 
 describe("ScreenCaptureKitRecorder colour metadata", () => {
+	it("asks ScreenCaptureKit for BT.709-compatible video-range frames", () => {
+		expect(recorderSource).toContain(
+			"streamConfig.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange",
+		);
+		expect(recorderSource).toContain("streamConfig.colorSpaceName = CGColorSpace.sRGB");
+		expect(recorderSource).toContain(
+			"streamConfig.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2",
+		);
+		expect(recorderSource).toContain(
+			"rawValue: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange",
+		);
+		expect(recorderSource).toContain("sourceFormatHint: sourceVideoFormat");
+		expect(recorderSource).not.toContain("videoCodecType: .h264");
+	});
+
 	it("tags recordings as BT.709", () => {
 		expect(recorderSource).toContain("AVVideoColorPropertiesKey");
 		expect(recorderSource).toContain("AVVideoColorPrimaries_ITU_R_709_2");

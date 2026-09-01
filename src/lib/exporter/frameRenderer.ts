@@ -19,6 +19,7 @@ import type {
 import {
 	BASE_PREVIEW_HEIGHT,
 	BASE_PREVIEW_WIDTH,
+	DEFAULT_WEBCAM_ROUNDNESS,
 	ZOOM_DEPTH_SCALES,
 } from "@/components/video-editor/types";
 import { DEFAULT_FOCUS } from "@/components/video-editor/videoPlayback/constants";
@@ -51,11 +52,14 @@ import {
 } from "@/components/video-editor/videoPlayback/zoomTransform";
 import {
 	getCropMatchedWebcamHeightPercent,
+	getWebcamCornerRadiusPx,
 	getWebcamCropSourceRect,
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
+	scaleWebcamOverlayPixels,
 } from "@/components/video-editor/webcamOverlay";
 import { getAssetPath, getExportableVideoUrl, getRenderableAssetUrl } from "@/lib/assetPath";
+import { getWebcamShadowFilter } from "@/lib/exporter/shadowProfile";
 import { drawSquircleOnCanvas, drawSquircleOnGraphics } from "@/lib/geometry/squircle";
 import {
 	clampMediaTimeToDuration,
@@ -2067,7 +2071,7 @@ export class FrameRenderer {
 				: "videoHeight" in webcamFrameSource
 					? webcamFrameSource.videoHeight
 					: webcamFrameSource.height) || sourceWidth;
-		const margin = webcam.margin ?? 24;
+		const margin = scaleWebcamOverlayPixels(webcam.margin ?? 24, width);
 		const widthPercent = webcam.width ?? webcam.size ?? 50;
 		const heightPercent = getCropMatchedWebcamHeightPercent(
 			widthPercent,
@@ -2096,7 +2100,11 @@ export class FrameRenderer {
 			positionY: webcam.positionY ?? 1,
 			legacyCorner: webcam.corner,
 		});
-		const radius = Math.max(0, webcam.cornerRadius ?? 18);
+		const radius = getWebcamCornerRadiusPx(
+			webcam.roundness ?? DEFAULT_WEBCAM_ROUNDNESS,
+			dimensions.width,
+			dimensions.height,
+		);
 		const bubbleWidth = Math.max(1, Math.ceil(dimensions.width));
 		const bubbleHeight = Math.max(1, Math.ceil(dimensions.height));
 		if (bubbleCanvas.width !== bubbleWidth || bubbleCanvas.height !== bubbleHeight) {
@@ -2158,10 +2166,9 @@ export class FrameRenderer {
 		bubbleCtx.restore();
 
 		if ((webcam.shadow ?? 0) > 0) {
-			const shadow = Math.max(0, Math.min(1, webcam.shadow));
 			const shadowSize = Math.min(dimensions.width, dimensions.height);
 			ctx.save();
-			ctx.filter = `drop-shadow(0 ${Math.round(shadowSize * 0.06)}px ${Math.round(shadowSize * 0.22)}px rgba(0,0,0,${shadow}))`;
+			ctx.filter = getWebcamShadowFilter(shadowSize, webcam.shadow);
 			ctx.drawImage(bubbleCanvas, x, y, dimensions.width, dimensions.height);
 			ctx.restore();
 			return;

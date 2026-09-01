@@ -184,7 +184,7 @@ function getHudOverlayBounds() {
 	});
 	return getHudOverlayWindowBounds(
 		workArea,
-		isHudOverlayMousePassthroughSupported() && !hudOverlayRecordingActive,
+		isHudOverlayMousePassthroughSupported(),
 		fallbackExpanded,
 	);
 }
@@ -457,6 +457,14 @@ export function createHudOverlayWindow(): BrowserWindow {
 			backgroundThrottling: false,
 		},
 	});
+	// Keep the recording controls and webcam above normal and full-screen apps.
+	// Transparent regions remain click-through via setIgnoreMouseEvents().
+	win.setAlwaysOnTop(true, "screen-saver");
+	if (process.platform === "darwin") {
+		win.setVisibleOnAllWorkspaces(true, {
+			visibleOnFullScreen: true,
+		});
+	}
 
 	const showHudWindow = () => {
 		if (hasShownHudWindow || win.isDestroyed()) {

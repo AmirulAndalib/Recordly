@@ -26,7 +26,11 @@ import type {
 	ZoomRegion,
 	ZoomTransitionEasing,
 } from "@/components/video-editor/types";
-import { getDefaultCaptionFontFamily, ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
+import {
+	DEFAULT_WEBCAM_ROUNDNESS,
+	getDefaultCaptionFontFamily,
+	ZOOM_DEPTH_SCALES,
+} from "@/components/video-editor/types";
 import { DEFAULT_FOCUS } from "@/components/video-editor/videoPlayback/constants";
 import {
 	type CursorFollowCameraState,
@@ -60,10 +64,12 @@ import {
 } from "@/components/video-editor/videoPlayback/zoomTransform";
 import {
 	getCropMatchedWebcamHeightPercent,
+	getWebcamCornerRadiusPx,
 	getWebcamCropSourceRect,
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
 	isWebcamCropRegionDefault,
+	scaleWebcamOverlayPixels,
 } from "@/components/video-editor/webcamOverlay";
 import { getAssetPath, getExportableVideoUrl, getRenderableAssetUrl } from "@/lib/assetPath";
 import { drawSquircleOnCanvas, drawSquircleOnGraphics } from "@/lib/geometry/squircle";
@@ -86,6 +92,7 @@ import { ForwardFrameSource } from "./forwardFrameSource";
 import { resolveMediaElementSource } from "./localMediaSource";
 import {
 	getShadowFilterPadding,
+	getWebcamShadowStrength,
 	VIDEO_SHADOW_LAYER_PROFILES,
 	WEBCAM_SHADOW_LAYER_PROFILES,
 } from "./shadowProfile";
@@ -2825,7 +2832,7 @@ export class FrameRenderer {
 			return;
 		}
 
-		const margin = webcam.margin ?? 24;
+		const margin = scaleWebcamOverlayPixels(webcam.margin ?? 24, this.config.width);
 		const widthPercent = webcam.width ?? webcam.size ?? 50;
 		const aspectSourceWidth =
 			liveSourceDimensions.width > 0
@@ -2862,8 +2869,12 @@ export class FrameRenderer {
 			positionY: webcam.positionY ?? 1,
 			legacyCorner: webcam.corner,
 		});
-		const radius = Math.max(0, webcam.cornerRadius ?? 18);
-		const shadowStrength = clampUnitInterval(webcam.shadow ?? 0);
+		const radius = getWebcamCornerRadiusPx(
+			webcam.roundness ?? DEFAULT_WEBCAM_ROUNDNESS,
+			dimensions.width,
+			dimensions.height,
+		);
+		const shadowStrength = getWebcamShadowStrength(webcam.shadow ?? 0);
 
 		this.webcamRootContainer.visible = true;
 

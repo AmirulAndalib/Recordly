@@ -94,7 +94,9 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		let requestedFPS = max(targetCaptureFPS, config.fps ?? targetCaptureFPS)
 		streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(requestedFPS))
 		streamConfig.queueDepth = 6
-		streamConfig.pixelFormat = kCVPixelFormatType_32BGRA
+		streamConfig.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+		streamConfig.colorSpaceName = CGColorSpace.sRGB
+		streamConfig.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2
 		streamConfig.showsCursor = false
 		streamConfig.capturesAudio = capturesSystemAudio || capturesMicrophone
 		streamConfig.sampleRate = 48000
@@ -168,11 +170,14 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			throw NSError(domain: "RecordlyCapture", code: 5, userInfo: [NSLocalizedDescriptionKey: "Unable to create output settings assistant"])
 		}
 
-		assistant.sourceVideoFormat = try CMVideoFormatDescription(
-			videoCodecType: .h264,
+		let sourceVideoFormat = try CMVideoFormatDescription(
+			videoCodecType: CMFormatDescription.MediaSubType(
+				rawValue: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+			),
 			width: outputWidth,
 			height: outputHeight
 		)
+		assistant.sourceVideoFormat = sourceVideoFormat
 
 		guard var outputSettings = assistant.videoSettings else {
 			throw NSError(domain: "RecordlyCapture", code: 6, userInfo: [NSLocalizedDescriptionKey: "Output settings unavailable"])
@@ -186,7 +191,11 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
 		]
 
-		let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: outputSettings)
+		let videoInput = AVAssetWriterInput(
+			mediaType: .video,
+			outputSettings: outputSettings,
+			sourceFormatHint: sourceVideoFormat
+		)
 		videoInput.expectsMediaDataInRealTime = true
 
 		guard let assetWriter = assetWriter, assetWriter.canAdd(videoInput) else {

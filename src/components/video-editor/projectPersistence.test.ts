@@ -43,4 +43,30 @@ describe("normalizeProjectEditor", () => {
 			linked: true,
 		});
 	});
+
+	it("migrates legacy webcam radius pixels to percentage roundness", () => {
+		const editor = normalizeProjectEditor({
+			webcam: {
+				cornerRadius: 90,
+				width: 40,
+				height: 40,
+			} as never,
+		});
+
+		expect(editor.webcam.roundness).toBeCloseTo(17.36, 1);
+		expect(editor.webcam.cornerRadius).toBeUndefined();
+	});
+
+	it("uses the legacy webcam size when migrating radius pixels", () => {
+		const editor = normalizeProjectEditor({
+			webcam: {
+				cornerRadius: 90,
+				size: 80,
+			} as never,
+		});
+
+		expect(editor.webcam.width).toBe(80);
+		expect(editor.webcam.height).toBe(80);
+		expect(editor.webcam.roundness).toBeCloseTo(4.34, 1);
+	});
 });
