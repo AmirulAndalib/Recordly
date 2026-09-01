@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { canShowFloatingWebcamPreview } from "../floatingWebcamPreview";
 
 const WEBCAM_PREVIEW_DRAG_THRESHOLD = 6;
@@ -118,8 +118,10 @@ export function useWebcamPreviewOverlay({
 
 			const latestDeltaX = pointer.clientX - latestDragState.startX;
 			const latestDeltaY = pointer.clientY - latestDragState.startY;
-			const viewportWidth = Math.max(window.innerWidth, window.screen?.width ?? 0);
-			const viewportHeight = Math.max(window.innerHeight, window.screen?.height ?? 0);
+			// Pointer coordinates and getBoundingClientRect() are relative to the HUD
+			// viewport. `screen.width` can use a different display/DPI coordinate space.
+			const viewportWidth = window.innerWidth;
+			const viewportHeight = window.innerHeight;
 			const unclampedLeft = latestDragState.initialLeft + latestDeltaX;
 			const unclampedTop = latestDragState.initialTop + latestDeltaY;
 			const clampedLeft = Math.min(
