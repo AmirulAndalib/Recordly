@@ -249,6 +249,13 @@ export function WebcamCropControl({
 		syncPreviewMedia();
 	}, [syncPreviewMedia]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: The source identity intentionally resets cached synchronization state.
+	useEffect(() => {
+		synchronizedPreviewSrcRef.current = null;
+		setSynchronizedPreviewSrc(null);
+		setPreviewFrame(null);
+	}, [previewSrc]);
+
 	const commitVisualCrop = (nextVisualCrop: CropRegion, immediate = false) => {
 		const nextCrop = mirrored
 			? flipCropHorizontally(nextVisualCrop)

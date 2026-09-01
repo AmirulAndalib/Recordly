@@ -817,12 +817,15 @@ function createEditorWindowWrapper() {
 		if (choice === 0) {
 			editorWindow.webContents.send("request-save-before-close");
 			ipcMain.once("save-before-close-done", (_event, saved: boolean) => {
-				if (saved) {
-					if (process.platform === "win32" && !isAppQuitting) {
-						closeEditorWindowToHud(editorWindow);
-					} else {
-						closeEditorWindowBypassingUnsavedPrompt(editorWindow);
-					}
+				if (!saved) {
+					isAppQuitting = false;
+					return;
+				}
+
+				if (process.platform === "win32" && !isAppQuitting) {
+					closeEditorWindowToHud(editorWindow);
+				} else {
+					closeEditorWindowBypassingUnsavedPrompt(editorWindow);
 				}
 			});
 		} else if (choice === 1) {

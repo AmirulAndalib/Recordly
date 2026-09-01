@@ -1745,6 +1745,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 		// biome-ignore lint/correctness/useExhaustiveDependencies: The media path intentionally triggers source-specific state reset.
 		useEffect(() => {
+			webcamSynchronizedPathRef.current = null;
+			setWebcamSynchronizedPath(null);
 			setWebcamVideoDimensions(null);
 			lastWebcamSyncTimeRef.current = null;
 		}, [webcamVideoPath]);

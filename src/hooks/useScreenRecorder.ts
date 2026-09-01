@@ -1375,13 +1375,20 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 							);
 
 							if (webcamPath) {
-								await window.electronAPI.setCurrentRecordingSession({
-									videoPath: finalPath,
-									webcamPath,
-									timeOffsetMs: webcamTimeOffsetMs.current,
-									hideOverlayCursorByDefault:
-										hideEditorOverlayCursorByDefault.current,
-								});
+								try {
+									await window.electronAPI.setCurrentRecordingSession({
+										videoPath: finalPath,
+										webcamPath,
+										timeOffsetMs: webcamTimeOffsetMs.current,
+										hideOverlayCursorByDefault:
+											hideEditorOverlayCursorByDefault.current,
+									});
+								} catch (sessionError) {
+									console.error(
+										"Failed to publish the asynchronously finalized webcam:",
+										sessionError,
+									);
+								}
 							}
 
 							return webcamPath;
@@ -1395,11 +1402,26 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						const muxReadyPromise = isNativeWindows
 							? window.electronAPI.muxNativeWindowsRecording(expectedDurationMs)
 							: Promise.resolve(null);
-						const [webcamPath] = await Promise.all([
-							webcamReadyPromise,
-							microphoneReadyPromise,
-							muxReadyPromise,
-						]);
+						const [webcamResult, microphoneResult, muxResult] =
+							await Promise.allSettled([
+								webcamReadyPromise,
+								microphoneReadyPromise,
+								muxReadyPromise,
+							]);
+						const webcamPath =
+							webcamResult.status === "fulfilled" ? webcamResult.value : null;
+						for (const [taskName, result] of [
+							["webcam", webcamResult],
+							["microphone sidecar", microphoneResult],
+							["Windows mux", muxResult],
+						] as const) {
+							if (result.status === "rejected") {
+								console.error(
+									`[useScreenRecorder] ${taskName} finalization failed:`,
+									result.reason,
+								);
+							}
+						}
 
 						console.log(
 							"[useScreenRecorder] Emitting setCurrentRecordingSession with:",
