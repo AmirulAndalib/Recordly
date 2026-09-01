@@ -12,10 +12,7 @@ import {
 	useState,
 } from "react";
 import { getAssetPath, getRenderableAssetUrl, getRenderableVideoUrl } from "@/lib/assetPath";
-import {
-	getWebcamShadowStrength,
-	WEBCAM_SHADOW_LAYER_PROFILES,
-} from "@/lib/exporter/shadowProfile";
+import { getWebcamShadowFilter } from "@/lib/exporter/shadowProfile";
 import {
 	clampMediaTimeToDuration,
 	enablePitchPreservingPlayback,
@@ -799,8 +796,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const webcamCorner = webcam?.corner ?? "bottom-right";
 		const webcamRoundness = webcam?.roundness ?? DEFAULT_WEBCAM_ROUNDNESS;
 		const webcamShadow = webcam?.shadow ?? DEFAULT_WEBCAM_SHADOW;
-		const webcamShadowStrength = getWebcamShadowStrength(webcamShadow);
-		const webcamShadowProfile = WEBCAM_SHADOW_LAYER_PROFILES[0];
 		const webcamTimeOffsetMs = webcam?.timeOffsetMs;
 		const webcamCropRegion = webcam?.cropRegion;
 		const webcamMirror = webcam?.mirror ?? false;
@@ -891,15 +886,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					radius: scaledRadius,
 				});
 				const shadowSize = Math.min(scaledDimensions.width, scaledDimensions.height);
-				const shadowOffset =
-					shadowSize * webcamShadowProfile.offsetScale * webcamShadowStrength;
-				const shadowBlur =
-					shadowSize * webcamShadowProfile.blurScale * webcamShadowStrength;
-				const shadowAlpha = webcamShadowProfile.alphaScale * webcamShadowStrength;
-				bubble.style.filter =
-					webcamShadowStrength > 0
-						? `drop-shadow(0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, ${shadowAlpha}))`
-						: "none";
+				bubble.style.filter = getWebcamShadowFilter(shadowSize, webcamShadow);
 				bubble.style.borderRadius = "0px";
 				bubble.style.boxShadow = "none";
 
@@ -918,7 +905,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				webcamPositionX,
 				webcamPositionY,
 				webcamReactToZoom,
-				webcamShadowStrength,
+				webcamShadow,
 				webcamHeight,
 				webcamVideoPath,
 				webcamWidth,

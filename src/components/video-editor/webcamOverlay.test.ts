@@ -12,9 +12,10 @@ import {
 } from "./webcamOverlay";
 
 describe("webcam roundness", () => {
-	it("uses a percentage of the maximum radius", () => {
+	it("uses a stronger response curve while preserving the endpoints", () => {
 		expect(getWebcamCornerRadiusPx(0, 640, 360)).toBe(0);
-		expect(getWebcamCornerRadiusPx(50, 640, 360)).toBe(90);
+		expect(getWebcamCornerRadiusPx(25, 640, 360)).toBe(90);
+		expect(getWebcamCornerRadiusPx(50, 640, 360)).toBeCloseTo(127.28, 1);
 		expect(getWebcamCornerRadiusPx(100, 640, 360)).toBe(180);
 	});
 

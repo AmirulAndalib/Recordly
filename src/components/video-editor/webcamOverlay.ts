@@ -20,7 +20,8 @@ export function getWebcamCornerRadiusPx(
 	height: number,
 ): number {
 	const safeRoundness = Number.isFinite(roundnessPercent) ? clamp(roundnessPercent, 0, 100) : 0;
-	return (Math.max(0, Math.min(width, height)) / 2) * (safeRoundness / 100);
+	const strengthenedRoundness = Math.sqrt(safeRoundness / 100);
+	return (Math.max(0, Math.min(width, height)) / 2) * strengthenedRoundness;
 }
 
 export function convertLegacyWebcamRadiusToRoundness(
