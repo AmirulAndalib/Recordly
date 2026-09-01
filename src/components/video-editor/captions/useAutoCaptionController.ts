@@ -195,8 +195,8 @@ export function useAutoCaptionController({
 			});
 			if (!result.success || !result.cues) {
 				toast.error(
-					result.message ||
-						getErrorMessage(result.error) ||
+					getErrorMessage(result.error) ||
+						result.message ||
 						"Failed to generate captions",
 				);
 				return;
