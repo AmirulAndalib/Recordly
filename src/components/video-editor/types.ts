@@ -55,7 +55,14 @@ export interface CursorVisualSettings {
 	style: CursorStyle;
 }
 
-export type CursorStyle = "macos" | "tahoe" | "tahoe-inverted" | "dot" | "figma" | (string & {});
+export type CursorStyle =
+	| "macos"
+	| "tahoe"
+	| "tahoe-inverted"
+	| "windows11"
+	| "dot"
+	| "figma"
+	| (string & {});
 export const DEFAULT_CURSOR_STYLE: CursorStyle = "tahoe";
 
 export type CursorClickEffectStyle = "none" | "spotlight" | "ripple" | "echo";
@@ -148,7 +155,7 @@ export interface WebcamOverlaySettings {
 export const DEFAULT_CURSOR_SIZE = 3.0;
 export const DEFAULT_CURSOR_SMOOTHING = 0.67;
 export const DEFAULT_CURSOR_MOTION_BLUR = 0.6;
-export const DEFAULT_CURSOR_CLICK_BOUNCE = 2.5;
+export const DEFAULT_CURSOR_CLICK_BOUNCE = 2;
 export const DEFAULT_CURSOR_CLICK_BOUNCE_DURATION = 350;
 export const DEFAULT_CURSOR_SWAY = 0.4;
 export const DEFAULT_ZOOM_SMOOTHNESS = 0.5;

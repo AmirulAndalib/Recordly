@@ -16,15 +16,26 @@ import tahoeArrowUrl from "../../../assets/cursors/tahoe/pointer-1__14-6.svg";
 import tahoePointerUrl from "../../../assets/cursors/tahoe/pointinghand-1__40-10.svg";
 import tahoeResizeEwUrl from "../../../assets/cursors/tahoe/resizeeastwest-1__50-50.svg";
 import tahoeResizeNsUrl from "../../../assets/cursors/tahoe/resizenorthsouth-1__50-49.svg";
+import windows11ArrowUrl from "../../../assets/cursors/windows11/arrow__31-22.svg";
+import windows11ClosedHandUrl from "../../../assets/cursors/windows11/grabbing__50-50.svg";
+import windows11CrosshairUrl from "../../../assets/cursors/windows11/cross__50-50.svg";
+import windows11NotAllowedUrl from "../../../assets/cursors/windows11/block__50-50.svg";
+import windows11OpenHandUrl from "../../../assets/cursors/windows11/grab__50-50.svg";
+import windows11PointerUrl from "../../../assets/cursors/windows11/pointer__54-35.svg";
+import windows11ResizeEwUrl from "../../../assets/cursors/windows11/resize-horizontal__51-49.svg";
+import windows11ResizeNsUrl from "../../../assets/cursors/windows11/resize-vertical__48-50.svg";
+import windows11TextUrl from "../../../assets/cursors/windows11/text__50-50.svg";
 import type { CursorStyle, CursorTelemetryPoint } from "../types";
 
 type CursorAssetKey = NonNullable<CursorTelemetryPoint["cursorType"]>;
-type CursorSetStyle = Extract<CursorStyle, "macos" | "tahoe" | "tahoe-inverted">;
+type CursorSetStyle = Extract<CursorStyle, "macos" | "tahoe" | "tahoe-inverted" | "windows11">;
 
 const MACOS_POINTER_ASSET_HEIGHT = 746;
 const MACOS_POINTER_CONTENT_HEIGHT = 386;
 const TAHOE_POINTER_ASSET_HEIGHT = 958;
 const TAHOE_POINTER_CONTENT_HEIGHT = 851;
+const WINDOWS11_CURSOR_VIEWBOX_HEIGHT = 32;
+const WINDOWS11_ARROW_CONTENT_HEIGHT = 18;
 
 // Measured from the raw pointer assets using the non-shadow pixel bounds.
 const MACOS_CURSOR_STYLE_SIZE_MULTIPLIER =
@@ -38,15 +49,22 @@ export type UploadedCursorAsset = {
 		x: number;
 		y: number;
 	};
+	preserveCanvas?: boolean;
 };
 
-function asset(url: string, hotspotX: number, hotspotY: number): UploadedCursorAsset {
+function asset(
+	url: string,
+	hotspotX: number,
+	hotspotY: number,
+	options: Pick<UploadedCursorAsset, "preserveCanvas"> = {},
+): UploadedCursorAsset {
 	return {
 		url,
 		fallbackAnchor: {
 			x: hotspotX / 100,
 			y: hotspotY / 100,
 		},
+		...options,
 	};
 }
 
@@ -76,12 +94,24 @@ export const cursorSetAssets: Record<
 		"resize-ns": asset(tahoeResizeNsUrl, 50, 49),
 		"not-allowed": asset(tahoeNotAllowedUrl, 23, 0),
 	},
+	windows11: {
+		arrow: asset(windows11ArrowUrl, 31, 22, { preserveCanvas: true }),
+		text: asset(windows11TextUrl, 50, 50, { preserveCanvas: true }),
+		pointer: asset(windows11PointerUrl, 54, 35, { preserveCanvas: true }),
+		crosshair: asset(windows11CrosshairUrl, 50, 50, { preserveCanvas: true }),
+		"open-hand": asset(windows11OpenHandUrl, 50, 50, { preserveCanvas: true }),
+		"closed-hand": asset(windows11ClosedHandUrl, 50, 50, { preserveCanvas: true }),
+		"resize-ew": asset(windows11ResizeEwUrl, 51, 49, { preserveCanvas: true }),
+		"resize-ns": asset(windows11ResizeNsUrl, 48, 50, { preserveCanvas: true }),
+		"not-allowed": asset(windows11NotAllowedUrl, 50, 50, { preserveCanvas: true }),
+	},
 };
 
 export const cursorStyleSizeMultipliers: Record<CursorSetStyle, number> = {
 	macos: MACOS_CURSOR_STYLE_SIZE_MULTIPLIER,
 	tahoe: 1,
 	"tahoe-inverted": 1,
+	windows11: WINDOWS11_CURSOR_VIEWBOX_HEIGHT / WINDOWS11_ARROW_CONTENT_HEIGHT,
 };
 
 export function getCursorStyleSizeMultiplier(style: CursorStyle) {
