@@ -151,7 +151,9 @@ export function UpdateToastWindow() {
 	return (
 		<div className={`${styles.window} launch-theme`}>
 			<section className={styles.card} aria-live="polite" aria-label="Recordly update">
-				<div className={`${styles.icon} ${payload.phase === "error" ? styles.iconError : ""}`}>
+				<div
+					className={`${styles.icon} ${payload.phase === "error" ? styles.iconError : ""}`}
+				>
 					<PhaseIcon payload={payload} />
 				</div>
 
@@ -175,7 +177,10 @@ export function UpdateToastWindow() {
 					{payload.phase === "downloading" ? (
 						<div className={styles.progressBlock}>
 							<div className={styles.progressTrack}>
-								<div className={styles.progressFill} style={{ width: `${progress}%` }} />
+								<div
+									className={styles.progressFill}
+									style={{ width: `${progress}%` }}
+								/>
 							</div>
 							<div className={styles.progressMeta}>
 								<strong>{progress}%</strong>
@@ -184,10 +189,18 @@ export function UpdateToastWindow() {
 						</div>
 					) : (
 						<div className={styles.actions}>
-							<button type="button" className={styles.secondaryButton} onClick={handleNotNow}>
+							<button
+								type="button"
+								className={styles.secondaryButton}
+								onClick={handleNotNow}
+							>
 								{t("launch.updateToast.notNow", "Not now")}
 							</button>
-							<button type="button" className={styles.primaryButton} onClick={handlePrimaryAction}>
+							<button
+								type="button"
+								className={styles.primaryButton}
+								onClick={handlePrimaryAction}
+							>
 								{getPrimaryLabel(payload, t)}
 							</button>
 						</div>
