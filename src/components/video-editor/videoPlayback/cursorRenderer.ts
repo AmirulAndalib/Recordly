@@ -29,7 +29,7 @@ import { cursorSetAssets, getCursorStyleSizeMultiplier } from "./uploadedCursorA
 import { computeDirectionalMotionBlur } from "./zoomTransform";
 
 type CursorAssetKey = NonNullable<CursorTelemetryPoint["cursorType"]>;
-type StatefulCursorStyle = Extract<CursorStyle, "macos" | "tahoe" | "tahoe-inverted">;
+type StatefulCursorStyle = Extract<CursorStyle, "macos" | "tahoe" | "tahoe-inverted" | "windows11">;
 type SingleCursorStyle = Extract<CursorStyle, "dot" | "figma">;
 type CursorPackStyle = Exclude<CursorStyle, StatefulCursorStyle | SingleCursorStyle>;
 type CursorPackVariant = "default" | "pointer";
@@ -125,6 +125,7 @@ const CURSOR_SHADOW_OFFSET_X = 0;
 const CURSOR_SHADOW_OFFSET_Y = 2;
 const CURSOR_SHADOW_BLUR = 3;
 const CURSOR_SHADOW_PADDING = 12;
+const MIN_RASTERIZED_CURSOR_HEIGHT = 512;
 const NATIVE_CURSOR_ATLAS_DRAW_HEIGHT = 256;
 const NATIVE_CURSOR_ATLAS_PADDING = 2;
 
@@ -191,7 +192,12 @@ function buildCursorPackSourcesSignature(sources: Record<string, CursorPackSourc
 }
 
 function isStatefulCursorStyle(style: CursorStyle): style is StatefulCursorStyle {
-	return style === "macos" || style === "tahoe" || style === "tahoe-inverted";
+	return (
+		style === "macos" ||
+		style === "tahoe" ||
+		style === "tahoe-inverted" ||
+		style === "windows11"
+	);
 }
 
 function isSingleCursorStyle(style: CursorStyle): style is SingleCursorStyle {
@@ -274,11 +280,16 @@ async function createCursorPackAsset(
 async function createRasterizedCursorAsset(
 	url: string,
 	anchor: { x: number; y: number },
+	options: { preserveCanvas?: boolean } = {},
 ): Promise<LoadedCursorAsset> {
 	const image = await loadImage(url);
 	const sourceCanvas = document.createElement("canvas");
-	sourceCanvas.width = image.naturalWidth;
-	sourceCanvas.height = image.naturalHeight;
+	const rasterScale =
+		image.naturalHeight > 0
+			? Math.max(1, MIN_RASTERIZED_CURSOR_HEIGHT / image.naturalHeight)
+			: 1;
+	sourceCanvas.width = Math.max(1, Math.round(image.naturalWidth * rasterScale));
+	sourceCanvas.height = Math.max(1, Math.round(image.naturalHeight * rasterScale));
 	const sourceCtx = sourceCanvas.getContext("2d");
 	if (!sourceCtx) {
 		await Assets.load(url);
@@ -293,7 +304,21 @@ async function createRasterizedCursorAsset(
 	}
 
 	sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-	sourceCtx.drawImage(image, 0, 0);
+	sourceCtx.drawImage(image, 0, 0, sourceCanvas.width, sourceCanvas.height);
+
+	if (options.preserveCanvas) {
+		const dataUrl = sourceCanvas.toDataURL("image/png");
+		await Assets.load(dataUrl);
+		const rasterizedImage = await loadImage(dataUrl);
+		const texture = configureCursorTexture(Texture.from(dataUrl));
+		return {
+			texture,
+			image: rasterizedImage,
+			aspectRatio: sourceCanvas.height > 0 ? sourceCanvas.width / sourceCanvas.height : 1,
+			anchorX: clamp(anchor.x, 0, 1),
+			anchorY: clamp(anchor.y, 0, 1),
+		};
+	}
 
 	const trimmed = trimCanvasToAlpha(sourceCanvas, {
 		x: sourceCanvas.width * clamp(anchor.x, 0, 1),
@@ -546,6 +571,7 @@ export async function preloadCursorAssets() {
 							const asset = await createRasterizedCursorAsset(
 								sourceAsset.url,
 								sourceAsset.fallbackAnchor,
+								{ preserveCanvas: sourceAsset.preserveCanvas },
 							);
 
 							return [key, asset] as const;
@@ -564,9 +590,10 @@ export async function preloadCursorAssets() {
 				) as Partial<Record<CursorAssetKey, LoadedCursorAsset>>;
 			}
 
-			const [macosAssets, tahoeAssets] = await Promise.all([
+			const [macosAssets, tahoeAssets, windows11Assets] = await Promise.all([
 				loadCursorSet("macos"),
 				loadCursorSet("tahoe"),
+				loadCursorSet("windows11"),
 			]);
 
 			const invertedEntries = await Promise.all(
@@ -578,6 +605,7 @@ export async function preloadCursorAssets() {
 			loadedCursorSetAssets = {
 				macos: macosAssets,
 				tahoe: tahoeAssets,
+				windows11: windows11Assets,
 				"tahoe-inverted": Object.fromEntries(invertedEntries) as Partial<
 					Record<CursorAssetKey, LoadedCursorAsset>
 				>,

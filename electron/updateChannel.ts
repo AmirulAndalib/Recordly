@@ -13,9 +13,7 @@ export function getUpdateChannelConfiguration(
 	experimentalUpdatesEnabled: boolean,
 ): UpdateChannelConfiguration {
 	return {
-		channel: experimentalUpdatesEnabled
-			? EXPERIMENTAL_UPDATE_CHANNEL
-			: STABLE_UPDATE_CHANNEL,
+		channel: experimentalUpdatesEnabled ? EXPERIMENTAL_UPDATE_CHANNEL : STABLE_UPDATE_CHANNEL,
 		allowPrerelease: experimentalUpdatesEnabled,
 		allowDowngrade: false,
 	};

@@ -688,6 +688,7 @@ const BUILTIN_CURSOR_STYLE_OPTIONS: CursorStyleOption[] = [
 	{ value: "macos", label: "macOS" },
 	{ value: "tahoe", label: "Tahoe" },
 	{ value: "tahoe-inverted", label: "Tahoe Inverted" },
+	{ value: "windows11", label: "Windows 11" },
 	{ value: "dot", label: "Dot" },
 	{ value: "figma", label: "Minimal" },
 ];
@@ -871,13 +872,20 @@ function CursorStylePreview({
 			? (previewUrls.macos ?? tahoeCursorUrl)
 			: style === "tahoe"
 				? (previewUrls.tahoe ?? tahoeCursorUrl)
-				: style === "figma"
-					? (previewUrls.figma ?? minimalCursorUrl)
-					: style === "tahoe-inverted"
-						? (previewUrls["tahoe-inverted"] ?? tahoeCursorUrl)
-						: previewUrls[style];
+				: style === "windows11"
+					? (previewUrls.windows11 ?? tahoeCursorUrl)
+					: style === "figma"
+						? (previewUrls.figma ?? minimalCursorUrl)
+						: style === "tahoe-inverted"
+							? (previewUrls["tahoe-inverted"] ?? tahoeCursorUrl)
+							: previewUrls[style];
 
-	if (style === "macos" || style === "tahoe" || style === "tahoe-inverted") {
+	if (
+		style === "macos" ||
+		style === "tahoe" ||
+		style === "tahoe-inverted" ||
+		style === "windows11"
+	) {
 		const resolvedPreviewSize =
 			(previewSize ?? BUILTIN_CURSOR_PREVIEW_SIZE) * getCursorStyleSizeMultiplier(style);
 		return (
@@ -1238,6 +1246,7 @@ export function SettingsPanel({
 			try {
 				const macosPreview = cursorSetAssets.macos.arrow.url;
 				const tahoePreview = cursorSetAssets.tahoe.arrow.url;
+				const windows11Preview = cursorSetAssets.windows11.arrow.url;
 				const minimalPreview = await createTrimmedSvgPreview(minimalCursorUrl, 512);
 				const invertedPreview = await createInvertedPreview(tahoePreview);
 
@@ -1245,6 +1254,7 @@ export function SettingsPanel({
 					setBuiltInCursorPreviewUrls({
 						macos: macosPreview,
 						tahoe: tahoePreview,
+						windows11: windows11Preview,
 						figma: minimalPreview,
 						"tahoe-inverted": invertedPreview,
 					});
@@ -1254,6 +1264,7 @@ export function SettingsPanel({
 					setBuiltInCursorPreviewUrls({
 						macos: tahoeCursorUrl,
 						tahoe: tahoeCursorUrl,
+						windows11: tahoeCursorUrl,
 						figma: minimalCursorUrl,
 						"tahoe-inverted": tahoeCursorUrl,
 					});

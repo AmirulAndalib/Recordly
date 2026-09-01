@@ -209,7 +209,9 @@ function getUpdateToastBounds() {
 		const display = getScreen().getDisplayMatching(hudBounds);
 		const { workArea } = display;
 		const x = Math.round(workArea.x + (workArea.width - UPDATE_TOAST_WIDTH) / 2);
-		const y = Math.round(workArea.y + workArea.height - UPDATE_TOAST_HEIGHT - HUD_EDGE_MARGIN_DIP);
+		const y = Math.round(
+			workArea.y + workArea.height - UPDATE_TOAST_HEIGHT - HUD_EDGE_MARGIN_DIP,
+		);
 
 		return {
 			x,
@@ -460,7 +462,11 @@ export function createHudOverlayWindow(): BrowserWindow {
 		if (hasShownHudWindow || win.isDestroyed()) {
 			return;
 		}
-		if (updateToastWindow && !updateToastWindow.isDestroyed() && updateToastWindow.isVisible()) {
+		if (
+			updateToastWindow &&
+			!updateToastWindow.isDestroyed() &&
+			updateToastWindow.isVisible()
+		) {
 			hudWasVisibleBeforeUpdateToast = true;
 			return;
 		}

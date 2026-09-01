@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	EXPERIMENTAL_UPDATE_DESCRIPTION,
-	getUpdateChannelConfiguration,
-} from "./updateChannel";
+import { EXPERIMENTAL_UPDATE_DESCRIPTION, getUpdateChannelConfiguration } from "./updateChannel";
 
 describe("getUpdateChannelConfiguration", () => {
 	it("keeps regular clients on stable metadata", () => {
