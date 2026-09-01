@@ -14,6 +14,10 @@ export const WEBCAM_SHADOW_LAYER_PROFILES: ReadonlyArray<ShadowLayerProfile> = O
 	{ offsetScale: 0.06, alphaScale: 1, blurScale: 0.22 },
 ]);
 
+export function getWebcamShadowStrength(value: number): number {
+	return Math.min(1, Math.max(0, Number.isFinite(value) ? value * 2 : 0));
+}
+
 export function getShadowFilterPadding(blur: number, offsetY: number): number {
 	return Math.ceil(Math.max(0, blur * 2 + Math.abs(offsetY)));
 }

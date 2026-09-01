@@ -77,12 +77,12 @@ import {
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_CURSOR_SWAY,
 	DEFAULT_PADDING,
-	DEFAULT_WEBCAM_CORNER_RADIUS,
 	DEFAULT_WEBCAM_MARGIN,
 	DEFAULT_WEBCAM_POSITION_PRESET,
 	DEFAULT_WEBCAM_POSITION_X,
 	DEFAULT_WEBCAM_POSITION_Y,
 	DEFAULT_WEBCAM_REACT_TO_ZOOM,
+	DEFAULT_WEBCAM_ROUNDNESS,
 	DEFAULT_WEBCAM_SHADOW,
 	DEFAULT_WEBCAM_SIZE,
 	DEFAULT_ZOOM_IN_DURATION_MS,
@@ -3658,14 +3658,14 @@ export function SettingsPanel({
 							/>
 							<SliderControl
 								label={tSettings("effects.webcamRoundness")}
-								value={webcam?.cornerRadius ?? DEFAULT_WEBCAM_CORNER_RADIUS}
-								defaultValue={DEFAULT_WEBCAM_CORNER_RADIUS}
+								value={webcam?.roundness ?? DEFAULT_WEBCAM_ROUNDNESS}
+								defaultValue={DEFAULT_WEBCAM_ROUNDNESS}
 								min={0}
-								max={160}
+								max={100}
 								step={1}
-								onChange={(v) => updateWebcam({ cornerRadius: v })}
-								formatValue={(v) => `${Math.round(v)}px`}
-								parseInput={(text) => parseFloat(text.replace(/px$/, ""))}
+								onChange={(v) => updateWebcam({ roundness: v })}
+								formatValue={(v) => `${Math.round(v)}%`}
+								parseInput={(text) => parseFloat(text.replace(/%$/, ""))}
 							/>
 							<SliderControl
 								label={tSettings("effects.webcamShadow")}

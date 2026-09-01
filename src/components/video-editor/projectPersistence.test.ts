@@ -43,4 +43,17 @@ describe("normalizeProjectEditor", () => {
 			linked: true,
 		});
 	});
+
+	it("migrates legacy webcam radius pixels to percentage roundness", () => {
+		const editor = normalizeProjectEditor({
+			webcam: {
+				cornerRadius: 90,
+				width: 40,
+				height: 40,
+			} as never,
+		});
+
+		expect(editor.webcam.roundness).toBeCloseTo(41.67, 1);
+		expect(editor.webcam.cornerRadius).toBeUndefined();
+	});
 });

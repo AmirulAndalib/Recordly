@@ -12,7 +12,10 @@ import {
 	useState,
 } from "react";
 import { getAssetPath, getRenderableAssetUrl, getRenderableVideoUrl } from "@/lib/assetPath";
-import { WEBCAM_SHADOW_LAYER_PROFILES } from "@/lib/exporter/shadowProfile";
+import {
+	getWebcamShadowStrength,
+	WEBCAM_SHADOW_LAYER_PROFILES,
+} from "@/lib/exporter/shadowProfile";
 import {
 	clampMediaTimeToDuration,
 	enablePitchPreservingPlayback,
@@ -90,8 +93,8 @@ import {
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_CURSOR_SWAY,
 	DEFAULT_PADDING,
-	DEFAULT_WEBCAM_CORNER_RADIUS,
 	DEFAULT_WEBCAM_REACT_TO_ZOOM,
+	DEFAULT_WEBCAM_ROUNDNESS,
 	DEFAULT_WEBCAM_SHADOW,
 	DEFAULT_WEBCAM_SIZE,
 	DEFAULT_ZOOM_IN_DURATION_MS,
@@ -124,6 +127,7 @@ import {
 } from "./videoPlayback/zoomTransform";
 import {
 	getCropMatchedWebcamHeightPercent,
+	getWebcamCornerRadiusPx,
 	getWebcamCropSourceRect,
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
@@ -793,8 +797,9 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const webcamPositionX = webcam?.positionX ?? 1;
 		const webcamPositionY = webcam?.positionY ?? 1;
 		const webcamCorner = webcam?.corner ?? "bottom-right";
-		const webcamCornerRadius = webcam?.cornerRadius ?? DEFAULT_WEBCAM_CORNER_RADIUS;
+		const webcamRoundness = webcam?.roundness ?? DEFAULT_WEBCAM_ROUNDNESS;
 		const webcamShadow = webcam?.shadow ?? DEFAULT_WEBCAM_SHADOW;
+		const webcamShadowStrength = getWebcamShadowStrength(webcamShadow);
 		const webcamShadowProfile = WEBCAM_SHADOW_LAYER_PROFILES[0];
 		const webcamTimeOffsetMs = webcam?.timeOffsetMs;
 		const webcamCropRegion = webcam?.cropRegion;
@@ -845,10 +850,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					return;
 				}
 				const scaledMargin = scaleWebcamOverlayPixels(webcamMargin, overlay.clientWidth);
-				const scaledRadius = scaleWebcamOverlayPixels(
-					webcamCornerRadius,
-					overlay.clientWidth,
-				);
 
 				const scaledDimensions = getWebcamOverlayDimensionsPx({
 					containerWidth: overlay.clientWidth,
@@ -859,6 +860,11 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					zoomScale,
 					reactToZoom: webcamReactToZoom,
 				});
+				const scaledRadius = getWebcamCornerRadiusPx(
+					webcamRoundness,
+					scaledDimensions.width,
+					scaledDimensions.height,
+				);
 				const { x, y } = getWebcamOverlayPosition({
 					containerWidth: overlay.clientWidth,
 					containerHeight: overlay.clientHeight,
@@ -885,11 +891,13 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					radius: scaledRadius,
 				});
 				const shadowSize = Math.min(scaledDimensions.width, scaledDimensions.height);
-				const shadowOffset = shadowSize * webcamShadowProfile.offsetScale * webcamShadow;
-				const shadowBlur = shadowSize * webcamShadowProfile.blurScale * webcamShadow;
-				const shadowAlpha = webcamShadowProfile.alphaScale * webcamShadow;
+				const shadowOffset =
+					shadowSize * webcamShadowProfile.offsetScale * webcamShadowStrength;
+				const shadowBlur =
+					shadowSize * webcamShadowProfile.blurScale * webcamShadowStrength;
+				const shadowAlpha = webcamShadowProfile.alphaScale * webcamShadowStrength;
 				bubble.style.filter =
-					webcamShadow > 0
+					webcamShadowStrength > 0
 						? `drop-shadow(0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, ${shadowAlpha}))`
 						: "none";
 				bubble.style.borderRadius = "0px";
@@ -903,14 +911,14 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			},
 			[
 				webcamCorner,
-				webcamCornerRadius,
+				webcamRoundness,
 				webcamEnabled,
 				webcamMargin,
 				webcamPositionPreset,
 				webcamPositionX,
 				webcamPositionY,
 				webcamReactToZoom,
-				webcamShadow,
+				webcamShadowStrength,
 				webcamHeight,
 				webcamVideoPath,
 				webcamWidth,

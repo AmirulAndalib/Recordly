@@ -17,7 +17,7 @@ import type {
 	ZoomRegion,
 	ZoomTransitionEasing,
 } from "@/components/video-editor/types";
-import { ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
+import { DEFAULT_WEBCAM_ROUNDNESS, ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
 import { DEFAULT_FOCUS } from "@/components/video-editor/videoPlayback/constants";
 import {
 	computeCursorFollowFocus,
@@ -40,6 +40,7 @@ import { getCursorStyleSizeMultiplier } from "@/components/video-editor/videoPla
 import { findDominantRegion } from "@/components/video-editor/videoPlayback/zoomRegionUtils";
 import { computeZoomTransform } from "@/components/video-editor/videoPlayback/zoomTransform";
 import {
+	getWebcamCornerRadiusPx,
 	getWebcamOverlayPosition,
 	getWebcamOverlaySizePx,
 	isWebcamCropRegionDefault,
@@ -80,6 +81,7 @@ import {
 import { VideoMuxer } from "./muxer";
 import { roundNativeStaticLayoutContentSize } from "./nativeStaticLayoutGeometry";
 import { buildNativeStaticLayoutCursorTelemetry } from "./nativeStaticLayoutTelemetry";
+import { getWebcamShadowStrength } from "./shadowProfile";
 import { resolveSourceAudioFallbackPaths } from "./sourceAudioFallback";
 import { type DecodedVideoInfo, StreamingVideoDecoder } from "./streamingDecoder";
 import type {
@@ -2052,8 +2054,12 @@ export class ModernVideoExporter {
 			left: Math.round(position.x),
 			top: Math.round(position.y),
 			size,
-			radius: Math.max(0, webcam.cornerRadius ?? 18),
-			shadowIntensity: Math.min(1, Math.max(0, webcam.shadow ?? 0)),
+			radius: getWebcamCornerRadiusPx(
+				webcam.roundness ?? DEFAULT_WEBCAM_ROUNDNESS,
+				size,
+				size,
+			),
+			shadowIntensity: getWebcamShadowStrength(webcam.shadow ?? 0),
 			mirror: webcam.mirror !== false,
 			timeOffsetMs: Number.isFinite(webcam.timeOffsetMs) ? webcam.timeOffsetMs : 0,
 		};

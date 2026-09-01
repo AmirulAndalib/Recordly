@@ -19,6 +19,7 @@ import type {
 import {
 	BASE_PREVIEW_HEIGHT,
 	BASE_PREVIEW_WIDTH,
+	DEFAULT_WEBCAM_ROUNDNESS,
 	ZOOM_DEPTH_SCALES,
 } from "@/components/video-editor/types";
 import { DEFAULT_FOCUS } from "@/components/video-editor/videoPlayback/constants";
@@ -51,12 +52,14 @@ import {
 } from "@/components/video-editor/videoPlayback/zoomTransform";
 import {
 	getCropMatchedWebcamHeightPercent,
+	getWebcamCornerRadiusPx,
 	getWebcamCropSourceRect,
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
 	scaleWebcamOverlayPixels,
 } from "@/components/video-editor/webcamOverlay";
 import { getAssetPath, getExportableVideoUrl, getRenderableAssetUrl } from "@/lib/assetPath";
+import { getWebcamShadowStrength } from "@/lib/exporter/shadowProfile";
 import { drawSquircleOnCanvas, drawSquircleOnGraphics } from "@/lib/geometry/squircle";
 import {
 	clampMediaTimeToDuration,
@@ -2097,7 +2100,11 @@ export class FrameRenderer {
 			positionY: webcam.positionY ?? 1,
 			legacyCorner: webcam.corner,
 		});
-		const radius = scaleWebcamOverlayPixels(webcam.cornerRadius ?? 18, width);
+		const radius = getWebcamCornerRadiusPx(
+			webcam.roundness ?? DEFAULT_WEBCAM_ROUNDNESS,
+			dimensions.width,
+			dimensions.height,
+		);
 		const bubbleWidth = Math.max(1, Math.ceil(dimensions.width));
 		const bubbleHeight = Math.max(1, Math.ceil(dimensions.height));
 		if (bubbleCanvas.width !== bubbleWidth || bubbleCanvas.height !== bubbleHeight) {
@@ -2159,7 +2166,7 @@ export class FrameRenderer {
 		bubbleCtx.restore();
 
 		if ((webcam.shadow ?? 0) > 0) {
-			const shadow = Math.max(0, Math.min(1, webcam.shadow));
+			const shadow = getWebcamShadowStrength(webcam.shadow);
 			const shadowSize = Math.min(dimensions.width, dimensions.height);
 			ctx.save();
 			ctx.filter = `drop-shadow(0 ${Math.round(shadowSize * 0.06)}px ${Math.round(shadowSize * 0.22)}px rgba(0,0,0,${shadow}))`;

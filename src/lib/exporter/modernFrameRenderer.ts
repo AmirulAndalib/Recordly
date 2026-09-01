@@ -26,7 +26,11 @@ import type {
 	ZoomRegion,
 	ZoomTransitionEasing,
 } from "@/components/video-editor/types";
-import { getDefaultCaptionFontFamily, ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
+import {
+	DEFAULT_WEBCAM_ROUNDNESS,
+	getDefaultCaptionFontFamily,
+	ZOOM_DEPTH_SCALES,
+} from "@/components/video-editor/types";
 import { DEFAULT_FOCUS } from "@/components/video-editor/videoPlayback/constants";
 import {
 	type CursorFollowCameraState,
@@ -60,6 +64,7 @@ import {
 } from "@/components/video-editor/videoPlayback/zoomTransform";
 import {
 	getCropMatchedWebcamHeightPercent,
+	getWebcamCornerRadiusPx,
 	getWebcamCropSourceRect,
 	getWebcamOverlayDimensionsPx,
 	getWebcamOverlayPosition,
@@ -87,6 +92,7 @@ import { ForwardFrameSource } from "./forwardFrameSource";
 import { resolveMediaElementSource } from "./localMediaSource";
 import {
 	getShadowFilterPadding,
+	getWebcamShadowStrength,
 	VIDEO_SHADOW_LAYER_PROFILES,
 	WEBCAM_SHADOW_LAYER_PROFILES,
 } from "./shadowProfile";
@@ -2863,8 +2869,12 @@ export class FrameRenderer {
 			positionY: webcam.positionY ?? 1,
 			legacyCorner: webcam.corner,
 		});
-		const radius = scaleWebcamOverlayPixels(webcam.cornerRadius ?? 18, this.config.width);
-		const shadowStrength = clampUnitInterval(webcam.shadow ?? 0);
+		const radius = getWebcamCornerRadiusPx(
+			webcam.roundness ?? DEFAULT_WEBCAM_ROUNDNESS,
+			dimensions.width,
+			dimensions.height,
+		);
+		const shadowStrength = getWebcamShadowStrength(webcam.shadow ?? 0);
 
 		this.webcamRootContainer.visible = true;
 
