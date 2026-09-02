@@ -40,8 +40,8 @@ import {
 	getUpdateStatusSummary,
 	installDownloadedUpdateNow,
 	previewUpdateToast,
-	setupAutoUpdates,
 	setExperimentalUpdatesEnabled,
+	setupAutoUpdates,
 	skipAvailableUpdateVersion,
 } from "./updater";
 import {
@@ -175,6 +175,7 @@ let trayContextMenu: Menu | null = null;
 let selectedSourceName = "";
 let editorHasUnsavedChanges = false;
 let isForceClosing = false;
+let isAppQuitting = false;
 let isCreatingMainWindow = false;
 let isCreatingEditorWindow = false;
 const shouldEnforceSingleInstanceLock = !IS_DEV;
@@ -196,6 +197,22 @@ function closeEditorWindowBypassingUnsavedPrompt(window: BrowserWindow | null) {
 		editorHasUnsavedChanges = false;
 	}
 	window.close();
+}
+
+function closeEditorWindowToHud(window: BrowserWindow | null) {
+	if (!window || window.isDestroyed()) {
+		return;
+	}
+
+	// The HUD renderer normally remains hidden while the editor is open so
+	// recording finalization can continue. Restore that HUD before destroying
+	// the editor, keeping Recordly in its ready-to-record state on the taskbar.
+	window.hide();
+	if (mainWindow === window) {
+		mainWindow = null;
+	}
+	createWindow();
+	closeEditorWindowBypassingUnsavedPrompt(window);
 }
 
 function restoreWindowSafely(window: BrowserWindow | null) {
@@ -414,26 +431,23 @@ function sendEditorMenuAction(
 
 function setupApplicationMenu() {
 	const isMac = process.platform === "darwin";
-	if (!isMac) {
-		Menu.setApplicationMenu(null);
-		return;
-	}
-
 	const template: Electron.MenuItemConstructorOptions[] = [];
-	template.push({
-		label: app.name,
-		submenu: [
-			{ role: "about" },
-			{ type: "separator" },
-			{ role: "services" },
-			{ type: "separator" },
-			{ role: "hide" },
-			{ role: "hideOthers" },
-			{ role: "unhide" },
-			{ type: "separator" },
-			{ role: "quit" },
-		],
-	});
+	if (isMac) {
+		template.push({
+			label: app.name,
+			submenu: [
+				{ role: "about" },
+				{ type: "separator" },
+				{ role: "services" },
+				{ type: "separator" },
+				{ role: "hide" },
+				{ role: "hideOthers" },
+				{ role: "unhide" },
+				{ type: "separator" },
+				{ role: "quit" },
+			],
+		});
+	}
 
 	template.push(
 		{
@@ -454,7 +468,12 @@ function setupApplicationMenu() {
 					accelerator: "CmdOrCtrl+Shift+S",
 					click: () => sendEditorMenuAction("menu-save-project-as"),
 				},
-				...(isMac ? [] : [{ type: "separator" as const }, { role: "quit" as const }]),
+				...(isMac
+					? []
+					: [
+							{ type: "separator" as const },
+							{ role: "quit" as const, accelerator: "CmdOrCtrl+Q" },
+						]),
 			],
 		},
 		{
@@ -776,6 +795,10 @@ function createEditorWindowWrapper() {
 
 	editorWindow.on("close", (event) => {
 		if (isForceClosing || !editorHasUnsavedChanges) {
+			if (process.platform === "win32" && !isForceClosing && !isAppQuitting) {
+				event.preventDefault();
+				closeEditorWindowToHud(editorWindow);
+			}
 			return;
 		}
 
@@ -794,12 +817,25 @@ function createEditorWindowWrapper() {
 		if (choice === 0) {
 			editorWindow.webContents.send("request-save-before-close");
 			ipcMain.once("save-before-close-done", (_event, saved: boolean) => {
-				if (saved) {
+				if (!saved) {
+					isAppQuitting = false;
+					return;
+				}
+
+				if (process.platform === "win32" && !isAppQuitting) {
+					closeEditorWindowToHud(editorWindow);
+				} else {
 					closeEditorWindowBypassingUnsavedPrompt(editorWindow);
 				}
 			});
 		} else if (choice === 1) {
-			closeEditorWindowBypassingUnsavedPrompt(editorWindow);
+			if (process.platform === "win32" && !isAppQuitting) {
+				closeEditorWindowToHud(editorWindow);
+			} else {
+				closeEditorWindowBypassingUnsavedPrompt(editorWindow);
+			}
+		} else {
+			isAppQuitting = false;
 		}
 	});
 
@@ -817,6 +853,7 @@ function createSourceSelectorWindowWrapper() {
 // On macOS, applications and their menu bar stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("before-quit", () => {
+	isAppQuitting = true;
 	killWindowsCaptureProcess();
 	showCursor();
 	cleanupNativeVideoExportSessions();

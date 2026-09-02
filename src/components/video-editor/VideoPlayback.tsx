@@ -13,6 +13,7 @@ import {
 } from "react";
 import { getAssetPath, getRenderableAssetUrl, getRenderableVideoUrl } from "@/lib/assetPath";
 import { getWebcamShadowFilter } from "@/lib/exporter/shadowProfile";
+import { getSquircleSvgPath } from "@/lib/geometry/squircle";
 import {
 	clampMediaTimeToDuration,
 	enablePitchPreservingPlayback,
@@ -27,6 +28,8 @@ import {
 	DEFAULT_WALLPAPER_RELATIVE_PATH,
 	isVideoWallpaperSource,
 } from "@/lib/wallpapers";
+import { type AspectRatio, formatAspectRatioForCSS } from "@/utils/aspectRatioUtils";
+import { AnnotationOverlay } from "./AnnotationOverlay";
 import { type CaptionEditTarget, normalizeCaptionEditText } from "./captionEditing";
 import { buildActiveCaptionLayout } from "./captionLayout";
 import {
@@ -44,36 +47,6 @@ import {
 	type CaptionCue,
 	type CursorClickEffectStyle,
 	type CursorStyle,
-	type Padding,
-	type SpeedRegion,
-	type TrimRegion,
-	type WebcamOverlaySettings,
-	ZOOM_DEPTH_SCALES,
-	type ZoomDepth,
-	type ZoomFocus,
-	type ZoomMotionBlurTuning,
-	type ZoomRegion,
-	type ZoomTransitionEasing,
-} from "./types";
-import { DEFAULT_FOCUS } from "./videoPlayback/constants";
-import {
-	DEFAULT_CURSOR_CONFIG,
-	PixiCursorOverlay,
-	preloadCursorAssets,
-} from "./videoPlayback/cursorRenderer";
-import { clamp01 } from "./videoPlayback/mathUtils";
-import {
-	createSpringState,
-	getZoomSpringConfig,
-	resetSpringState,
-	type SpringState,
-	stepSpringValue,
-} from "./videoPlayback/motionSmoothing";
-
-import { getSquircleSvgPath } from "@/lib/geometry/squircle";
-import { type AspectRatio, formatAspectRatioForCSS } from "@/utils/aspectRatioUtils";
-import { AnnotationOverlay } from "./AnnotationOverlay";
-import {
 	DEFAULT_CONNECTED_ZOOM_DURATION_MS,
 	DEFAULT_CONNECTED_ZOOM_EASING,
 	DEFAULT_CONNECTED_ZOOM_GAP_MS,
@@ -102,7 +75,18 @@ import {
 	DEFAULT_ZOOM_OUT_DURATION_MS,
 	DEFAULT_ZOOM_OUT_EASING,
 	getDefaultCaptionFontFamily,
+	type Padding,
+	type SpeedRegion,
+	type TrimRegion,
+	type WebcamOverlaySettings,
+	ZOOM_DEPTH_SCALES,
+	type ZoomDepth,
+	type ZoomFocus,
+	type ZoomMotionBlurTuning,
+	type ZoomRegion,
+	type ZoomTransitionEasing,
 } from "./types";
+import { DEFAULT_FOCUS } from "./videoPlayback/constants";
 import {
 	type CursorFollowCameraState,
 	computeCursorFollowFocus,
@@ -110,11 +94,28 @@ import {
 	resetCursorFollowCamera,
 	SNAP_TO_EDGES_RATIO_AUTO,
 } from "./videoPlayback/cursorFollowCamera";
+import {
+	DEFAULT_CURSOR_CONFIG,
+	PixiCursorOverlay,
+	preloadCursorAssets,
+} from "./videoPlayback/cursorRenderer";
 import { clampFocusToStage as clampFocusToStageUtil } from "./videoPlayback/focusUtils";
 import { layoutVideoContent as layoutVideoContentUtil } from "./videoPlayback/layoutUtils";
+import { clamp01 } from "./videoPlayback/mathUtils";
+import {
+	createSpringState,
+	getZoomSpringConfig,
+	resetSpringState,
+	type SpringState,
+	stepSpringValue,
+} from "./videoPlayback/motionSmoothing";
 import { updateOverlayIndicator } from "./videoPlayback/overlayUtils";
 import { createVideoEventHandlers } from "./videoPlayback/videoEventHandlers";
-import { getWebcamMediaTargetTimeSeconds, shouldSeekWebcamMedia } from "./videoPlayback/webcamSync";
+import {
+	getWebcamMediaTargetTimeSeconds,
+	isWebcamMediaSynchronized,
+	shouldSeekWebcamMedia,
+} from "./videoPlayback/webcamSync";
 import { findDominantRegion } from "./videoPlayback/zoomRegionUtils";
 import {
 	applyZoomTransform,
@@ -419,6 +420,10 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			width: number;
 			height: number;
 		} | null>(null);
+		const webcamSynchronizedPathRef = useRef<string | null>(null);
+		const [webcamSynchronizedPath, setWebcamSynchronizedPath] = useState<string | null>(null);
+		const webcamMediaSynchronized =
+			Boolean(webcamVideoPath) && webcamSynchronizedPath === webcamVideoPath;
 		const captionBoxRef = useRef<HTMLDivElement | null>(null);
 		const captionEditInputRef = useRef<HTMLTextAreaElement | null>(null);
 		const captionEditSessionRef = useRef<CaptionEditSession | null>(null);
@@ -1641,7 +1646,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				? webcamVideo.duration
 				: null;
 			const targetTime = getWebcamMediaTargetTimeSeconds({
-				currentTime,
+				currentTime: currentTimeRef.current / 1000,
 				webcamDuration,
 				timeOffsetMs: webcamTimeOffsetMs,
 			});
@@ -1649,6 +1654,36 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				targetTime <= 0 && webcamDuration !== null && webcamDuration > 0
 					? Math.min(1 / 60, webcamDuration)
 					: targetTime;
+
+			if (
+				webcamSynchronizedPathRef.current !== webcamVideoPath &&
+				!isWebcamMediaSynchronized({
+					currentTime: webcamVideo.currentTime,
+					targetTime: mediaTargetTime,
+					readyState: webcamVideo.readyState,
+					isSeeking: webcamVideo.seeking,
+				})
+			) {
+				webcamVideo.pause();
+				if (
+					webcamVideo.readyState >= HTMLMediaElement.HAVE_METADATA &&
+					!webcamVideo.seeking &&
+					Math.abs(webcamVideo.currentTime - mediaTargetTime) > 0.01
+				) {
+					try {
+						webcamVideo.currentTime = mediaTargetTime;
+					} catch {
+						// The next media-ready event retries once the source accepts seeks.
+					}
+				}
+				return;
+			}
+
+			if (webcamSynchronizedPathRef.current !== webcamVideoPath) {
+				webcamSynchronizedPathRef.current = webcamVideoPath;
+				setWebcamSynchronizedPath(webcamVideoPath);
+				lastWebcamSyncTimeRef.current = targetTime;
+			}
 
 			const timelineTimeMs = currentTime * 1000;
 			const activeSpeedRegion = speedRegionsRef.current.find(
@@ -1710,6 +1745,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 		// biome-ignore lint/correctness/useExhaustiveDependencies: The media path intentionally triggers source-specific state reset.
 		useEffect(() => {
+			webcamSynchronizedPathRef.current = null;
+			setWebcamSynchronizedPath(null);
 			setWebcamVideoDimensions(null);
 			lastWebcamSyncTimeRef.current = null;
 		}, [webcamVideoPath]);
@@ -2480,7 +2517,10 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 									<div
 										className="pointer-events-none absolute inset-0 overflow-hidden"
 										style={{
-											opacity: webcamVideoDimensions ? 1 : 0,
+											opacity:
+												webcamVideoDimensions && webcamMediaSynchronized
+													? 1
+													: 0,
 											transform: webcamMirror ? "scaleX(-1)" : undefined,
 										}}
 									>
@@ -2498,6 +2538,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 												aria-hidden="true"
 												onLoadedMetadata={handleWebcamMediaReady}
 												onLoadedData={handleWebcamMediaReady}
+												onCanPlay={handleWebcamMediaReady}
+												onSeeked={handleWebcamMediaReady}
 											/>
 										</div>
 									</div>
