@@ -1,5 +1,5 @@
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: grouped editor domain objects contain the thumbnail renderer dependencies. */
-import { type RefObject, useCallback, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { FrameRenderer } from "@/lib/exporter";
 import { toFileUrl } from "../projectPersistence";
 import type { useAppearanceState } from "../state/useAppearanceState";
@@ -26,7 +26,9 @@ export function useProjectLibraryController({
 	effectiveShowCursor,
 }: Input) {
 	const currentTimeRef = useRef(currentTime);
-	currentTimeRef.current = currentTime;
+	useEffect(() => {
+		currentTimeRef.current = currentTime;
+	}, [currentTime]);
 	const { setProjectLibraryEntries } = project;
 	const {
 		backgroundBlur,
