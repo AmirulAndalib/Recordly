@@ -5,6 +5,10 @@ import { hideCursor } from "../../cursorHider";
 import { closeCountdownWindow, createCountdownWindow, getCountdownWindow } from "../../windows";
 import { COUNTDOWN_SETTINGS_FILE, RECORDINGS_SETTINGS_FILE, SHORTCUTS_FILE } from "../constants";
 import {
+	createRecordingPreferencesStore,
+	type RecordingPreferencesPatch,
+} from "../settings/recordingPreferencesStore";
+import {
 	countdownCancelled,
 	countdownInProgress,
 	countdownRemaining,
@@ -18,6 +22,7 @@ import { parseJsonWithByteOrderMark } from "../utils";
 
 const BROWSER_MICROPHONE_PROFILE_ENV = "RECORDLY_BROWSER_MIC_PROFILE";
 const DEFAULT_BROWSER_MICROPHONE_PROFILE = "processed";
+const recordingPreferencesStore = createRecordingPreferencesStore(RECORDINGS_SETTINGS_FILE);
 const BROWSER_MICROPHONE_PROFILES = new Set([
 	"processed",
 	"no-agc",
@@ -117,8 +122,7 @@ export function registerSettingsHandlers() {
 	// ---------------------------------------------------------------------------
 	ipcMain.handle("get-recording-preferences", async () => {
 		try {
-			const content = await fs.readFile(RECORDINGS_SETTINGS_FILE, "utf-8");
-			const parsed = parseJsonWithByteOrderMark<Record<string, unknown>>(content);
+			const parsed = await recordingPreferencesStore.read();
 			return {
 				success: true,
 				microphoneEnabled: parsed.microphoneEnabled === true,
@@ -127,6 +131,9 @@ export function registerSettingsHandlers() {
 						? parsed.microphoneDeviceId
 						: undefined,
 				systemAudioEnabled: parsed.systemAudioEnabled === true,
+				webcamEnabled: parsed.webcamEnabled === true,
+				webcamDeviceId:
+					typeof parsed.webcamDeviceId === "string" ? parsed.webcamDeviceId : undefined,
 			};
 		} catch {
 			return {
@@ -134,6 +141,8 @@ export function registerSettingsHandlers() {
 				microphoneEnabled: false,
 				microphoneDeviceId: undefined,
 				systemAudioEnabled: false,
+				webcamEnabled: false,
+				webcamDeviceId: undefined,
 			};
 		}
 	});
@@ -142,37 +151,15 @@ export function registerSettingsHandlers() {
 		return getBrowserMicrophoneProfileFromEnv();
 	});
 
-	ipcMain.handle(
-		"set-recording-preferences",
-		async (
-			_,
-			prefs: {
-				microphoneEnabled?: boolean;
-				microphoneDeviceId?: string;
-				systemAudioEnabled?: boolean;
-			},
-		) => {
-			try {
-				let existing: Record<string, unknown> = {};
-				try {
-					const content = await fs.readFile(RECORDINGS_SETTINGS_FILE, "utf-8");
-					existing = parseJsonWithByteOrderMark<Record<string, unknown>>(content);
-				} catch {
-					// file doesn't exist yet
-				}
-				const merged = { ...existing, ...prefs };
-				await fs.writeFile(
-					RECORDINGS_SETTINGS_FILE,
-					JSON.stringify(merged, null, 2),
-					"utf-8",
-				);
-				return { success: true };
-			} catch (error) {
-				console.error("Failed to save recording preferences:", error);
-				return { success: false, error: String(error) };
-			}
-		},
-	);
+	ipcMain.handle("set-recording-preferences", async (_, prefs: RecordingPreferencesPatch) => {
+		try {
+			await recordingPreferencesStore.update(prefs);
+			return { success: true };
+		} catch (error) {
+			console.error("Failed to save recording preferences:", error);
+			return { success: false, error: String(error) };
+		}
+	});
 
 	ipcMain.handle("get-countdown-delay", async () => {
 		try {
