@@ -116,6 +116,33 @@ describe("parseAnnouncementFeed", () => {
 		]);
 	});
 
+	it("accepts text-only messages for the export status stream", () => {
+		const feed = parseAnnouncementFeed({
+			announcements: [
+				{
+					id: "export-tip-1",
+					title: "Did you know?",
+					body: "Cursor styles can be changed in the editor.",
+					presentation: "export",
+					media: { type: "image", url: "https://example.com/ignored.jpg" },
+					displayDurationSeconds: 8,
+				},
+			],
+		});
+
+		expect(feed.announcements).toEqual([
+			{
+				id: "export-tip-1",
+				title: "Did you know?",
+				body: "Cursor styles can be changed in the editor.",
+				presentation: "export",
+				audience: "all",
+				priority: 0,
+				displayDurationSeconds: 8,
+			},
+		]);
+	});
+
 	it("accepts an action that opens a safe editor section", () => {
 		const feed = parseAnnouncementFeed({
 			announcements: [

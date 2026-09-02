@@ -117,6 +117,11 @@
 		"discardChanges": "Änderungen verwerfen",
 		"saveProject": "Projekt speichern"
 	},
+	"exportTips": {
+		"autoZooms": "Tipp: Automatisch angewendete Zooms können in den Einstellungen deaktiviert werden",
+		"experimentalBuilds": "Tipp: Aktiviere den Zugriff auf experimentelle Builds in den Einstellungen",
+		"cursorAppearance": "Tipp: Du kannst das Aussehen deines Cursors anpassen"
+	},
 	"account": { "title": "Konto", "comingSoon": "Konto demnächst verfügbar" },
 	"nativeCaptureUnavailable": {
 		"title": "Es ist nichts kaputt, aber wir können kein animiertes Cursor-Overlay rendern.",

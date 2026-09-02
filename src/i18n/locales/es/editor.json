@@ -118,6 +118,11 @@
 		"discardChanges": "Descartar cambios",
 		"saveProject": "Guardar proyecto"
 	},
+	"exportTips": {
+		"autoZooms": "Consejo: Desactiva los zooms automáticos en la configuración",
+		"experimentalBuilds": "Consejo: Activa el acceso a versiones experimentales en la configuración",
+		"cursorAppearance": "Consejo: Puedes personalizar la apariencia del cursor"
+	},
 	"account": { "title": "Cuenta", "comingSoon": "Cuenta próximamente" },
 	"nativeCaptureUnavailable": {
 		"title": "Nada está roto, pero no podremos renderizar una superposición de cursor animada.",

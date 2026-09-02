@@ -28,7 +28,7 @@ type Props = {
 	handleRetrySaveExport: () => void;
 	handleStartExportFromDropdown: () => void;
 	revealExportedFile: () => void;
-	openLightningIssues: () => void;
+	exportMessage: string | null;
 };
 
 export function EditorExportMenu(props: Props) {
@@ -48,7 +48,7 @@ export function EditorExportMenu(props: Props) {
 		handleRetrySaveExport,
 		handleStartExportFromDropdown,
 		revealExportedFile,
-		openLightningIssues,
+		exportMessage,
 	} = props;
 	const {
 		exportQuality,
@@ -56,7 +56,6 @@ export function EditorExportMenu(props: Props) {
 		exportEncodingMode,
 		setExportEncodingMode,
 		exportPipelineModel,
-		setExportPipelineModel,
 		mp4FrameRate,
 		setMp4FrameRate,
 		exportFormat,
@@ -123,18 +122,9 @@ export function EditorExportMenu(props: Props) {
 								<p className="text-xs text-muted-foreground">
 									{t("editor.exportStatus.renderingFile", "Rendering your file.")}
 								</p>
-								{isLightningExportInProgress ? (
-									<p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground/70">
-										PLEASE{" "}
-										<button
-											type="button"
-											onClick={() => void openLightningIssues()}
-											className="underline decoration-slate-500/70 underline-offset-2 transition-colors hover:text-foreground"
-										>
-											report bugs
-										</button>
-										with Lightning export{" "}
-										<span aria-hidden="true">{"\u{1F64F}"}</span>
+								{isLightningExportInProgress && exportMessage ? (
+									<p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+										{exportMessage}
 									</p>
 								) : null}
 								{isLegacyExportInProgress ? (
@@ -269,7 +259,6 @@ export function EditorExportMenu(props: Props) {
 						mp4FrameRate={mp4FrameRate}
 						onMp4FrameRateChange={setMp4FrameRate}
 						exportPipelineModel={exportPipelineModel}
-						onExportPipelineModelChange={setExportPipelineModel}
 						experimentalNvidiaCudaExport={
 							experimentalNvidiaCudaExport && nvidiaCudaExportAvailable
 						}

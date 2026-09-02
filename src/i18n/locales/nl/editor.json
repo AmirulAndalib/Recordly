@@ -119,6 +119,11 @@
 		"discardChanges": "Wijzigingen negeren",
 		"saveProject": "Project opslaan"
 	},
+	"exportTips": {
+		"autoZooms": "Tip: Schakel automatisch toegepaste zooms uit in de instellingen",
+		"experimentalBuilds": "Tip: Schakel toegang tot experimentele builds in via de instellingen",
+		"cursorAppearance": "Tip: Je kunt het uiterlijk van je cursor aanpassen"
+	},
 	"account": { "title": "Account", "comingSoon": "Account binnenkort beschikbaar" },
 	"nativeCaptureUnavailable": {
 		"title": "Er is niets kapot, maar we kunnen geen geanimeerde cursor-overlay renderen.",

@@ -102,7 +102,8 @@ export function AnnouncementDialog({ audience }: { audience: AnnouncementAudienc
 			}).filter(
 				(announcement) =>
 					announcement.presentation !== "notification" &&
-					announcement.presentation !== "banner",
+					announcement.presentation !== "banner" &&
+					announcement.presentation !== "export",
 			);
 			setPopupAspectRatio(
 				parsedRemoteFeed.settings.aspectRatio ??

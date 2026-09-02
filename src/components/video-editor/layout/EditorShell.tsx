@@ -89,7 +89,7 @@ export function EditorShell(props: Props) {
 		handleSelectAnnotation,
 		handleAutoSuggestZoomsConsumed,
 	} = editing;
-	const { dialogActions, status: exportStatus, openLightningIssues } = exportController;
+	const { dialogActions, status: exportStatus, exportMessage } = exportController;
 	const editorDialogs = (
 		<EditorDialogs
 			t={t}
@@ -176,7 +176,7 @@ export function EditorShell(props: Props) {
 				handleRetrySaveExport={dialogActions.handleRetrySaveExport}
 				handleStartExportFromDropdown={dialogActions.handleStartExportFromDropdown}
 				revealExportedFile={dialogActions.revealExportedFile}
-				openLightningIssues={openLightningIssues}
+				exportMessage={exportMessage}
 			/>
 			<EditorAnnouncementBanner />
 			<div className="relative flex min-h-0 flex-1 flex-col gap-3 p-4">

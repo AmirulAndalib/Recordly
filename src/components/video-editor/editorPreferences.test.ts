@@ -97,6 +97,12 @@ describe("editorPreferences", () => {
 		expect(DEFAULT_EDITOR_PREFERENCES.exportPipelineModel).toBe("modern");
 	});
 
+	it("migrates hidden legacy pipeline preferences to Lightning", () => {
+		expect(normalizeEditorPreferences({ exportPipelineModel: "legacy" })).toMatchObject({
+			exportPipelineModel: "modern",
+		});
+	});
+
 	it("bakes in the stronger split motion blur defaults", () => {
 		expect(DEFAULT_EDITOR_PREFERENCES.zoomMotionBlurTuning).toMatchObject({
 			panVelocityThreshold: 0,

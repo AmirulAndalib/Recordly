@@ -118,6 +118,11 @@
 		"discardChanges": "Discard changes",
 		"saveProject": "Save project"
 	},
+	"exportTips": {
+		"autoZooms": "Tip: Turn off auto-applied zooms in settings",
+		"experimentalBuilds": "Tip: Try experimental builds by turning on access in settings",
+		"cursorAppearance": "Tip: You can customise your cursor appearance"
+	},
 	"account": { "title": "Account", "comingSoon": "Account coming soon" },
 	"nativeCaptureUnavailable": {
 		"title": "Nothing’s broken, but we won’t be able to render an animated cursor overlay.",
