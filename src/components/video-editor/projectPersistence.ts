@@ -317,15 +317,20 @@ export function deriveNextId(prefix: string, ids: string[]): number {
  * media server is unavailable.
  */
 export async function resolveVideoUrl(sourcePath: string): Promise<string> {
+	const trimmedSourcePath = sourcePath.trim();
+	if (/^(?:https?:|blob:|data:)/i.test(trimmedSourcePath)) {
+		return trimmedSourcePath;
+	}
+	const localPath = fromFileUrl(trimmedSourcePath);
 	try {
-		const result = await window.electronAPI.getLocalMediaUrl(sourcePath);
+		const result = await window.electronAPI.getLocalMediaUrl(localPath);
 		if (result.success) {
 			return result.url;
 		}
 	} catch {
 		// Media server unavailable — fall through to file:// URL.
 	}
-	return toFileUrl(sourcePath);
+	return toFileUrl(localPath);
 }
 
 export function validateProjectData(candidate: unknown): candidate is EditorProjectData {
