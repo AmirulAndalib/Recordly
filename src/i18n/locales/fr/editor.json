@@ -118,6 +118,11 @@
 		"discardChanges": "Ignorer les modifications",
 		"saveProject": "Enregistrer le projet"
 	},
+	"exportTips": {
+		"autoZooms": "Astuce : Désactivez les zooms automatiques dans les paramètres",
+		"experimentalBuilds": "Astuce : Activez l’accès aux versions expérimentales dans les paramètres",
+		"cursorAppearance": "Astuce : Vous pouvez personnaliser l’apparence du curseur"
+	},
 	"account": { "title": "Compte", "comingSoon": "Compte bientôt disponible" },
 	"nativeCaptureUnavailable": {
 		"title": "Rien n'est cassé, mais nous ne pourrons pas afficher une superposition animée du curseur.",

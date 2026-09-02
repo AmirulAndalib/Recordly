@@ -1,15 +1,14 @@
 import type { RefObject } from "react";
-import { useCallback } from "react";
 import type { useI18n } from "@/contexts/I18nContext";
 import type { useVideoEditorAudio } from "../audio/useVideoEditorAudio";
 import type { getSmokeExportConfig } from "../smokeExportConfig";
 import type { useAppearanceState } from "../state/useAppearanceState";
 import type { useTimelineState } from "../state/useTimelineState";
-import { openExternalLink, RECORDLY_ISSUES_URL } from "../TutorialHelp";
 import type { CursorTelemetryPoint, SpeedRegion, ZoomRegion } from "../types";
 import type { VideoPlaybackRef } from "../VideoPlayback";
 import { useExportDialogActions } from "./useExportDialogActions";
 import type { useExportDimensions } from "./useExportDimensions";
+import { useExportMessages } from "./useExportMessages";
 import { useExportRunner } from "./useExportRunner";
 import type { useExportSession } from "./useExportSession";
 import type { useExportSettings } from "./useExportSettings";
@@ -91,12 +90,10 @@ export function useEditorExportController(input: Input) {
 		session: input.session,
 		settings: input.settings,
 	});
-	const openLightningIssues = useCallback(async () => {
-		await openExternalLink(
-			RECORDLY_ISSUES_URL,
-			input.t("editor.feedback.openFailed", "Failed to open link."),
-		);
-	}, [input.t]);
+	const exportMessage = useExportMessages({
+		t: input.t,
+		active: status.isLightningExportInProgress,
+	});
 
-	return { dialogActions, status, openLightningIssues };
+	return { dialogActions, status, exportMessage };
 }

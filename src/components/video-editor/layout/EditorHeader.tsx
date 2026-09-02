@@ -46,7 +46,7 @@ type Props = {
 	handleRetrySaveExport: () => void;
 	handleStartExportFromDropdown: () => void;
 	revealExportedFile: () => void;
-	openLightningIssues: () => void;
+	exportMessage: string | null;
 };
 
 export function EditorHeader(props: Props) {
@@ -80,7 +80,7 @@ export function EditorHeader(props: Props) {
 		handleRetrySaveExport,
 		handleStartExportFromDropdown,
 		revealExportedFile,
-		openLightningIssues,
+		exportMessage,
 	} = props;
 	const {
 		isEditingProjectName,
@@ -219,7 +219,7 @@ export function EditorHeader(props: Props) {
 					handleRetrySaveExport={handleRetrySaveExport}
 					handleStartExportFromDropdown={handleStartExportFromDropdown}
 					revealExportedFile={revealExportedFile}
-					openLightningIssues={openLightningIssues}
+					exportMessage={exportMessage}
 				/>
 			</div>
 		</div>

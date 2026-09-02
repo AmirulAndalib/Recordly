@@ -197,11 +197,9 @@ export function normalizeExportBackendPreference(value: unknown): ExportBackendP
 	return "auto";
 }
 
-export function normalizeExportPipelineModel(value: unknown): ExportPipelineModel {
-	if (value === "modern" || value === "legacy") {
-		return value;
-	}
-
+export function normalizeExportPipelineModel(_value: unknown): ExportPipelineModel {
+	// Legacy remains available to internal smoke/export routing, but persisted
+	// user selections migrate to the only pipeline exposed by the editor UI.
 	return "modern";
 }
 

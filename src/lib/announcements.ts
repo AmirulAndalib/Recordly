@@ -31,7 +31,7 @@ export interface Announcement {
 	id: string;
 	title: string;
 	body: string;
-	presentation?: "popup" | "notification" | "banner";
+	presentation?: "popup" | "notification" | "banner" | "export";
 	audience: AnnouncementAudience;
 	priority: number;
 	mediaMode?: "banner" | "cover";
@@ -203,10 +203,13 @@ function parseAnnouncement(value: unknown): Announcement | undefined {
 
 	const audience = value.audience === "editor" ? "editor" : "all";
 	const presentation =
-		value.presentation === "notification" || value.presentation === "banner"
+		value.presentation === "notification" ||
+		value.presentation === "banner" ||
+		value.presentation === "export"
 			? value.presentation
 			: undefined;
-	const isTextOnlyPresentation = presentation === "notification" || presentation === "banner";
+	const isTextOnlyPresentation =
+		presentation === "notification" || presentation === "banner" || presentation === "export";
 	const priority =
 		typeof value.priority === "number" && Number.isFinite(value.priority)
 			? Math.max(-100, Math.min(100, value.priority))
