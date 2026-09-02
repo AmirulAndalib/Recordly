@@ -12,6 +12,7 @@ import {
 } from "./hudOverlayBounds";
 import { getHudOverlayTaskbarOptions } from "./hudOverlayWindowOptions";
 import { getPackagedRendererBaseUrl } from "./rendererServer";
+import { getUpdateToastWindowAppearance } from "./updateToastWindowOptions";
 
 const electronWindowsDir = path.dirname(fileURLToPath(import.meta.url));
 const nodeRequire = createRequire(import.meta.url);
@@ -689,6 +690,7 @@ export function setHudOverlayRecordingActive(recording: boolean): void {
 
 export function createUpdateToastWindow(): BrowserWindow {
 	const initialBounds = getUpdateToastBounds();
+	const appearance = getUpdateToastWindowAppearance(process.platform);
 
 	const win = new BrowserWindow({
 		width: initialBounds.width,
@@ -696,14 +698,14 @@ export function createUpdateToastWindow(): BrowserWindow {
 		x: initialBounds.x,
 		y: initialBounds.y,
 		frame: false,
-		transparent: true,
+		transparent: appearance.transparent,
 		resizable: false,
 		alwaysOnTop: true,
 		skipTaskbar: true,
 		hasShadow: false,
 		show: false,
 		focusable: true,
-		backgroundColor: "#00000000",
+		backgroundColor: appearance.backgroundColor,
 		webPreferences: {
 			preload: path.join(electronWindowsDir, "preload.mjs"),
 			nodeIntegration: false,
