@@ -1,7 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { normalizeProjectEditor } from "./projectPersistence";
+import { normalizeProjectEditor, resolveVideoUrl } from "./projectPersistence";
 import { ADVANCED_VERTICAL_PADDING_MAX } from "./types";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("resolveVideoUrl", () => {
+	it("does not send an already renderable URL through the local-path IPC", async () => {
+		const getLocalMediaUrl = vi.fn();
+		vi.stubGlobal("window", { electronAPI: { getLocalMediaUrl } });
+
+		await expect(resolveVideoUrl("http://127.0.0.1:1234/video?path=test")).resolves.toBe(
+			"http://127.0.0.1:1234/video?path=test",
+		);
+		expect(getLocalMediaUrl).not.toHaveBeenCalled();
+	});
+
+	it("normalizes a file URL before requesting a local media URL", async () => {
+		const getLocalMediaUrl = vi.fn().mockResolvedValue({
+			success: true,
+			url: "http://127.0.0.1:1234/video?path=clip",
+		});
+		vi.stubGlobal("window", { electronAPI: { getLocalMediaUrl } });
+
+		await resolveVideoUrl("file:///Users/demo/My%20Clip.mp4");
+		expect(getLocalMediaUrl).toHaveBeenCalledWith("/Users/demo/My Clip.mp4");
+	});
+});
 
 describe("normalizeProjectEditor", () => {
 	it("preserves the extended advanced vertical padding range", () => {
