@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useCallback, useEffect } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { resolveAutoCaptionSourcePath } from "../autoCaptionSource";
 import { type CaptionEditTarget, updateCaptionCuesForEditedTarget } from "../captionEditing";
@@ -60,6 +60,8 @@ export function useAutoCaptionController({
 	setAutoCaptions,
 	syncActiveVideoSource,
 }: UseAutoCaptionControllerParams) {
+	const captionGenerationInFlightRef = useRef(false);
+
 	useEffect(() => {
 		const unsubscribe = window.electronAPI.onWhisperSmallModelDownloadProgress((state) => {
 			setWhisperModelDownloadStatus(state.status);
@@ -136,8 +138,6 @@ export function useAutoCaptionController({
 		const result = await window.electronAPI.deleteWhisperSmallModel();
 		if (!result.success) {
 			toast.error(result.error || "Failed to delete Whisper small model");
-			setWhisperModelDownloadStatus("idle");
-			setWhisperModelDownloadProgress(0);
 			return;
 		}
 		setWhisperModelPath((current) => (current === downloadedWhisperModelPath ? null : current));
@@ -154,39 +154,38 @@ export function useAutoCaptionController({
 	]);
 
 	const handleGenerateAutoCaptions = useCallback(async () => {
-		if (isGeneratingCaptions) return;
-		let sourcePath = resolveAutoCaptionSourcePath({ videoSourcePath, videoPath });
-		if (!sourcePath) {
-			const sessionResult = await window.electronAPI.getCurrentRecordingSession?.();
-			const currentVideoResult = await window.electronAPI.getCurrentVideoPath();
-			sourcePath = resolveAutoCaptionSourcePath({
-				recordingSessionVideoPath:
-					sessionResult?.success && sessionResult.session?.videoPath
-						? sessionResult.session.videoPath
-						: null,
-				currentVideoPath: currentVideoResult.success
-					? (currentVideoResult.path ?? null)
-					: null,
-			});
-		}
-		if (!sourcePath) {
-			toast.error("No source video is loaded");
-			return;
-		}
-		if (sourcePath !== videoSourcePath) {
-			await syncActiveVideoSource(sourcePath, webcamSourcePath);
-			setVideoSourcePath(sourcePath);
-			setVideoPath(await resolveVideoUrl(sourcePath));
-		} else {
-			await syncActiveVideoSource(sourcePath, webcamSourcePath);
-		}
-		if (!whisperModelPath) {
-			toast.error("Select a Whisper model or download the small model first");
-			return;
-		}
-
+		if (captionGenerationInFlightRef.current || isGeneratingCaptions) return;
+		captionGenerationInFlightRef.current = true;
 		setIsGeneratingCaptions(true);
 		try {
+			let sourcePath = resolveAutoCaptionSourcePath({ videoSourcePath, videoPath });
+			if (!sourcePath) {
+				const sessionResult = await window.electronAPI.getCurrentRecordingSession?.();
+				const currentVideoResult = await window.electronAPI.getCurrentVideoPath();
+				sourcePath = resolveAutoCaptionSourcePath({
+					recordingSessionVideoPath:
+						sessionResult?.success && sessionResult.session?.videoPath
+							? sessionResult.session.videoPath
+							: null,
+					currentVideoPath: currentVideoResult.success
+						? (currentVideoResult.path ?? null)
+						: null,
+				});
+			}
+			if (!sourcePath) {
+				toast.error("No source video is loaded");
+				return;
+			}
+			await syncActiveVideoSource(sourcePath, webcamSourcePath);
+			if (sourcePath !== videoSourcePath) {
+				setVideoSourcePath(sourcePath);
+				setVideoPath(await resolveVideoUrl(sourcePath));
+			}
+			if (!whisperModelPath) {
+				toast.error("Select a Whisper model or download the small model first");
+				return;
+			}
+
 			const result = await window.electronAPI.generateAutoCaptions({
 				videoPath: sourcePath,
 				whisperExecutablePath: whisperExecutablePath ?? undefined,
@@ -194,11 +193,8 @@ export function useAutoCaptionController({
 				language: autoCaptionSettings.language,
 			});
 			if (!result.success || !result.cues) {
-				toast.error(
-					getErrorMessage(result.error) ||
-						result.message ||
-						"Failed to generate captions",
-				);
+				const errorMessage = result.error ? getErrorMessage(result.error) : result.message;
+				toast.error(errorMessage || "Failed to generate captions");
 				return;
 			}
 			setAutoCaptions(result.cues);
@@ -209,6 +205,7 @@ export function useAutoCaptionController({
 		} catch (error) {
 			toast.error(getErrorMessage(error));
 		} finally {
+			captionGenerationInFlightRef.current = false;
 			setIsGeneratingCaptions(false);
 		}
 	}, [
