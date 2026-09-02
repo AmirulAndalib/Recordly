@@ -52,8 +52,16 @@ export function useEditorHistory({
 	} = timeline;
 	const historyRef = useRef(createEditorHistoryStack());
 	const applyingRef = useRef(false);
-	const [version, setVersion] = useState(0);
-	const syncButtons = useCallback(() => setVersion((value) => value + 1), []);
+	const [historyFlags, setHistoryFlags] = useState({ canUndo: false, canRedo: false });
+	const syncButtons = useCallback(() => {
+		const next = {
+			canUndo: historyRef.current.past.length > 0,
+			canRedo: historyRef.current.future.length > 0,
+		};
+		setHistoryFlags((current) =>
+			current.canUndo === next.canUndo && current.canRedo === next.canRedo ? current : next,
+		);
+	}, []);
 	const buildSnapshot = useCallback(
 		(): EditorHistorySnapshot => ({
 			zoomRegions,
@@ -160,10 +168,8 @@ export function useEditorHistory({
 		if (result !== "unchanged") syncButtons();
 	}, [buildSnapshot, syncButtons]);
 
-	void version;
 	return {
-		canUndo: historyRef.current.past.length > 0,
-		canRedo: historyRef.current.future.length > 0,
+		...historyFlags,
 		handleUndo,
 		handleRedo,
 		resetHistory,

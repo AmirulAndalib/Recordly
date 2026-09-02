@@ -4,7 +4,8 @@
 		"pause": "Pause",
 		"skipBack": "Zurück springen",
 		"skipForward": "Vorwärts springen",
-		"muteUnmute": "Stummschalten/Stummschaltung aufheben"
+		"muteUnmute": "Stummschalten/Stummschaltung aufheben",
+		"volume": "Vorschaulautstärke"
 	},
 	"annotations": {
 		"settings": "Einstellungen für Anmerkungen",
@@ -110,8 +111,13 @@
 		"showInFolder": "In Ordner anzeigen"
 	},
 	"project": {
-		"untitled": "Unbenannt"
+		"untitled": "Unbenannt",
+		"unsavedChangesTitle": "Ungespeicherte Änderungen",
+		"unsavedChangesDescription": "Möchtest du dein aktuelles Projekt speichern, bevor du {{action}}?",
+		"discardChanges": "Änderungen verwerfen",
+		"saveProject": "Projekt speichern"
 	},
+	"account": { "title": "Konto", "comingSoon": "Konto demnächst verfügbar" },
 	"nativeCaptureUnavailable": {
 		"title": "Es ist nichts kaputt, aber wir können kein animiertes Cursor-Overlay rendern.",
 		"description": "Ihr Gerät unterstützt keine native Erfassung. Dies kann verschiedene Gründe haben, die wir noch nicht ermittelt haben. Recordly funktioniert weiterhin, aber eine Cursor-Glättung ist nicht möglich.",

@@ -56,10 +56,14 @@ export function useExportDialogActions({
 			toast.error("Video not ready");
 			return;
 		}
+		if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+			toast.error("Video metadata is still loading");
+			return;
+		}
 
 		const resolvedSettings = resolveExportStartSettings({
-			sourceWidth: video.videoWidth || 1920,
-			sourceHeight: video.videoHeight || 1080,
+			sourceWidth: video.videoWidth,
+			sourceHeight: video.videoHeight,
 			exportFormat: settings.exportFormat,
 			includeCaptionSidecar: hasCaptionsForSidecar && settings.includeCaptionSidecar,
 			exportEncodingMode: settings.exportEncodingMode,

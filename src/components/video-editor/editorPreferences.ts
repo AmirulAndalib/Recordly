@@ -66,9 +66,11 @@ type PartialEditorControls = Partial<PersistedEditorControls>;
 
 type PresetAutoCaptionSettings = ProjectEditorState["autoCaptionSettings"];
 type PresetCropRegion = ProjectEditorState["cropRegion"];
+type PresetWebcamSettings = Omit<ProjectEditorState["webcam"], "sourcePath">;
 
-export interface EditorPresetSnapshot extends PersistedEditorControls {
+export interface EditorPresetSnapshot extends Omit<PersistedEditorControls, "webcam"> {
 	cropRegion: PresetCropRegion;
+	webcam: PresetWebcamSettings;
 	autoCaptionSettings: PresetAutoCaptionSettings;
 	whisperExecutablePath: string | null;
 	whisperModelPath: string | null;
@@ -209,9 +211,15 @@ function normalizeEditorPresetSnapshot(candidate: unknown): EditorPresetSnapshot
 	const normalizedCropRegion = normalizeProjectEditor({
 		cropRegion: raw.cropRegion,
 	}).cropRegion;
+	const normalizedControls = normalizeEditorControls(
+		normalizedPreferences,
+		normalizedPreferences,
+	);
+	const { sourcePath: _sourcePath, ...webcam } = normalizedControls.webcam;
 
 	return {
-		...normalizeEditorControls(normalizedPreferences, normalizedPreferences),
+		...normalizedControls,
+		webcam,
 		cropRegion: normalizedCropRegion,
 		autoCaptionSettings: normalizePresetAutoCaptionSettings(raw.autoCaptionSettings),
 		whisperExecutablePath:

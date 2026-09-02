@@ -136,9 +136,15 @@ export function EditorDialogs({
 			>
 				<DialogContent className="max-w-sm border-foreground/10 bg-editor-dialog text-foreground">
 					<DialogHeader>
-						<DialogTitle>Unsaved changes</DialogTitle>
+						<DialogTitle>
+							{t("editor.project.unsavedChangesTitle", "Unsaved changes")}
+						</DialogTitle>
 						<DialogDescription className="text-muted-foreground">
-							{`Save your current project before you ${unsavedChangesDialogActionLabel}?`}
+							{t(
+								"editor.project.unsavedChangesDescription",
+								"Save your current project before you {{action}}?",
+								{ action: unsavedChangesDialogActionLabel },
+							)}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
@@ -154,10 +160,10 @@ export function EditorDialogs({
 							variant="ghost"
 							onClick={() => resolveUnsavedChangesDialog("discard")}
 						>
-							Discard changes
+							{t("editor.project.discardChanges", "Discard changes")}
 						</Button>
 						<Button type="button" onClick={() => resolveUnsavedChangesDialog("save")}>
-							Save project
+							{t("editor.project.saveProject", "Save project")}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

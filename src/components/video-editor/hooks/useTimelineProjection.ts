@@ -57,7 +57,6 @@ export function useTimelineProjection({
 					);
 				}
 				timeline.setClipRegions(nextRegions);
-				if (speedRegions.length > 0) timeline.setSpeedRegions([]);
 			}
 			initializedRef.current = true;
 			return;
@@ -72,15 +71,7 @@ export function useTimelineProjection({
 		if (!extended) return;
 		autoFullTrackEndRef.current = totalMs;
 		timeline.setClipRegions(extended);
-	}, [
-		duration,
-		clipRegions,
-		trimRegions,
-		speedRegions,
-		nextClipIdRef,
-		timeline.setClipRegions,
-		timeline.setSpeedRegions,
-	]);
+	}, [duration, clipRegions, trimRegions, nextClipIdRef, timeline.setClipRegions]);
 
 	useEffect(() => {
 		const totalMs = Math.round(duration * 1000);

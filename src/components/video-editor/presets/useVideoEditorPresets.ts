@@ -78,7 +78,7 @@ export function useVideoEditorPresets({
 			borderRadius: appearance.borderRadius,
 			padding: { ...appearance.padding },
 			cropRegion: { ...appearance.cropRegion },
-			webcam: { ...appearance.webcam },
+			webcam: (({ sourcePath: _sourcePath, ...settings }) => settings)(appearance.webcam),
 			aspectRatio,
 			exportEncodingMode: exportSettings.exportEncodingMode,
 			exportBackendPreference: exportSettings.exportBackendPreference,
@@ -145,7 +145,10 @@ export function useVideoEditorPresets({
 			appearance.setBorderRadius(snapshot.borderRadius);
 			appearance.setPadding({ ...snapshot.padding });
 			appearance.setCropRegion({ ...snapshot.cropRegion });
-			appearance.setWebcam({ ...snapshot.webcam });
+			appearance.setWebcam((current) => ({
+				...snapshot.webcam,
+				sourcePath: current.sourcePath,
+			}));
 			setAspectRatio(snapshot.aspectRatio);
 			exportSettings.setExportEncodingMode(snapshot.exportEncodingMode);
 			exportSettings.setExportBackendPreference(snapshot.exportBackendPreference);

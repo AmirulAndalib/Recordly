@@ -461,7 +461,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 				}
 
 				if (wasPlaying) {
-					videoPlaybackRef.current?.play();
+					await videoPlaybackRef.current?.play().catch(() => undefined);
 				} else {
 					video.currentTime = restoreTime;
 				}

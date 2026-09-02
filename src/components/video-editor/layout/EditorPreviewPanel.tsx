@@ -375,6 +375,7 @@ export function EditorPreviewPanel(props: Props) {
 							</span>
 							<input
 								type="range"
+								aria-label={t("editor.playback.volume", "Preview volume")}
 								min="0"
 								max="1"
 								step="0.01"

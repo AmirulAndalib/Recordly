@@ -240,7 +240,7 @@ export function EditorExportMenu(props: Props) {
 							</p>
 						) : null}
 						<p className="mt-3 truncate text-xs text-muted-foreground/70">
-							{exportedFilePath.split("/").pop()}
+							{exportedFilePath.split(/[\\/]/).pop()}
 						</p>
 						<div className="mt-4 flex gap-2">
 							<Button

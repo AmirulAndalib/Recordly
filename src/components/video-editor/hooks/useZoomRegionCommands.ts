@@ -75,7 +75,7 @@ export function useZoomRegionCommands({
 				endMs: Math.round(span.end),
 				depth,
 				focus: clampFocusToDepth({ cx: 0.5, cy: 0.5 }, depth),
-				mode: "auto",
+				mode: "manual",
 			};
 			markFreshRecordingSuggestion();
 			setZoomRegions((current) => [...current, newRegion]);

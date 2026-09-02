@@ -47,20 +47,20 @@ export function useExportDimensions({
 		});
 	const requestRef = useRef(0);
 	const previousProbeRef = useRef<Mp4SupportProbeSnapshot | null>(null);
-	const gifOutputDimensions = useMemo(
-		() =>
-			calculateOutputDimensions(
-				videoPlaybackRef.current?.video?.videoWidth || 1920,
-				videoPlaybackRef.current?.video?.videoHeight || 1080,
-				gifSizePreset,
-				GIF_SIZE_PRESETS,
-			),
-		[gifSizePreset, videoPlaybackRef],
-	);
 	const sourceDimensions = useMemo(() => {
 		const video = isPreviewReady ? videoPlaybackRef.current?.video : null;
 		return { width: video?.videoWidth || 1920, height: video?.videoHeight || 1080 };
 	}, [isPreviewReady, videoPlaybackRef]);
+	const gifOutputDimensions = useMemo(
+		() =>
+			calculateOutputDimensions(
+				sourceDimensions.width,
+				sourceDimensions.height,
+				gifSizePreset,
+				GIF_SIZE_PRESETS,
+			),
+		[gifSizePreset, sourceDimensions],
+	);
 	const desiredSourceDimensions = useMemo(
 		() =>
 			calculateMp4SourceDimensions(

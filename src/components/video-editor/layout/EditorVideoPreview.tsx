@@ -92,7 +92,7 @@ export function EditorVideoPreview({
 			zoomInEasing={appearance.zoomInEasing}
 			zoomOutEasing={appearance.zoomOutEasing}
 			connectedZoomEasing={appearance.connectedZoomEasing}
-			borderRadius={0}
+			borderRadius={appearance.borderRadius}
 			padding={appearance.padding}
 			cropRegion={appearance.cropRegion}
 			webcam={appearance.webcam}

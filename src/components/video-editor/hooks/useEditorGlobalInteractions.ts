@@ -48,7 +48,6 @@ export function useEditorGlobalInteractions({
 				}
 				return;
 			}
-			if (event.key === "Tab" && !editable) event.preventDefault();
 			if (!matchesShortcut(event, shortcuts.playPause, isMac) || editable) return;
 			event.preventDefault();
 			const playback = videoPlaybackRef.current;

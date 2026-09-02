@@ -108,7 +108,7 @@ export function useProjectSaveActions({
 					}
 					if (forceSaveAs || !targetPath) {
 						if (options?.silent) return false;
-						return openProjectSaveDialog(projectDisplayName || fileNameBase);
+						return await openProjectSaveDialog(projectDisplayName || fileNameBase);
 					}
 
 					const thumbnail = captureThumbnail

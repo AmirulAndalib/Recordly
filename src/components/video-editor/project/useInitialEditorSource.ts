@@ -1,8 +1,5 @@
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: editor state setters are stable and initial source loading intentionally runs once per launch configuration. */
 import { type MutableRefObject, useEffect, useRef } from "react";
-import type { AspectRatio } from "@/utils/aspectRatioUtils";
-import type { EditorPreferences } from "../editorPreferences";
-import type { useExportSettings } from "../export/useExportSettings";
 import { fromFileUrl, resolveVideoUrl } from "../projectPersistence";
 import type { getDevOpenRecordingConfig, getSmokeExportConfig } from "../smokeExportConfig";
 import type { useAppearanceState } from "../state/useAppearanceState";
@@ -19,13 +16,10 @@ type Input = {
 	project: ReturnType<typeof useProjectState>;
 	appearance: ReturnType<typeof useAppearanceState>;
 	timeline: ReturnType<typeof useTimelineState>;
-	exportSettings: ReturnType<typeof useExportSettings>;
-	initialPreferences: EditorPreferences;
 	smokeConfig: ReturnType<typeof getSmokeExportConfig>;
 	devConfig: ReturnType<typeof getDevOpenRecordingConfig>;
 	videoSourcePath: string | null;
 	pendingFreshRecordingAutoZoomPathRef: MutableRefObject<string | null>;
-	setAspectRatio: (value: AspectRatio) => void;
 	applyLoadedProject: (candidate: unknown, path?: string | null) => Promise<boolean>;
 	resetSourceScopedEditorState: () => void;
 	applySessionPresentation: (session: SessionPresentation | null | undefined) => void;
@@ -35,13 +29,10 @@ export function useInitialEditorSource({
 	project,
 	appearance,
 	timeline,
-	exportSettings,
-	initialPreferences,
 	smokeConfig,
 	devConfig,
 	videoSourcePath,
 	pendingFreshRecordingAutoZoomPathRef,
-	setAspectRatio,
 	applyLoadedProject,
 	resetSourceScopedEditorState,
 	applySessionPresentation,
@@ -160,20 +151,6 @@ export function useInitialEditorSource({
 					currentProject.project &&
 					(await applyLoadedProject(currentProject.project, currentProject.path ?? null))
 				) {
-					appearance.setPadding(initialPreferences.padding);
-					appearance.setBorderRadius(initialPreferences.borderRadius);
-					setAspectRatio(initialPreferences.aspectRatio);
-					exportSettings.setExportFormat(initialPreferences.exportFormat);
-					exportSettings.setMp4FrameRate(initialPreferences.mp4FrameRate ?? 30);
-					exportSettings.setExportQuality(initialPreferences.exportQuality);
-					exportSettings.setExportEncodingMode(initialPreferences.exportEncodingMode);
-					exportSettings.setExportBackendPreference(
-						initialPreferences.exportBackendPreference,
-					);
-					exportSettings.setExportPipelineModel(initialPreferences.exportPipelineModel);
-					exportSettings.setGifFrameRate(initialPreferences.gifFrameRate);
-					exportSettings.setGifLoop(initialPreferences.gifLoop);
-					exportSettings.setGifSizePreset(initialPreferences.gifSizePreset);
 					return;
 				}
 
@@ -229,7 +206,6 @@ export function useInitialEditorSource({
 		applyLoadedProject,
 		applySessionPresentation,
 		devConfig,
-		initialPreferences,
 		resetSourceScopedEditorState,
 		smokeConfig,
 	]);

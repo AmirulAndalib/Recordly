@@ -1,5 +1,5 @@
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: grouped editor domain objects contain the thumbnail renderer dependencies. */
-import { type RefObject, useCallback } from "react";
+import { type RefObject, useCallback, useRef } from "react";
 import { FrameRenderer } from "@/lib/exporter";
 import { toFileUrl } from "../projectPersistence";
 import type { useAppearanceState } from "../state/useAppearanceState";
@@ -25,6 +25,8 @@ export function useProjectLibraryController({
 	currentTime,
 	effectiveShowCursor,
 }: Input) {
+	const currentTimeRef = useRef(currentTime);
+	currentTimeRef.current = currentTime;
 	const { setProjectLibraryEntries } = project;
 	const {
 		backgroundBlur,
@@ -129,7 +131,7 @@ export function useProjectLibraryController({
 
 		const previewWidth = previewHandle?.containerRef.current?.clientWidth || 1920;
 		const previewHeight = previewHandle?.containerRef.current?.clientHeight || 1080;
-		const frameTimestampUs = Math.max(0, Math.round(currentTime * 1_000_000));
+		const frameTimestampUs = Math.max(0, Math.round(currentTimeRef.current * 1_000_000));
 
 		if (previewVideo && previewVideo.videoWidth > 0 && previewVideo.videoHeight > 0) {
 			let videoFrame: VideoFrame | null = null;
@@ -279,7 +281,6 @@ export function useProjectLibraryController({
 		connectedZoomEasing,
 		connectedZoomGapMs,
 		cropRegion,
-		currentTime,
 		cursorClickBounce,
 		cursorClickBounceDuration,
 		cursorClickEffect,

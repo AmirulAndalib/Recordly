@@ -2,7 +2,7 @@ import type { ExportProgress } from "@/lib/exporter";
 import { toFileUrl } from "../projectPersistence";
 import type { useAppearanceState } from "../state/useAppearanceState";
 import type { useTimelineState } from "../state/useTimelineState";
-import type { CaptionCue, CursorTelemetryPoint, SpeedRegion, ZoomRegion } from "../types";
+import type { CursorTelemetryPoint, SpeedRegion, ZoomRegion } from "../types";
 
 type AppearanceState = ReturnType<typeof useAppearanceState>;
 type TimelineState = ReturnType<typeof useTimelineState>;
@@ -61,7 +61,7 @@ export function buildExportRenderOptions({
 			appearance.resolvedWebcamVideoUrl ??
 			(appearance.webcam.sourcePath ? toFileUrl(appearance.webcam.sourcePath) : null),
 		annotationRegions: timeline.annotationRegions,
-		autoCaptions: timeline.autoCaptions as CaptionCue[],
+		autoCaptions: timeline.autoCaptions,
 		autoCaptionSettings: timeline.autoCaptionSettings,
 		zoomRegions: effectiveZoomRegions,
 		cursorTelemetry: effectiveCursorTelemetry,

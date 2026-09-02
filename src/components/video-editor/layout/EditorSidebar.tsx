@@ -100,8 +100,10 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 				<div className="mt-auto flex flex-col items-center gap-0.5 pt-3">
 					<motion.button
 						type="button"
-						onClick={() => toast.info("Account coming soon")}
-						title="Account"
+						onClick={() =>
+							toast.info(t("editor.account.comingSoon", "Account coming soon"))
+						}
+						title={t("editor.account.title", "Account")}
 						className="group relative flex h-9 w-9 items-center justify-center rounded-lg text-foreground/55 outline-none transition hover:text-foreground focus:outline-none focus-visible:outline-none"
 						whileHover={{ opacity: 1 }}
 						initial={{ opacity: 0.55 }}

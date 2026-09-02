@@ -32,6 +32,20 @@ export function useCursorTelemetry({
 	useEffect(() => {
 		let mounted = true;
 		let retryAttempts = 0;
+		const scheduleRetry = () => {
+			if (
+				pendingFreshRecordingAutoZoomPathRef.current !== videoPath ||
+				autoSuggestedVideoPathRef.current === videoPath ||
+				retryAttempts >= 12
+			) {
+				return;
+			}
+			retryAttempts += 1;
+			pendingRetryTimeoutRef.current = window.setTimeout(() => {
+				pendingRetryTimeoutRef.current = null;
+				if (mounted) void load();
+			}, 350);
+		};
 		async function load() {
 			if (!videoPath || !videoSourcePath) {
 				if (mounted) {
@@ -45,33 +59,13 @@ export function useCursorTelemetry({
 				if (!mounted) return;
 				setCursorTelemetry(result.success ? result.samples : []);
 				setCursorTelemetrySourcePath(videoSourcePath);
-				if (
-					pendingFreshRecordingAutoZoomPathRef.current === videoPath &&
-					autoSuggestedVideoPathRef.current !== videoPath &&
-					retryAttempts < 12
-				) {
-					retryAttempts += 1;
-					pendingRetryTimeoutRef.current = window.setTimeout(() => {
-						pendingRetryTimeoutRef.current = null;
-						if (mounted) void load();
-					}, 350);
-				}
+				if (!result.success || result.samples.length === 0) scheduleRetry();
 			} catch (error) {
 				console.warn("Unable to load cursor telemetry:", error);
 				if (!mounted) return;
 				setCursorTelemetry([]);
 				setCursorTelemetrySourcePath(videoSourcePath);
-				if (
-					pendingFreshRecordingAutoZoomPathRef.current === videoPath &&
-					autoSuggestedVideoPathRef.current !== videoPath &&
-					retryAttempts < 12
-				) {
-					retryAttempts += 1;
-					pendingRetryTimeoutRef.current = window.setTimeout(() => {
-						pendingRetryTimeoutRef.current = null;
-						if (mounted) void load();
-					}, 350);
-				}
+				scheduleRetry();
 			}
 		}
 

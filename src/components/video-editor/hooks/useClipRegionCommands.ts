@@ -79,32 +79,21 @@ export function useClipRegionCommands({
 
 	const handleClipSplit = useCallback(
 		(splitMs: number) => {
-			setClipRegions((current) => {
-				const target = current.find(
-					(clip) => splitMs > clip.startMs && splitMs < clip.endMs,
-				);
-				if (!target) return current;
-				const leftId = `clip-${nextClipIdRef.current++}`;
-				const rightId = `clip-${nextClipIdRef.current++}`;
-				const left: ClipRegion = {
-					id: leftId,
-					startMs: target.startMs,
-					endMs: Math.round(splitMs),
-					speed: target.speed,
-					muted: target.muted,
-				};
-				const right: ClipRegion = {
-					id: rightId,
-					startMs: Math.round(splitMs),
-					endMs: target.endMs,
-					speed: target.speed,
-					muted: target.muted,
-				};
-				if (selectedClipId === target.id) setSelectedClipId(leftId);
-				return current.flatMap((clip) => (clip.id === target.id ? [left, right] : [clip]));
-			});
+			const target = clipRegions.find(
+				(clip) => splitMs > clip.startMs && splitMs < clip.endMs,
+			);
+			if (!target) return;
+			const leftId = `clip-${nextClipIdRef.current++}`;
+			const rightId = `clip-${nextClipIdRef.current++}`;
+			const splitAt = Math.round(splitMs);
+			const left: ClipRegion = { ...target, id: leftId, endMs: splitAt };
+			const right: ClipRegion = { ...target, id: rightId, startMs: splitAt };
+			setClipRegions((current) =>
+				current.flatMap((clip) => (clip.id === target.id ? [left, right] : [clip])),
+			);
+			if (selectedClipId === target.id) setSelectedClipId(leftId);
 		},
-		[nextClipIdRef, selectedClipId, setClipRegions, setSelectedClipId],
+		[clipRegions, nextClipIdRef, selectedClipId, setClipRegions, setSelectedClipId],
 	);
 
 	const handleClipSpanChange = useCallback(
