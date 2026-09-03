@@ -173,6 +173,10 @@ function showMessageBox(
 	getMainWindow: () => BrowserWindow | null,
 	options: MessageBoxOptions,
 ): Promise<MessageBoxReturnValue> {
+	if (process.platform !== "darwin") {
+		return dialog.showMessageBox(options);
+	}
+
 	const window = getDialogWindow(getMainWindow);
 	return window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options);
 }
@@ -576,12 +580,19 @@ async function showAvailableUpdateDialog(
 	getMainWindow: () => BrowserWindow | null,
 	version: string,
 	sendToRenderer?: UpdateToastSender,
+	options?: { isPreview?: boolean; isExperimental?: boolean },
 ) {
+	const isPreview = Boolean(options?.isPreview);
+	const isExperimental = options?.isExperimental ?? getExperimentalUpdatesEnabled();
 	const result = await showMessageBox(getMainWindow, {
 		type: "info",
-		title: "Update Available",
-		message: `Recordly ${version} is available.`,
-		detail: "Install and restart now, or remind me later.",
+		title: isExperimental ? "Experimental Update Available" : "Update Available",
+		message: `Recordly ${version} is available${isExperimental ? " on the experimental channel" : ""}.`,
+		detail: isPreview
+			? `${isExperimental ? EXPERIMENTAL_UPDATE_DESCRIPTION : "This is a development preview of the standard update flow."} No real update will be installed.`
+			: isExperimental
+				? EXPERIMENTAL_UPDATE_DESCRIPTION
+				: "Install and restart now, or remind me later.",
 		buttons: ["Install & Restart", "Later"],
 		defaultId: 0,
 		cancelId: 1,
@@ -589,7 +600,21 @@ async function showAvailableUpdateDialog(
 	});
 
 	if (result.response === 0) {
+		if (isPreview) {
+			await showMessageBox(getMainWindow, {
+				type: "info",
+				title: "Preview Only",
+				message: "No real update was installed.",
+				detail: "This was only a manual development preview of the update prompt.",
+			});
+			return;
+		}
+
 		await downloadAvailableUpdate(sendToRenderer, { installAfterDownload: true });
+		return;
+	}
+
+	if (isPreview) {
 		return;
 	}
 
@@ -642,6 +667,29 @@ async function showDownloadedUpdateDialog(
 
 		deferUpdateReminder(getMainWindow, undefined, UPDATE_REMINDER_DELAY_MS);
 	}
+}
+
+export function previewNativeUpdateDialog(getMainWindow: () => BrowserWindow | null) {
+	return showAvailableUpdateDialog(getMainWindow, DEV_UPDATE_PREVIEW_VERSION, undefined, {
+		isPreview: true,
+		isExperimental: DEV_UPDATE_PREVIEW_IS_EXPERIMENTAL,
+	});
+}
+
+async function showUpdateErrorDialog(
+	getMainWindow: () => BrowserWindow | null,
+	version: string,
+	error: unknown,
+) {
+	await showMessageBox(getMainWindow, {
+		type: "error",
+		title: "Update Failed",
+		message: `Recordly ${version} could not be downloaded.`,
+		detail: String(error),
+		buttons: ["OK"],
+		defaultId: 0,
+		noLink: true,
+	});
 }
 
 export async function checkForAppUpdates(
@@ -745,10 +793,8 @@ export function setupAutoUpdates(
 			return;
 		}
 
-		if (manualCheckRequested) {
-			void showAvailableUpdateDialog(getMainWindow, info.version, sendToRenderer);
-			manualCheckRequested = false;
-		}
+		void showAvailableUpdateDialog(getMainWindow, info.version, sendToRenderer);
+		manualCheckRequested = false;
 	});
 
 	autoUpdater.on("update-not-available", () => {
@@ -811,10 +857,13 @@ export function setupAutoUpdates(
 			downloadInProgress = false;
 			downloadToastDismissed = false;
 			installAfterDownloadRequested = false;
-			emitUpdateToastState(
+			const shownInRenderer = emitUpdateToastState(
 				sendToRenderer,
 				createUpdateErrorToastPayload(availableVersion, error),
 			);
+			if (!shownInRenderer) {
+				void showUpdateErrorDialog(getMainWindow, availableVersion, error);
+			}
 		}
 	});
 
