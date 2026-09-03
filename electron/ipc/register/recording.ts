@@ -12,6 +12,7 @@ import {
 	shell,
 	systemPreferences,
 } from "electron";
+import { getHudCaptureExcludedProcessIds } from "../../../src/lib/hudCaptureProtection";
 import { showCursor } from "../../cursorHider";
 import {
 	getHudOverlayCaptureProtectionEnabled,
@@ -734,8 +735,13 @@ export function registerRecordingHandlers(
 					capturesMicrophone,
 				};
 
-				if (getHudOverlayCaptureProtectionEnabled()) {
-					config.excludedProcessIds = [process.pid];
+				const excludedProcessIds = getHudCaptureExcludedProcessIds(
+					process.platform,
+					getHudOverlayCaptureProtectionEnabled(),
+					process.pid,
+				);
+				if (excludedProcessIds.length > 0) {
+					config.excludedProcessIds = excludedProcessIds;
 				}
 
 				if (options?.microphoneDeviceId) {

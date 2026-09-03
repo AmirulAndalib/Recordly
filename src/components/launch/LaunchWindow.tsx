@@ -19,6 +19,7 @@ import { useScopedT } from "../../contexts/I18nContext";
 import { useMicrophoneDevices } from "../../hooks/useMicrophoneDevices";
 import { useScreenRecorder } from "../../hooks/useScreenRecorder";
 import { useVideoDevices } from "../../hooks/useVideoDevices";
+import { supportsHudCaptureProtection } from "../../lib/hudCaptureProtection";
 import { Button } from "../ui/button";
 import { HudInteractionContext } from "./contexts/HudInteractionContext";
 import { canToggleFloatingWebcamPreview } from "./floatingWebcamPreview";
@@ -115,7 +116,7 @@ function LaunchWindowContent() {
 		toggleHudCaptureProtection,
 	} = useLaunchWindowSystemState(preparePermissions);
 
-	const supportsHudCaptureProtection = true;
+	const hudCaptureProtectionSupported = supportsHudCaptureProtection(platform ?? "");
 
 	useEffect(() => {
 		if (!selectedDeviceId) {
@@ -372,7 +373,7 @@ function LaunchWindowContent() {
 			</div>
 
 			<MorePopover
-				supportsHudCaptureProtection={supportsHudCaptureProtection}
+				supportsHudCaptureProtection={hudCaptureProtectionSupported}
 				hideHudFromCapture={hideHudFromCapture}
 				onToggleHudCaptureProtection={() => {
 					void toggleHudCaptureProtection();

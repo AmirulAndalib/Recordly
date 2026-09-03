@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain } from "electron";
+import { supportsHudCaptureProtection } from "../src/lib/hudCaptureProtection";
 import { USER_DATA_PATH } from "./appPaths";
 import {
 	getHudOverlayWindowBounds,
@@ -147,6 +148,10 @@ export function getHudOverlayCaptureProtectionEnabled(): boolean {
 }
 
 function applyHudOverlayCaptureProtectionToWindow(hud: BrowserWindow, enabled: boolean): void {
+	if (!supportsHudCaptureProtection(process.platform)) {
+		return;
+	}
+
 	try {
 		hud.setContentProtection(enabled);
 	} catch (error) {

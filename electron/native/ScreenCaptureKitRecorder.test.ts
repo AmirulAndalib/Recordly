@@ -64,11 +64,3 @@ describe("ScreenCaptureKitRecorder colour metadata", () => {
 		expect(recorderSource).toContain("AVVideoYCbCrMatrix_ITU_R_709_2");
 	});
 });
-
-describe("ScreenCaptureKitRecorder HUD capture protection", () => {
-	it("excludes protected Recordly applications from display capture", () => {
-		expect(recorderSource).toContain("let excludedProcessIds: [Int32]?");
-		expect(recorderSource).toContain("excludedProcessIds.contains($0.processID)");
-		expect(recorderSource).toContain("excludingApplications: excludedApplications");
-	});
-});

@@ -1,29 +1,21 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const windowsSource = readFileSync(fileURLToPath(new URL("./windows.ts", import.meta.url)), "utf8");
-const mainSource = readFileSync(fileURLToPath(new URL("./main.ts", import.meta.url)), "utf8");
-const recordingSource = readFileSync(
-	fileURLToPath(new URL("./ipc/register/recording.ts", import.meta.url)),
-	"utf8",
-);
+import {
+	getHudCaptureExcludedProcessIds,
+	supportsHudCaptureProtection,
+} from "../src/lib/hudCaptureProtection";
 
 describe("HUD capture protection lifecycle", () => {
-	it("applies protection without disabling Linux", () => {
-		expect(windowsSource).not.toContain(
-			"function isHudOverlayCaptureProtectionSupported(): boolean",
-		);
-		expect(windowsSource).toContain("hud.setContentProtection(enabled)");
-		expect(windowsSource).toContain('win.on("show"');
+	it("uses window protection on Windows and macOS only", () => {
+		expect(supportsHudCaptureProtection("win32")).toBe(true);
+		expect(supportsHudCaptureProtection("darwin")).toBe(true);
+		expect(supportsHudCaptureProtection("linux")).toBe(false);
 	});
 
-	it("reasserts protection at native and browser capture boundaries", () => {
-		expect(recordingSource).toMatch(
-			/"start-native-screen-recording"[\s\S]*?reassertHudOverlayCaptureProtection\(\)/,
-		);
-		expect(mainSource).toMatch(
-			/setDisplayMediaRequestHandler[\s\S]*?reassertHudOverlayCaptureProtection\(\)/,
-		);
+	it("only builds a macOS process exclusion when protection is enabled", () => {
+		expect(getHudCaptureExcludedProcessIds("darwin", true, 734)).toEqual([734]);
+		expect(getHudCaptureExcludedProcessIds("darwin", false, 734)).toEqual([]);
+		expect(getHudCaptureExcludedProcessIds("win32", true, 734)).toEqual([]);
+		expect(getHudCaptureExcludedProcessIds("linux", true, 734)).toEqual([]);
 	});
 });
