@@ -14,6 +14,7 @@ struct CaptureConfig: Codable {
 	let microphoneDeviceId: String?
 	let microphoneLabel: String?
 	let microphoneOutputPath: String?
+	let excludedProcessIds: [Int32]?
 }
 
 let targetCaptureFPS = 60
@@ -140,7 +141,15 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				throw NSError(domain: "RecordlyCapture", code: 4, userInfo: [NSLocalizedDescriptionKey: "Display not found"])
 			}
 
-			filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+			let excludedProcessIds = Set(config.excludedProcessIds ?? [])
+			let excludedApplications = availableContent.applications.filter {
+				excludedProcessIds.contains($0.processID)
+			}
+			filter = SCContentFilter(
+				display: display,
+				excludingApplications: excludedApplications,
+				exceptingWindows: []
+			)
 			let displayBounds = CGDisplayBounds(display.displayID)
 			let scaleFactor = ScreenCaptureRecorder.scaleFactor(for: display.displayID)
 			outputWidth = max(2, Int(displayBounds.width) * scaleFactor)

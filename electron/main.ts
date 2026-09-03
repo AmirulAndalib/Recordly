@@ -52,6 +52,7 @@ import {
 	getUpdateToastWindow,
 	hideUpdateToastWindow,
 	isHudOverlayMousePassthroughSupported,
+	reassertHudOverlayCaptureProtection,
 	reassertHudOverlayMousePassthrough as reassertHudOverlayMouseState,
 	setHudOverlayRecordingActive,
 	showUpdateToastWindow,
@@ -1074,6 +1075,10 @@ app.whenReady().then(async () => {
 				callback({});
 				return;
 			}
+
+			// Browser and Linux portal capture starts as soon as this callback
+			// resolves, before recording-state-changed is emitted.
+			reassertHudOverlayCaptureProtection();
 
 			const sourceId = getSelectedSourceId();
 			// On Linux/Wayland, calling desktopCapturer.getSources() itself

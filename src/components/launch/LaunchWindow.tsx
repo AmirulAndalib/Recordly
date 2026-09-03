@@ -115,7 +115,7 @@ function LaunchWindowContent() {
 		toggleHudCaptureProtection,
 	} = useLaunchWindowSystemState(preparePermissions);
 
-	const supportsHudCaptureProtection = platform !== "linux";
+	const supportsHudCaptureProtection = true;
 
 	useEffect(() => {
 		if (!selectedDeviceId) {
