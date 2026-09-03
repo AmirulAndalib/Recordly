@@ -173,6 +173,10 @@ function showMessageBox(
 	getMainWindow: () => BrowserWindow | null,
 	options: MessageBoxOptions,
 ): Promise<MessageBoxReturnValue> {
+	if (process.platform !== "darwin") {
+		return dialog.showMessageBox(options);
+	}
+
 	const window = getDialogWindow(getMainWindow);
 	return window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options);
 }
@@ -644,6 +648,28 @@ async function showDownloadedUpdateDialog(
 	}
 }
 
+export function previewNativeUpdateDialog(getMainWindow: () => BrowserWindow | null) {
+	return showDownloadedUpdateDialog(getMainWindow, DEV_UPDATE_PREVIEW_VERSION, {
+		isPreview: true,
+	});
+}
+
+async function showUpdateErrorDialog(
+	getMainWindow: () => BrowserWindow | null,
+	version: string,
+	error: unknown,
+) {
+	await showMessageBox(getMainWindow, {
+		type: "error",
+		title: "Update Failed",
+		message: `Recordly ${version} could not be downloaded.`,
+		detail: String(error),
+		buttons: ["OK"],
+		defaultId: 0,
+		noLink: true,
+	});
+}
+
 export async function checkForAppUpdates(
 	getMainWindow: () => BrowserWindow | null,
 	options?: { manual?: boolean },
@@ -745,10 +771,8 @@ export function setupAutoUpdates(
 			return;
 		}
 
-		if (manualCheckRequested) {
-			void showAvailableUpdateDialog(getMainWindow, info.version, sendToRenderer);
-			manualCheckRequested = false;
-		}
+		void showAvailableUpdateDialog(getMainWindow, info.version, sendToRenderer);
+		manualCheckRequested = false;
 	});
 
 	autoUpdater.on("update-not-available", () => {
@@ -811,10 +835,13 @@ export function setupAutoUpdates(
 			downloadInProgress = false;
 			downloadToastDismissed = false;
 			installAfterDownloadRequested = false;
-			emitUpdateToastState(
+			const shownInRenderer = emitUpdateToastState(
 				sendToRenderer,
 				createUpdateErrorToastPayload(availableVersion, error),
 			);
+			if (!shownInRenderer) {
+				void showUpdateErrorDialog(getMainWindow, availableVersion, error);
+			}
 		}
 	});
 
