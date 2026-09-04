@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { normalizeProjectEditor, resolveVideoUrl } from "./projectPersistence";
+import {
+	getDefaultBorderRadiusPercent,
+	legacyBorderRadiusPixelsToPercent,
+	normalizeProjectEditor,
+	resolveVideoUrl,
+} from "./projectPersistence";
 import { ADVANCED_VERTICAL_PADDING_MAX } from "./types";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -29,6 +34,20 @@ describe("resolveVideoUrl", () => {
 });
 
 describe("normalizeProjectEditor", () => {
+	it("defaults to 8% on macOS and square corners elsewhere", () => {
+		expect(getDefaultBorderRadiusPercent("MacIntel")).toBe(8);
+		expect(getDefaultBorderRadiusPercent("Win32")).toBe(0);
+		expect(getDefaultBorderRadiusPercent("Linux x86_64")).toBe(0);
+	});
+
+	it("clamps radius percentages", () => {
+		expect(normalizeProjectEditor({ borderRadius: 75 }).borderRadius).toBe(50);
+	});
+
+	it("converts legacy 1080p-relative radius pixels to percentages", () => {
+		expect(legacyBorderRadiusPixelsToPercent(54)).toBe(5);
+	});
+
 	it("preserves the extended advanced vertical padding range", () => {
 		const editor = normalizeProjectEditor({
 			padding: {

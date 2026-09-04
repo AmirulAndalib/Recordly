@@ -34,7 +34,10 @@ import {
 	PixiCursorOverlay,
 	preloadCursorAssets,
 } from "@/components/video-editor/videoPlayback/cursorRenderer";
-import { computePaddedLayout } from "@/components/video-editor/videoPlayback/layoutUtils";
+import {
+	computePaddedLayout,
+	scalePreviewBorderRadius,
+} from "@/components/video-editor/videoPlayback/layoutUtils";
 import {
 	createSpringState,
 	getZoomSpringConfig,
@@ -230,6 +233,7 @@ function configureHighQuality2DContext(
 export class FrameRenderer {
 	private app: Application | null = null;
 	private cameraContainer: Container | null = null;
+	private videoEffectsContainer: Container | null = null;
 	private videoContainer: Container | null = null;
 	private cursorContainer: Container | null = null;
 	private videoSprite: Sprite | null = null;
@@ -396,11 +400,13 @@ export class FrameRenderer {
 
 		// Setup containers
 		this.cameraContainer = new Container();
+		this.videoEffectsContainer = new Container();
 		this.videoContainer = new Container();
 		this.cursorContainer = new Container();
 		this.app.stage.addChild(this.cameraContainer);
-		this.cameraContainer.addChild(this.videoContainer);
+		this.cameraContainer.addChild(this.videoEffectsContainer);
 		this.cameraContainer.addChild(this.cursorContainer);
+		this.videoEffectsContainer.addChild(this.videoContainer);
 
 		if (cursorOverlayEnabled) {
 			this.cursorOverlay = new PixiCursorOverlay({
@@ -496,7 +502,7 @@ export class FrameRenderer {
 
 		// Setup mask
 		this.maskGraphics = new Graphics();
-		this.videoContainer.addChild(this.maskGraphics);
+		this.videoEffectsContainer.addChild(this.maskGraphics);
 		this.videoContainer.mask = this.maskGraphics;
 		if (this.cursorOverlay) {
 			this.cursorContainer.addChild(this.cursorOverlay.container);
@@ -1420,9 +1426,6 @@ export class FrameRenderer {
 			if (this.cursorOverlay && this.cursorContainer) {
 				this.cursorContainer.addChild(this.cursorOverlay.container);
 			}
-			if (this.maskGraphics) {
-				this.videoContainer.addChild(this.maskGraphics);
-			}
 		} else {
 			this.videoTextureSource ??= this.videoSprite.texture
 				.source as unknown as VideoTextureSource;
@@ -1625,12 +1628,11 @@ export class FrameRenderer {
 
 		this.videoContainer.position.set(0, 0);
 
-		const canvasScaleFactor = Math.min(
-			width / BASE_PREVIEW_WIDTH,
-			height / BASE_PREVIEW_HEIGHT,
+		const scaledBorderRadius = scalePreviewBorderRadius(
+			layout.croppedDisplayWidth,
+			layout.croppedDisplayHeight,
+			borderRadius,
 		);
-
-		const scaledBorderRadius = borderRadius * canvasScaleFactor;
 
 		this.maskGraphics.clear();
 		drawSquircleOnGraphics(this.maskGraphics, {
@@ -2209,6 +2211,7 @@ export class FrameRenderer {
 		this.zoomBlurFilter?.destroy();
 		this.motionBlurFilter?.destroy();
 		this.cameraContainer = null;
+		this.videoEffectsContainer = null;
 		this.videoContainer = null;
 		this.maskGraphics = null;
 		this.zoomBlurFilter = null;

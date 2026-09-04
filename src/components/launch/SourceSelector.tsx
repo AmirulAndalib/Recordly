@@ -1,15 +1,15 @@
+import { AppWindowIcon, CaretUpIcon, MonitorIcon } from "@phosphor-icons/react";
 import * as React from "react";
-import { MonitorIcon, AppWindowIcon, CaretUpIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useScopedT } from "@/contexts/I18nContext";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useScopedT } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import {
-	mapRawSource,
+	type DesktopSource,
 	isScreenSource,
 	isWindowSource,
-	type DesktopSource,
+	mapRawSource,
 } from "./popovers/launchPopoverTypes";
 import "./launchTheme.css";
 import "./SourceSelector.css";
@@ -249,6 +249,7 @@ export const SourceSelector = React.memo(function SourceSelector({
 				const result = await window.electronAPI.selectSource(source);
 				if (result) {
 					setInternalSelectedSource(source.name);
+					await window.electronAPI.showSourceHighlight?.(source);
 				}
 			} catch (error) {
 				console.error("Failed to select source:", error);

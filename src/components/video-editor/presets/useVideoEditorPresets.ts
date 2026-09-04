@@ -76,6 +76,7 @@ export function useVideoEditorPresets({
 			cursorClickBounceDuration: appearance.cursorClickBounceDuration,
 			cursorSway: appearance.cursorSway,
 			borderRadius: appearance.borderRadius,
+			borderRadiusUnit: "percent",
 			padding: { ...appearance.padding },
 			cropRegion: { ...appearance.cropRegion },
 			webcam: (({ sourcePath: _sourcePath, ...settings }) => settings)(appearance.webcam),

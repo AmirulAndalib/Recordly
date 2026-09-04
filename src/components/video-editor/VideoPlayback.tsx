@@ -21,6 +21,7 @@ import {
 } from "@/lib/mediaTiming";
 import {
 	destroyPixiApplication,
+	destroyPixiContainer,
 	initializePixiApplicationWithTimeout,
 } from "@/lib/pixiApplicationLifecycle";
 import {
@@ -1930,8 +1931,16 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			const videoEffectsContainer = videoEffectsContainerRef.current;
 			const videoContainer = videoContainerRef.current;
 			const cursorContainer = cursorContainerRef.current;
+			const cameraContainer = cameraContainerRef.current;
 
-			if (!video || !app || !videoEffectsContainer || !videoContainer || !cursorContainer)
+			if (
+				!video ||
+				!app ||
+				!videoEffectsContainer ||
+				!videoContainer ||
+				!cursorContainer ||
+				!cameraContainer
+			)
 				return;
 			if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
@@ -1949,8 +1958,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 			const maskGraphics = new Graphics();
 			videoContainer.addChild(videoSprite);
-			videoContainer.addChild(maskGraphics);
-			videoContainer.mask = maskGraphics;
+			cameraContainer.addChild(maskGraphics);
+			videoEffectsContainer.mask = maskGraphics;
 			maskGraphicsRef.current = maskGraphics;
 			if (cursorOverlayRef.current) {
 				cursorContainer.addChild(cursorOverlayRef.current.container);
@@ -1989,17 +1998,12 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				video.removeEventListener("seeking", handleSeeking);
 				dispose();
 
-				if (videoSprite) {
-					videoContainer.removeChild(videoSprite);
-					videoSprite.destroy();
-				}
-				if (maskGraphics) {
-					videoContainer.removeChild(maskGraphics);
-					maskGraphics.destroy();
-				}
+				videoEffectsContainer.mask = null;
 				videoContainer.mask = null;
+				destroyPixiContainer(videoSprite);
+				destroyPixiContainer(maskGraphics);
 				maskGraphicsRef.current = null;
-				videoTexture.destroy(false);
+				if (!videoTexture.destroyed) videoTexture.destroy(false);
 
 				videoSpriteRef.current = null;
 			};
@@ -2408,7 +2412,6 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			? "absolute inset-0 h-full w-full object-cover"
 			: "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0";
 		const hasRendererFallback = Boolean(pixiRendererError);
-
 		const nativeAspectRatio = (() => {
 			const locked = lockedVideoDimensionsRef.current;
 			if (locked) {

@@ -2,6 +2,7 @@
 
 #include <windows.graphics.capture.interop.h>
 #include <Windows.Graphics.Capture.h>
+#include <dwmapi.h>
 #include <inspectable.h>
 
 #include <winrt/Windows.Foundation.h>
@@ -9,6 +10,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <algorithm>
 
 // IDirect3DDxgiInterfaceAccess is a COM interface for getting the DXGI interface
 // from a WinRT IDirect3DSurface
@@ -88,26 +90,6 @@ winrt::Windows::Graphics::Capture::GraphicsCaptureItem WgcSession::createCapture
 
     if (FAILED(hr)) {
         std::cerr << "ERROR: CreateForMonitor failed: 0x" << std::hex << hr << std::endl;
-        return nullptr;
-    }
-
-    return item;
-}
-
-winrt::Windows::Graphics::Capture::GraphicsCaptureItem WgcSession::createCaptureItemForWindow(HWND hwnd) {
-    auto factory = winrt::get_activation_factory<
-        winrt::Windows::Graphics::Capture::GraphicsCaptureItem>();
-
-    auto interop = factory.as<IGraphicsCaptureItemInterop>();
-
-    winrt::Windows::Graphics::Capture::GraphicsCaptureItem item{nullptr};
-    HRESULT hr = interop->CreateForWindow(
-        hwnd,
-        winrt::guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(),
-        winrt::put_abi(item));
-
-    if (FAILED(hr)) {
-        std::cerr << "ERROR: CreateForWindow failed: 0x" << std::hex << hr << std::endl;
         return nullptr;
     }
 
@@ -205,8 +187,61 @@ bool WgcSession::initialize(HWND hwnd, int fps) {
         return false;
     }
 
-    captureItem_ = createCaptureItemForWindow(hwnd);
-    return initializeWithItem(fps);
+    HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    if (!monitor) return false;
+
+    captureItem_ = createCaptureItemForMonitor(monitor);
+    return initializeWithItem(fps) && initializeWindowCrop(hwnd);
+}
+
+bool WgcSession::initializeWindowCrop(HWND hwnd) {
+    windowHandle_ = hwnd;
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(monitorInfo);
+    if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitorInfo)) return false;
+    monitorBounds_ = monitorInfo.rcMonitor;
+
+    RECT windowBounds{};
+    if (FAILED(DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &windowBounds, sizeof(windowBounds))) &&
+        !GetWindowRect(hwnd, &windowBounds)) return false;
+    RECT clipped{};
+    if (!IntersectRect(&clipped, &windowBounds, &monitorBounds_)) return false;
+    return updateWindowCropRect();
+}
+
+bool WgcSession::updateWindowCropRect() {
+    RECT windowBounds{};
+    if (FAILED(DwmGetWindowAttribute(windowHandle_, DWMWA_EXTENDED_FRAME_BOUNDS, &windowBounds, sizeof(windowBounds))) &&
+        !GetWindowRect(windowHandle_, &windowBounds)) return false;
+    RECT clipped{};
+    if (!IntersectRect(&clipped, &windowBounds, &monitorBounds_)) return false;
+    const LONG width = (clipped.right - clipped.left) & ~1L;
+    const LONG height = (clipped.bottom - clipped.top) & ~1L;
+    if (width < 2 || height < 2) return false;
+
+    const int nextWidth = static_cast<int>(width);
+    const int nextHeight = static_cast<int>(height);
+    if (!cropTexture_ || nextWidth != captureWidth_ || nextHeight != captureHeight_) {
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = static_cast<UINT>(nextWidth);
+        desc.Height = static_cast<UINT>(nextHeight);
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+
+        ComPtr<ID3D11Texture2D> resizedTexture;
+        if (FAILED(d3dDevice_->CreateTexture2D(&desc, nullptr, &resizedTexture))) return false;
+        cropTexture_ = resizedTexture;
+        captureWidth_ = nextWidth;
+        captureHeight_ = nextHeight;
+    }
+
+    const LONG left = clipped.left - monitorBounds_.left;
+    const LONG top = clipped.top - monitorBounds_.top;
+    cropRect_ = {left, top, left + width, top + height};
+    return true;
 }
 
 void WgcSession::setFrameCallback(FrameCallback callback) {
@@ -243,6 +278,7 @@ void WgcSession::stopCapture() {
         framePool_.Close();
         framePool_ = nullptr;
     }
+    cropTexture_.Reset();
 }
 
 void WgcSession::onFrameArrived(
@@ -283,7 +319,16 @@ void WgcSession::onFrameArrived(
     HRESULT hr = access->GetInterface(IID_PPV_ARGS(&texture));
 
     if (SUCCEEDED(hr) && texture && frameCallback_) {
-        frameCallback_(texture.Get(), frameTimeHns);
+        if (windowHandle_ && cropTexture_ && updateWindowCropRect()) {
+            D3D11_BOX sourceBox{
+                static_cast<UINT>(cropRect_.left), static_cast<UINT>(cropRect_.top), 0,
+                static_cast<UINT>(cropRect_.right), static_cast<UINT>(cropRect_.bottom), 1,
+            };
+            d3dContext_->CopySubresourceRegion(cropTexture_.Get(), 0, 0, 0, 0, texture.Get(), 0, &sourceBox);
+            frameCallback_(cropTexture_.Get(), frameTimeHns);
+        } else if (!windowHandle_) {
+            frameCallback_(texture.Get(), frameTimeHns);
+        }
     }
 
     frame.Close();

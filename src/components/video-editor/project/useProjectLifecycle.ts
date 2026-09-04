@@ -16,6 +16,8 @@ import {
 	createProjectData,
 	deriveNextId,
 	fromFileUrl,
+	getDefaultBorderRadiusPercent,
+	legacyBorderRadiusPixelsToPercent,
 	normalizeProjectEditor,
 	resolveVideoUrl,
 	stripPersistedDevMotionBlurSettings,
@@ -83,9 +85,16 @@ export function useProjectLifecycle(input: Input) {
 		if (!validateProjectData(candidate)) return false;
 		const loadedProject = candidate;
 		const sourcePath = fromFileUrl(loadedProject.videoPath);
-		const editor = normalizeProjectEditor(
-			stripPersistedDevMotionBlurSettings(loadedProject.editor ?? {}),
-		);
+		const persistedEditor = stripPersistedDevMotionBlurSettings(loadedProject.editor ?? {});
+		const editor = normalizeProjectEditor({
+			...persistedEditor,
+			borderRadius:
+				loadedProject.version < 2 && typeof persistedEditor.borderRadius === "number"
+					? persistedEditor.borderRadius === 0
+						? getDefaultBorderRadiusPercent()
+						: legacyBorderRadiusPixelsToPercent(persistedEditor.borderRadius)
+					: persistedEditor.borderRadius,
+		});
 		try {
 			current.videoPlaybackRef.current?.pause();
 		} catch {

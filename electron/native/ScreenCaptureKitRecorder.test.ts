@@ -50,9 +50,7 @@ describe("ScreenCaptureKitRecorder colour metadata", () => {
 		expect(recorderSource).toContain(
 			"streamConfig.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2",
 		);
-		expect(recorderSource).toContain(
-			"rawValue: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange",
-		);
+		expect(recorderSource).toContain("kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange");
 		expect(recorderSource).toContain("sourceFormatHint: sourceVideoFormat");
 		expect(recorderSource).not.toContain("videoCodecType: .h264");
 	});
@@ -62,5 +60,27 @@ describe("ScreenCaptureKitRecorder colour metadata", () => {
 		expect(recorderSource).toContain("AVVideoColorPrimaries_ITU_R_709_2");
 		expect(recorderSource).toContain("AVVideoTransferFunction_ITU_R_709_2");
 		expect(recorderSource).toContain("AVVideoYCbCrMatrix_ITU_R_709_2");
+	});
+});
+
+describe("ScreenCaptureKitRecorder window capture", () => {
+	it("records the display and crops it to the selected window bounds", () => {
+		expect(recorderSource).not.toContain("streamConfig.sourceRect");
+		expect(recorderSource).not.toContain("desktopIndependentWindow");
+		expect(recorderSource).toContain(
+			"visibleFrame = CGRect(x: x, y: y, width: width, height: height)",
+		);
+		expect(recorderSource).toContain(
+			"let captureRect = visibleFrame.intersection(display.frame)",
+		);
+		expect(recorderSource).toContain("appendCroppedVideoFrame(sampleBuffer");
+	});
+
+	it("refreshes the crop and capture display while the window moves or resizes", () => {
+		expect(recorderSource).toContain(
+			"guard let display = Self.captureDisplay(for: window.frame",
+		);
+		expect(recorderSource).toContain("try await activeStream.updateContentFilter(filter)");
+		expect(recorderSource).toContain("self.windowCropRect = cropRect");
 	});
 });

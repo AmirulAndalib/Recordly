@@ -1,8 +1,15 @@
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setWindowsCaptureOutputBuffer, setWindowsCaptureTargetPath } from "../state";
 import { waitForWindowsCaptureStop } from "./windows";
+
+const windowsCaptureSource = readFileSync(
+	fileURLToPath(new URL("../../native/wgc-capture/src/wgc_session.cpp", import.meta.url)),
+	"utf8",
+);
 
 vi.mock("electron", () => ({
 	app: {
@@ -98,5 +105,22 @@ describe("waitForWindowsCaptureStop", () => {
 			),
 		).rejects.toThrow("Timed out waiting for native Windows capture to stop");
 		expect(proc.kill).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("native Windows window capture", () => {
+	it("crops monitor frames to the selected window bounds", () => {
+		expect(windowsCaptureSource).not.toContain("CreateForWindow(");
+		expect(windowsCaptureSource).toContain("DwmGetWindowAttribute(");
+		expect(windowsCaptureSource).toContain("CopySubresourceRegion(cropTexture_");
+	});
+
+	it("resizes the crop texture when the selected window size changes", () => {
+		expect(windowsCaptureSource).toContain(
+			"nextWidth != captureWidth_ || nextHeight != captureHeight_",
+		);
+		expect(windowsCaptureSource).toContain(
+			"d3dDevice_->CreateTexture2D(&desc, nullptr, &resizedTexture)",
+		);
 	});
 });

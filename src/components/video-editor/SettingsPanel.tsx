@@ -42,6 +42,7 @@ import {
 	getMatchingCursorMotionPresetId,
 } from "./cursorMotionPresets";
 import { loadEditorPreferences, saveEditorPreferences } from "./editorPreferences";
+import { getDefaultBorderRadiusPercent } from "./projectPersistence";
 import { SliderControl } from "./SliderControl";
 import { KeyboardShortcutsDialog } from "./TutorialHelp";
 import type {
@@ -1048,7 +1049,7 @@ export function SettingsPanel({
 	onCursorClickBounceDurationChange,
 	cursorSway = DEFAULT_CURSOR_SWAY,
 	onCursorSwayChange,
-	borderRadius = 12.5,
+	borderRadius = getDefaultBorderRadiusPercent(),
 	onBorderRadiusChange,
 	webcam,
 	webcamPreviewSrc = null,
@@ -2095,11 +2096,11 @@ export function SettingsPanel({
 					value={borderRadius}
 					defaultValue={initialEditorPreferences.borderRadius}
 					min={0}
-					max={200}
-					step={0.5}
+					max={50}
+					step={0.1}
 					onChange={(v) => onBorderRadiusChange?.(v)}
-					formatValue={(v) => `${v}px`}
-					parseInput={(text) => parseFloat(text.replace(/px$/, ""))}
+					formatValue={(v) => `${v}%`}
+					parseInput={(text) => parseFloat(text.replace(/%$/, ""))}
 				/>
 				<div className="flex flex-col gap-1.5 pt-0.5">
 					<div className="flex items-center justify-between">
