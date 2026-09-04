@@ -64,7 +64,7 @@ const IS_SMOKE_EXPORT = process.env.RECORDLY_SMOKE_EXPORT === "1";
 
 function ignoreBrokenConsolePipe(stream: NodeJS.WritableStream | undefined) {
 	stream?.on("error", (error: NodeJS.ErrnoException) => {
-		if (error.code === "EPIPE") {
+		if (error.code === "EPIPE" || error.code === "EIO") {
 			return;
 		}
 		throw error;
