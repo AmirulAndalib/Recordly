@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_WEBCAM_OVERLAY } from "../../components/video-editor/types";
 
@@ -90,6 +92,11 @@ vi.mock("./localMediaSource", () => ({
 
 import { FrameRenderer } from "./frameRenderer";
 
+const rendererSource = readFileSync(
+	fileURLToPath(new URL("./frameRenderer.ts", import.meta.url)),
+	"utf8",
+);
+
 type MockFunction = ReturnType<typeof vi.fn>;
 type MockContext = {
 	beginPath: MockFunction;
@@ -122,6 +129,16 @@ type FrameRendererTestAccess = {
 		outputHeight: number,
 	) => void;
 };
+
+describe("FrameRenderer mask hierarchy", () => {
+	it("keeps the mask in the video wrapper when camera transforms change", () => {
+		expect(rendererSource).toContain(
+			"this.cameraContainer.addChild(this.videoEffectsContainer)",
+		);
+		expect(rendererSource).toContain("this.videoEffectsContainer.addChild(this.maskGraphics)");
+		expect(rendererSource).not.toContain("this.cameraContainer.addChild(this.maskGraphics)");
+	});
+});
 
 type Listener = {
 	callback: () => void;
