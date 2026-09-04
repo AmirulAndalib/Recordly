@@ -34,7 +34,10 @@ import {
 	PixiCursorOverlay,
 	preloadCursorAssets,
 } from "@/components/video-editor/videoPlayback/cursorRenderer";
-import { computePaddedLayout } from "@/components/video-editor/videoPlayback/layoutUtils";
+import {
+	computePaddedLayout,
+	scalePreviewBorderRadius,
+} from "@/components/video-editor/videoPlayback/layoutUtils";
 import {
 	createSpringState,
 	getZoomSpringConfig,
@@ -1622,12 +1625,11 @@ export class FrameRenderer {
 
 		this.videoContainer.position.set(0, 0);
 
-		const canvasScaleFactor = Math.min(
-			width / BASE_PREVIEW_WIDTH,
-			height / BASE_PREVIEW_HEIGHT,
+		const scaledBorderRadius = scalePreviewBorderRadius(
+			layout.croppedDisplayWidth,
+			layout.croppedDisplayHeight,
+			borderRadius,
 		);
-
-		const scaledBorderRadius = borderRadius * canvasScaleFactor;
 
 		this.maskGraphics.clear();
 		drawSquircleOnGraphics(this.maskGraphics, {

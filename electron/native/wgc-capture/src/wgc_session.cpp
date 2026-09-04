@@ -191,17 +191,7 @@ bool WgcSession::initialize(HWND hwnd, int fps) {
     if (!monitor) return false;
 
     captureItem_ = createCaptureItemForMonitor(monitor);
-    if (!initializeWithItem(fps) || !initializeWindowCrop(hwnd)) return false;
-
-    D3D11_TEXTURE2D_DESC desc{};
-    desc.Width = static_cast<UINT>(captureWidth_);
-    desc.Height = static_cast<UINT>(captureHeight_);
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    return SUCCEEDED(d3dDevice_->CreateTexture2D(&desc, nullptr, &cropTexture_));
+    return initializeWithItem(fps) && initializeWindowCrop(hwnd);
 }
 
 bool WgcSession::initializeWindowCrop(HWND hwnd) {
@@ -216,8 +206,6 @@ bool WgcSession::initializeWindowCrop(HWND hwnd) {
         !GetWindowRect(hwnd, &windowBounds)) return false;
     RECT clipped{};
     if (!IntersectRect(&clipped, &windowBounds, &monitorBounds_)) return false;
-    captureWidth_ = std::max(2L, (clipped.right - clipped.left) & ~1L);
-    captureHeight_ = std::max(2L, (clipped.bottom - clipped.top) & ~1L);
     return updateWindowCropRect();
 }
 
@@ -225,11 +213,34 @@ bool WgcSession::updateWindowCropRect() {
     RECT windowBounds{};
     if (FAILED(DwmGetWindowAttribute(windowHandle_, DWMWA_EXTENDED_FRAME_BOUNDS, &windowBounds, sizeof(windowBounds))) &&
         !GetWindowRect(windowHandle_, &windowBounds)) return false;
-    const LONG monitorWidth = monitorBounds_.right - monitorBounds_.left;
-    const LONG monitorHeight = monitorBounds_.bottom - monitorBounds_.top;
-    const LONG left = std::clamp(windowBounds.left - monitorBounds_.left, 0L, monitorWidth - captureWidth_);
-    const LONG top = std::clamp(windowBounds.top - monitorBounds_.top, 0L, monitorHeight - captureHeight_);
-    cropRect_ = {left, top, left + captureWidth_, top + captureHeight_};
+    RECT clipped{};
+    if (!IntersectRect(&clipped, &windowBounds, &monitorBounds_)) return false;
+    const LONG width = (clipped.right - clipped.left) & ~1L;
+    const LONG height = (clipped.bottom - clipped.top) & ~1L;
+    if (width < 2 || height < 2) return false;
+
+    const int nextWidth = static_cast<int>(width);
+    const int nextHeight = static_cast<int>(height);
+    if (!cropTexture_ || nextWidth != captureWidth_ || nextHeight != captureHeight_) {
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = static_cast<UINT>(nextWidth);
+        desc.Height = static_cast<UINT>(nextHeight);
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+
+        ComPtr<ID3D11Texture2D> resizedTexture;
+        if (FAILED(d3dDevice_->CreateTexture2D(&desc, nullptr, &resizedTexture))) return false;
+        cropTexture_ = resizedTexture;
+        captureWidth_ = nextWidth;
+        captureHeight_ = nextHeight;
+    }
+
+    const LONG left = clipped.left - monitorBounds_.left;
+    const LONG top = clipped.top - monitorBounds_.top;
+    cropRect_ = {left, top, left + width, top + height};
     return true;
 }
 

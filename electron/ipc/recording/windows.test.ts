@@ -114,4 +114,13 @@ describe("native Windows window capture", () => {
 		expect(windowsCaptureSource).toContain("DwmGetWindowAttribute(");
 		expect(windowsCaptureSource).toContain("CopySubresourceRegion(cropTexture_");
 	});
+
+	it("resizes the crop texture when the selected window size changes", () => {
+		expect(windowsCaptureSource).toContain(
+			"nextWidth != captureWidth_ || nextHeight != captureHeight_",
+		);
+		expect(windowsCaptureSource).toContain(
+			"d3dDevice_->CreateTexture2D(&desc, nullptr, &resizedTexture)",
+		);
+	});
 });

@@ -21,6 +21,7 @@ import {
 } from "@/lib/mediaTiming";
 import {
 	destroyPixiApplication,
+	destroyPixiContainer,
 	initializePixiApplicationWithTimeout,
 } from "@/lib/pixiApplicationLifecycle";
 import {
@@ -1997,16 +1998,12 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				video.removeEventListener("seeking", handleSeeking);
 				dispose();
 
-				if (videoSprite) {
-					videoContainer.removeChild(videoSprite);
-					videoSprite.destroy();
-				}
-				cameraContainer.removeChild(maskGraphics);
-				maskGraphics.destroy();
 				videoEffectsContainer.mask = null;
 				videoContainer.mask = null;
+				destroyPixiContainer(videoSprite);
+				destroyPixiContainer(maskGraphics);
 				maskGraphicsRef.current = null;
-				videoTexture.destroy(false);
+				if (!videoTexture.destroyed) videoTexture.destroy(false);
 
 				videoSpriteRef.current = null;
 			};
