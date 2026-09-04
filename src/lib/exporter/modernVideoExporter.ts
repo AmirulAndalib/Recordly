@@ -2307,8 +2307,8 @@ export class ModernVideoExporter {
 			? null
 			: this.getNativeStaticLayoutSourceCrop(videoInfo);
 		const borderRadius = scalePreviewBorderRadius(
-			this.config.width,
-			this.config.height,
+			contentWidth,
+			contentHeight,
 			this.config.borderRadius ?? 0,
 		);
 		const shadowIntensity = this.config.showShadow

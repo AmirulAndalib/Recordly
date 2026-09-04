@@ -1,5 +1,7 @@
 import { loadAppSetting, saveAppSetting } from "../../lib/appSettings";
 import {
+	getDefaultBorderRadiusPercent,
+	legacyBorderRadiusPixelsToPercent,
 	normalizeExportBackendPreference,
 	normalizeExportMp4FrameRate,
 	normalizeExportPipelineModel,
@@ -69,6 +71,7 @@ type PresetCropRegion = ProjectEditorState["cropRegion"];
 type PresetWebcamSettings = Omit<ProjectEditorState["webcam"], "sourcePath">;
 
 export interface EditorPresetSnapshot extends Omit<PersistedEditorControls, "webcam"> {
+	borderRadiusUnit: "percent";
 	cropRegion: PresetCropRegion;
 	webcam: PresetWebcamSettings;
 	autoCaptionSettings: PresetAutoCaptionSettings;
@@ -85,6 +88,7 @@ export interface EditorPreset {
 }
 
 export interface EditorPreferences extends PersistedEditorControls {
+	borderRadiusUnit: "percent";
 	customAspectWidth: string;
 	customAspectHeight: string;
 	customWallpapers: string[];
@@ -137,6 +141,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	cursorClickBounceDuration: DEFAULT_EDITOR_CONTROLS.cursorClickBounceDuration,
 	cursorSway: DEFAULT_EDITOR_CONTROLS.cursorSway,
 	borderRadius: DEFAULT_EDITOR_CONTROLS.borderRadius,
+	borderRadiusUnit: "percent",
 	padding: DEFAULT_EDITOR_CONTROLS.padding,
 	webcam: DEFAULT_EDITOR_CONTROLS.webcam,
 	aspectRatio: DEFAULT_EDITOR_CONTROLS.aspectRatio,
@@ -219,6 +224,7 @@ function normalizeEditorPresetSnapshot(candidate: unknown): EditorPresetSnapshot
 
 	return {
 		...normalizedControls,
+		borderRadiusUnit: "percent",
 		webcam,
 		cropRegion: normalizedCropRegion,
 		autoCaptionSettings: normalizePresetAutoCaptionSettings(raw.autoCaptionSettings),
@@ -426,9 +432,20 @@ export function normalizeEditorPreferences(
 ): EditorPreferences {
 	const raw =
 		candidate && typeof candidate === "object" ? (candidate as Partial<EditorPreferences>) : {};
+	const controls =
+		raw.borderRadiusUnit === "percent" || typeof raw.borderRadius !== "number"
+			? raw
+			: {
+					...raw,
+					borderRadius:
+						raw.borderRadius === 0
+							? getDefaultBorderRadiusPercent()
+							: legacyBorderRadiusPixelsToPercent(raw.borderRadius),
+				};
 
 	return {
-		...normalizeEditorControls(raw, fallback),
+		...normalizeEditorControls(controls, fallback),
+		borderRadiusUnit: "percent",
 		customAspectWidth: normalizePositiveIntegerString(
 			raw.customAspectWidth,
 			fallback.customAspectWidth,

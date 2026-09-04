@@ -562,7 +562,7 @@ export class FrameRenderer {
 		this.overlayContainer.addChild(this.captionContainer);
 
 		this.videoMaskGraphics = new Graphics();
-		this.videoContainer.addChild(this.videoMaskGraphics);
+		this.videoEffectsContainer.addChild(this.videoMaskGraphics);
 		this.videoContainer.mask = this.videoMaskGraphics;
 
 		this.webcamMaskGraphics = new Graphics();
@@ -3260,7 +3260,11 @@ export class FrameRenderer {
 		this.videoSprite.scale.set(layout.scale);
 		this.videoSprite.position.set(layout.spriteX, layout.spriteY);
 
-		const scaledBorderRadius = scalePreviewBorderRadius(width, height, borderRadius);
+		const scaledBorderRadius = scalePreviewBorderRadius(
+			layout.croppedDisplayWidth,
+			layout.croppedDisplayHeight,
+			borderRadius,
+		);
 
 		this.videoMaskGraphics.clear();
 		drawSquircleOnGraphics(this.videoMaskGraphics, {

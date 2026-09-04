@@ -496,7 +496,7 @@ export class FrameRenderer {
 
 		// Setup mask
 		this.maskGraphics = new Graphics();
-		this.videoContainer.addChild(this.maskGraphics);
+		this.cameraContainer.addChild(this.maskGraphics);
 		this.videoContainer.mask = this.maskGraphics;
 		if (this.cursorOverlay) {
 			this.cursorContainer.addChild(this.cursorOverlay.container);
@@ -1419,9 +1419,6 @@ export class FrameRenderer {
 			this.videoContainer.addChild(this.videoSprite);
 			if (this.cursorOverlay && this.cursorContainer) {
 				this.cursorContainer.addChild(this.cursorOverlay.container);
-			}
-			if (this.maskGraphics) {
-				this.videoContainer.addChild(this.maskGraphics);
 			}
 		} else {
 			this.videoTextureSource ??= this.videoSprite.texture

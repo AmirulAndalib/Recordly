@@ -155,6 +155,7 @@ import {
 	parseWindowId,
 } from "../utils";
 import { resolveWindowsCaptureTarget } from "../windowsCaptureSelection";
+import { bringSelectedWindowForward } from "./sources";
 
 const execFileAsync = promisify(execFile);
 
@@ -406,6 +407,9 @@ export function registerRecordingHandlers(
 			// Capture starts before the renderer publishes its recording-state
 			// transition, so protect the HUD at the actual capture boundary.
 			reassertHudOverlayCaptureProtection();
+			const visibleWindowBounds = source.id?.startsWith("window:")
+				? await bringSelectedWindowForward(source)
+				: null;
 
 			// Windows native capture path
 			if (process.platform === "win32") {
@@ -765,6 +769,12 @@ export function registerRecordingHandlers(
 
 				if (Number.isFinite(windowId) && windowId && source?.id?.startsWith("window:")) {
 					config.windowId = windowId;
+					if (visibleWindowBounds) {
+						config.windowX = visibleWindowBounds.x;
+						config.windowY = visibleWindowBounds.y;
+						config.windowWidth = visibleWindowBounds.width;
+						config.windowHeight = visibleWindowBounds.height;
+					}
 				} else if (Number.isFinite(screenId) && screenId > 0) {
 					config.displayId = screenId;
 				} else {
@@ -816,7 +826,10 @@ export function registerRecordingHandlers(
 					microphonePath: nativeCaptureMicrophonePath,
 					processOutput: nativeCaptureOutputBuffer.trim() || undefined,
 				});
-				return { success: true, microphoneFallbackRequired: micUnavailableNatively };
+				return {
+					success: true,
+					microphoneFallbackRequired: micUnavailableNatively,
+				};
 			} catch (error) {
 				console.error("Failed to start native ScreenCaptureKit recording:", error);
 				const errorStr = String(error);
