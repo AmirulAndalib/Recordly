@@ -103,7 +103,7 @@ export default function VideoEditor() {
 		setExportPipelineModel,
 	} = exportSettings;
 	const exportSession = useExportSession();
-	const { exporterRef, pendingExportSaveRef } = exportSession;
+	const { exporterRef, exportRunIdRef, pendingExportSaveRef } = exportSession;
 	const enableModernExportPipeline = useCallback(() => {
 		setExportPipelineModel("modern");
 	}, []);
@@ -165,6 +165,7 @@ export default function VideoEditor() {
 
 	useEffect(() => {
 		return () => {
+			exportRunIdRef.current += 1;
 			exporterRef.current?.cancel();
 			exporterRef.current = null;
 			const pending = pendingExportSaveRef.current;

@@ -66,6 +66,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 				pendingExportSaveRef,
 				clearPendingExportSave,
 				markExportAsSaving,
+				exportRunIdRef,
 			} = exportSession;
 			if (!videoPath) {
 				toast.error("No video loaded");
@@ -77,6 +78,10 @@ export function useExportRunner(input: ExportRunnerInput) {
 				toast.error("Video not ready");
 				return;
 			}
+
+			const exportRunId = exportRunIdRef.current + 1;
+			exportRunIdRef.current = exportRunId;
+			const exportWasCancelled = () => exportRunIdRef.current !== exportRunId;
 
 			setIsExporting(true);
 			setExportProgress(null);
@@ -112,6 +117,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 				if (settings.format === "gif" && settings.gifConfig) {
 					// GIF Export
 					const { GifExporter } = await import("@/lib/exporter/gifExporter");
+					if (exportWasCancelled()) return;
 					const gifExporter = new GifExporter({
 						videoUrl: videoPath,
 						width: settings.gifConfig.width,
@@ -141,6 +147,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 
 					exporterRef.current = gifExporter;
 					const result = await gifExporter.export();
+					if (exportWasCancelled()) return;
 
 					if (result.success && result.blob) {
 						const timestamp = Date.now();
@@ -224,6 +231,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 					});
 					const supportedSourceDimensions =
 						await ensureSupportedMp4SourceDimensions(selectedMp4FrameRate);
+					if (exportWasCancelled()) return;
 					const { width: exportWidth, height: exportHeight } =
 						calculateMp4ExportDimensions(
 							supportedSourceDimensions.width,
@@ -281,20 +289,20 @@ export function useExportRunner(input: ExportRunnerInput) {
 						sourceAudioTrackSettings: sourceAudioTrackSettingsForExport,
 					};
 
+					const Exporter =
+						pipelineModel === "modern"
+							? (await import("@/lib/exporter/modernVideoExporter"))
+									.ModernVideoExporter
+							: (await import("@/lib/exporter/videoExporter")).VideoExporter;
+					if (exportWasCancelled()) return;
 					const exporter =
 						pipelineModel === "modern"
-							? new (
-									await import("@/lib/exporter/modernVideoExporter")
-								).ModernVideoExporter({
-									...exporterConfig,
-									backendPreference,
-								})
-							: new (await import("@/lib/exporter/videoExporter")).VideoExporter(
-									exporterConfig,
-								);
+							? new Exporter({ ...exporterConfig, backendPreference })
+							: new Exporter(exporterConfig);
 
 					exporterRef.current = exporter;
 					const result = await exporter.export();
+					if (exportWasCancelled()) return;
 					const smokeExportElapsedMs =
 						smokeExportStartedAt !== null
 							? Math.round(performance.now() - smokeExportStartedAt)
@@ -466,6 +474,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 					video.currentTime = restoreTime;
 				}
 			} catch (error) {
+				if (exportWasCancelled()) return;
 				console.error("Export error:", error);
 				const errorMessage = error instanceof Error ? error.message : "Unknown error";
 				if (smokeExportConfig.enabled) {
@@ -487,10 +496,12 @@ export function useExportRunner(input: ExportRunnerInput) {
 					window.close();
 				}
 			} finally {
-				setIsExporting(false);
-				exporterRef.current = null;
-				setShowExportDropdown(keepExportDialogOpen);
-				remountPreview();
+				if (!exportWasCancelled()) {
+					setIsExporting(false);
+					exporterRef.current = null;
+					setShowExportDropdown(keepExportDialogOpen);
+					remountPreview();
+				}
 			}
 		},
 		[showExportSuccessToast],
