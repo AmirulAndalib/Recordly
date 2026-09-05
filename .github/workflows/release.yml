@@ -6,9 +6,21 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: Existing release tag to rebuild and publish
+        description: Version tag name (must match package.json)
         required: true
         type: string
+      source_sha:
+        description: Exact source commit (required for a Pages beta feed)
+        required: false
+        type: string
+      publish_target:
+        description: Where to publish update assets
+        required: true
+        default: release
+        type: choice
+        options:
+          - release
+          - pages
       release_scope:
         description: Platforms to publish
         required: true
@@ -24,6 +36,7 @@ permissions:
   id-token: write
   attestations: write
   artifact-metadata: write
+  pages: write
 
 concurrency:
   group: release-${{ github.event.release.tag_name || github.event.inputs.tag_name || github.run_id }}
@@ -39,11 +52,12 @@ jobs:
       source_sha: ${{ steps.prepare.outputs.source_sha }}
       prerelease: ${{ steps.prepare.outputs.prerelease }}
       release_scope: ${{ steps.prepare.outputs.release_scope }}
+      publish_target: ${{ steps.prepare.outputs.publish_target }}
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.tag_name }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.publish_target == 'pages' && github.event.inputs.source_sha || github.event.inputs.tag_name }}
           fetch-depth: 0
 
       - name: Validate release tag
@@ -55,19 +69,28 @@ jobs:
           REQUESTED_SCOPE: ${{ github.event.inputs.release_scope }}
           RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
           DISPATCH_TAG_NAME: ${{ github.event.inputs.tag_name }}
+          REQUESTED_SOURCE_SHA: ${{ github.event.inputs.source_sha }}
+          REQUESTED_PUBLISH_TARGET: ${{ github.event.inputs.publish_target }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG_NAME="$RELEASE_TAG_NAME"
             IS_PRERELEASE="${{ github.event.release.prerelease }}"
             RELEASE_SCOPE="all"
+            PUBLISH_TARGET="release"
             if [ "$IS_PRERELEASE" = "true" ] && grep -Fq '<!-- release-scope: windows-linux -->' <<< "$RELEASE_BODY"; then
               RELEASE_SCOPE="windows-linux"
             fi
           else
             TAG_NAME="$DISPATCH_TAG_NAME"
-            IS_PRERELEASE="$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json isPrerelease --jq '.isPrerelease' 2>/dev/null || echo false)"
-            RELEASE_SCOPE="${REQUESTED_SCOPE:-all}"
+            PUBLISH_TARGET="${REQUESTED_PUBLISH_TARGET:-release}"
+            if [ "$PUBLISH_TARGET" = "pages" ]; then
+              IS_PRERELEASE="true"
+              RELEASE_SCOPE="all"
+            else
+              IS_PRERELEASE="$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json isPrerelease --jq '.isPrerelease' 2>/dev/null || echo false)"
+              RELEASE_SCOPE="${REQUESTED_SCOPE:-all}"
+            fi
           fi
 
           if [ -z "$TAG_NAME" ]; then
@@ -91,12 +114,32 @@ jobs:
               ;;
           esac
 
+          case "$PUBLISH_TARGET" in
+            release|pages) ;;
+            *)
+              echo "Unsupported publish target: $PUBLISH_TARGET"
+              exit 1
+              ;;
+          esac
+
+          if [ "$PUBLISH_TARGET" = "pages" ]; then
+            requested_source_sha="${REQUESTED_SOURCE_SHA,,}"
+            if [[ ! "$requested_source_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "A Pages beta feed requires an exact 40-character source_sha."
+              exit 1
+            fi
+            if [ "$(git rev-parse HEAD)" != "$requested_source_sha" ]; then
+              echo "Checked-out source does not match source_sha."
+              exit 1
+            fi
+          fi
+
           if [ "$IS_PRERELEASE" != "true" ] && [ "$RELEASE_SCOPE" != "all" ]; then
             echo "Partial platform scope is allowed only for prereleases."
             exit 1
           fi
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$PUBLISH_TARGET" = "release" ]; then
             gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
               gh release create "$TAG_NAME" --repo "${{ github.repository }}" --verify-tag --draft --title "$TAG_NAME"
           fi
@@ -106,6 +149,7 @@ jobs:
           echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
           echo "release_scope=$RELEASE_SCOPE" >> "$GITHUB_OUTPUT"
+          echo "publish_target=$PUBLISH_TARGET" >> "$GITHUB_OUTPUT"
   build-macos-x64:
     name: Build macOS x64
     needs: prepare-release
@@ -707,6 +751,7 @@ jobs:
           subject-checksums: release-assets/upload/SHA256SUMS.txt
 
       - name: Upload release assets to GitHub
+        if: needs.prepare-release.outputs.publish_target == 'release'
         shell: bash
         run: |
           set -euo pipefail
@@ -728,13 +773,45 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Add beta feed landing page
+        if: needs.prepare-release.outputs.publish_target == 'pages'
+        shell: bash
+        run: |
+          touch release-assets/upload/.nojekyll
+          printf '%s\n' \
+            '<!doctype html>' \
+            '<html lang="en"><meta charset="utf-8"><title>Recordly Experimental Updates</title>' \
+            '<body><h1>Recordly Experimental Updates</h1><p>Public updater assets for opt-in experimental builds. These builds may be unstable.</p></body></html>' \
+            > release-assets/upload/index.html
+
+      - name: Upload public beta feed artifact
+        if: needs.prepare-release.outputs.publish_target == 'pages'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: release-assets/upload
+
+  deploy-experimental-update-feed:
+    name: Deploy experimental update feed
+    needs:
+      - prepare-release
+      - publish-release-assets
+    if: needs.prepare-release.outputs.publish_target == 'pages'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy public beta feed without a GitHub Release
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   trigger-homebrew-update:
     name: Trigger Homebrew tap update
     needs:
       - prepare-release
       - publish-release-assets
     runs-on: ubuntu-latest
-    if: needs.prepare-release.outputs.prerelease != 'true' && needs.prepare-release.outputs.release_scope == 'all'
+    if: needs.prepare-release.outputs.publish_target == 'release' && needs.prepare-release.outputs.prerelease != 'true' && needs.prepare-release.outputs.release_scope == 'all'
     steps:
       - name: Dispatch Homebrew tap workflow
         shell: bash
