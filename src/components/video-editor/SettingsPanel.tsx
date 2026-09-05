@@ -1172,7 +1172,9 @@ export function SettingsPanel({
 			!isBackgroundPanel &&
 			activeEffectSection !== "scene" &&
 			activeEffectSection !== "frame" &&
-			activeEffectSection !== "crop"
+			activeEffectSection !== "crop" &&
+			activeEffectSection !== "extensions" &&
+			!activeEffectSection.startsWith("ext:")
 		) {
 			return;
 		}

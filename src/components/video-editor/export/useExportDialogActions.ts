@@ -84,6 +84,7 @@ export function useExportDialogActions({
 
 	const handleCancelExport = useCallback(() => {
 		if (!session.isExporting) return;
+		session.cancelledExportRunIdRef.current = session.exportRunIdRef.current;
 		session.exportRunIdRef.current += 1;
 		session.exporterRef.current?.cancel();
 		session.exporterRef.current = null;

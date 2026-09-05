@@ -14,6 +14,7 @@ export function useExportSession() {
 	const [hasPendingExportSave, setHasPendingExportSave] = useState(false);
 	const exporterRef = useRef<CancelableExporter | null>(null);
 	const exportRunIdRef = useRef(0);
+	const cancelledExportRunIdRef = useRef<number | null>(null);
 	const pendingExportSaveRef = useRef<PendingExportSave | null>(null);
 
 	const clearPendingExportSave = useCallback(() => {
@@ -44,6 +45,7 @@ export function useExportSession() {
 		setHasPendingExportSave,
 		exporterRef,
 		exportRunIdRef,
+		cancelledExportRunIdRef,
 		pendingExportSaveRef,
 		clearPendingExportSave,
 		markExportAsSaving,
