@@ -9,7 +9,7 @@ import type {
 	GifFrameRate,
 	GifSizePreset,
 } from "@/lib/exporter";
-import { isValidMp4FrameRate } from "@/lib/exporter";
+import { isValidMp4FrameRate } from "@/lib/exporter/types";
 import {
 	TEMPORAL_MOTION_BLUR_DEFAULT_SAMPLE_COUNT,
 	TEMPORAL_MOTION_BLUR_DEFAULT_SHUTTER_FRACTION,

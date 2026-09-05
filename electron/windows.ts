@@ -447,6 +447,7 @@ ipcMain.handle("set-hud-overlay-capture-protection", (_event, enabled: boolean) 
 });
 
 export function createHudOverlayWindow(): BrowserWindow {
+	const perfStart = Date.now();
 	loadHudOverlayCaptureProtectionSetting();
 	hudOverlayFallbackExpanded = false;
 	hudOverlayWebcamPreviewVisible = false;
@@ -557,6 +558,7 @@ export function createHudOverlayWindow(): BrowserWindow {
 	}
 
 	win.webContents.on("did-finish-load", () => {
+		console.log(`[PERF:MAIN] HUD Window: did-finish-load in ${Date.now() - perfStart}ms`);
 		win?.webContents.send("main-process-message", new Date().toLocaleString());
 		// Safety fallback if renderer-ready signal never arrives.
 		setTimeout(() => {
@@ -577,6 +579,7 @@ export function createHudOverlayWindow(): BrowserWindow {
 
 	const handleHudRendererReady = () => {
 		if (!win.isDestroyed()) {
+			console.log(`[PERF:MAIN] HUD Window: renderer-ready in ${Date.now() - perfStart}ms`);
 			showHudWindow();
 		}
 	};

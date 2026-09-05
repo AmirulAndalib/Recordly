@@ -30,6 +30,7 @@ import { useLaunchWindowSystemState } from "./hooks/useLaunchWindowSystemState";
 import { useRecordingTimer } from "./hooks/useRecordingTimer";
 import { useWebcamPreviewOverlay } from "./hooks/useWebcamPreviewOverlay";
 import styles from "./LaunchWindow.module.css";
+import { MarqueeText } from "./MarqueeText";
 import { CountdownPopover } from "./popovers/CountdownPopover";
 import {
 	LaunchPopoverCoordinatorProvider,
@@ -41,7 +42,6 @@ import { ProjectPopover } from "./popovers/ProjectPopover";
 import { SourcePopover } from "./popovers/SourcePopover";
 import { WebcamPopover } from "./popovers/WebcamPopover";
 import { RecordingControls } from "./RecordingControls";
-import { MarqueeText } from "./SourceSelector";
 
 const SHOW_DEV_UPDATE_PREVIEW = import.meta.env.DEV;
 

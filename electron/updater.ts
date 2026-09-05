@@ -8,6 +8,7 @@ import { readAppSetting, writeAppSetting } from "./appSettingsStore";
 import { EXPERIMENTAL_UPDATE_DESCRIPTION, getUpdateChannelConfiguration } from "./updateChannel";
 
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const INITIAL_UPDATE_CHECK_DELAY_MS = 15 * 1000;
 export const UPDATE_REMINDER_DELAY_MS = 3 * 60 * 60 * 1000;
 const DISMISSED_READY_REMINDER_DELAY_MS = 5 * 60 * 1000;
 const AUTO_UPDATES_DISABLED = process.env.RECORDLY_DISABLE_AUTO_UPDATES === "1";
@@ -71,6 +72,7 @@ let updaterInitialized = false;
 let updateCheckInProgress = false;
 let manualCheckRequested = false;
 let periodicCheckTimer: NodeJS.Timeout | null = null;
+let initialCheckTimer: NodeJS.Timeout | null = null;
 let deferredReminderTimer: NodeJS.Timeout | null = null;
 let devPreviewProgressTimer: NodeJS.Timeout | null = null;
 let currentToastPayload: UpdateToastPayload | null = null;
@@ -905,7 +907,10 @@ export function setupAutoUpdates(
 		void showDownloadedUpdateDialog(getMainWindow, info.version);
 	});
 
-	void checkForAppUpdates(getMainWindow);
+	initialCheckTimer = setTimeout(() => {
+		initialCheckTimer = null;
+		void checkForAppUpdates(getMainWindow);
+	}, INITIAL_UPDATE_CHECK_DELAY_MS);
 	periodicCheckTimer = setInterval(() => {
 		void checkForAppUpdates(getMainWindow);
 	}, UPDATE_CHECK_INTERVAL_MS);
@@ -913,6 +918,10 @@ export function setupAutoUpdates(
 	app.on("before-quit", () => {
 		clearDeferredReminderTimer();
 		clearDevPreviewProgressTimer();
+		if (initialCheckTimer) {
+			clearTimeout(initialCheckTimer);
+			initialCheckTimer = null;
+		}
 		if (periodicCheckTimer) {
 			clearInterval(periodicCheckTimer);
 			periodicCheckTimer = null;
