@@ -135,7 +135,7 @@ type UseScreenRecorderReturn = {
 	pauseRecording: () => void;
 	resumeRecording: () => void;
 	cancelRecording: () => void;
-	preparePermissions: () => Promise<boolean>;
+	preparePermissions: (options?: { startup?: boolean }) => Promise<boolean>;
 	isMacOS: boolean;
 	microphoneEnabled: boolean;
 	setMicrophoneEnabled: (enabled: boolean) => void;
@@ -546,7 +546,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		micFallbackPauseIntervals.current = [];
 	}, []);
 
-	const preparePermissions = useCallback(async () => {
+	const preparePermissions = useCallback(async (options: { startup?: boolean } = {}) => {
 		const platform = await window.electronAPI.getPlatform();
 		if (platform !== "darwin") {
 			return true;
@@ -556,7 +556,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		if (!screenPermission.success || screenPermission.status !== "granted") {
 			await window.electronAPI.openScreenRecordingPreferences();
 			alert(
-				"Recordly needs Screen Recording permission before you can record. Enable it in System Settings, then quit and reopen Recordly.",
+				options.startup
+					? "Recordly needs Screen Recording permission before you start. System Settings has been opened. After enabling it, quit and reopen Recordly."
+					: "Screen Recording permission is still missing. System Settings has been opened again. Enable it, then quit and reopen Recordly before recording.",
 			);
 			return false;
 		}
@@ -577,7 +579,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 		await window.electronAPI.openAccessibilityPreferences();
 		alert(
-			"Recordly also needs Accessibility permission for cursor tracking. Enable it in System Settings, then quit and reopen Recordly.",
+			options.startup
+				? "Recordly also needs Accessibility permission for cursor tracking. System Settings has been opened. After enabling it, quit and reopen Recordly."
+				: "Accessibility permission is still missing. System Settings has been opened again. Enable it, then quit and reopen Recordly before recording.",
 		);
 
 		return false;
