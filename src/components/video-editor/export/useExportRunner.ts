@@ -1,13 +1,8 @@
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
-import {
-	DEFAULT_MP4_CODEC,
-	type ExportSettings,
-	GifExporter,
-	ModernVideoExporter,
-	VideoExporter,
-} from "@/lib/exporter";
 import { getMp4ExportBitrate } from "@/lib/exporter/exportBitrate";
+import { DEFAULT_MP4_CODEC } from "@/lib/exporter/mp4Support";
+import type { ExportSettings } from "@/lib/exporter/types";
 import { calculateMp4ExportDimensions } from "../exportDimensions";
 import { resolveMp4ExportRouting } from "../mp4ExportRouting";
 import { resolveMp4ExportSettings } from "../mp4ExportSettings";
@@ -116,6 +111,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 
 				if (settings.format === "gif" && settings.gifConfig) {
 					// GIF Export
+					const { GifExporter } = await import("@/lib/exporter/gifExporter");
 					const gifExporter = new GifExporter({
 						videoUrl: videoPath,
 						width: settings.gifConfig.width,
@@ -143,7 +139,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 						maxPendingFrames: smokeExportConfig.maxPendingFrames,
 					});
 
-					exporterRef.current = gifExporter as unknown as VideoExporter;
+					exporterRef.current = gifExporter;
 					const result = await gifExporter.export();
 
 					if (result.success && result.blob) {
@@ -287,11 +283,15 @@ export function useExportRunner(input: ExportRunnerInput) {
 
 					const exporter =
 						pipelineModel === "modern"
-							? new ModernVideoExporter({
+							? new (
+									await import("@/lib/exporter/modernVideoExporter")
+								).ModernVideoExporter({
 									...exporterConfig,
 									backendPreference,
 								})
-							: new VideoExporter(exporterConfig);
+							: new (await import("@/lib/exporter/videoExporter")).VideoExporter(
+									exporterConfig,
+								);
 
 					exporterRef.current = exporter;
 					const result = await exporter.export();

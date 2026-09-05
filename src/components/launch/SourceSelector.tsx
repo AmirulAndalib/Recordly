@@ -1,6 +1,6 @@
 import { AppWindowIcon, CaretUpIcon, MonitorIcon } from "@phosphor-icons/react";
 import * as React from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useScopedT } from "@/contexts/I18nContext";
@@ -14,6 +14,7 @@ import {
 import "./launchTheme.css";
 import "./SourceSelector.css";
 import { useHudInteraction } from "./contexts/HudInteractionContext";
+import { MarqueeText } from "./MarqueeText";
 
 interface SourceSelectorProps {
 	/** List of available screen sources */
@@ -34,42 +35,6 @@ interface SourceSelectorProps {
 	onOpenChange?: (open: boolean) => void;
 	/** Optional custom trigger element */
 	children?: React.ReactNode;
-}
-
-export function MarqueeText({ text }: { text: string }) {
-	const staticRef = useRef<HTMLSpanElement>(null);
-	const [overflowing, setOverflowing] = useState(false);
-
-	useLayoutEffect(() => {
-		const node = staticRef.current;
-		if (!node || node.textContent !== text) return;
-		const checkOverflow = () => {
-			setOverflowing(node.scrollWidth > node.clientWidth + 1);
-		};
-		checkOverflow();
-		const observer = new ResizeObserver(checkOverflow);
-		observer.observe(node);
-		return () => observer.disconnect();
-	}, [text]);
-
-	return (
-		<div
-			className="w-full source-selector-marquee"
-			data-overflowing={overflowing ? "true" : "false"}
-		>
-			<span ref={staticRef} className="source-selector-marquee-static">
-				{text}
-			</span>
-			<span className="source-selector-marquee-animated">
-				<span className="source-selector-marquee-track">
-					<span className="source-selector-marquee-segment">{text}</span>
-					<span className="source-selector-marquee-segment source-selector-marquee-duplicate">
-						{text}
-					</span>
-				</span>
-			</span>
-		</div>
-	);
 }
 
 /**

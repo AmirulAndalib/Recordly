@@ -1,6 +1,6 @@
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: grouped editor domain objects contain the thumbnail renderer dependencies. */
 import { type RefObject, useCallback, useEffect, useRef } from "react";
-import { FrameRenderer } from "@/lib/exporter";
+import { FrameRenderer } from "@/lib/exporter/frameRenderer";
 import { toFileUrl } from "../projectPersistence";
 import type { useAppearanceState } from "../state/useAppearanceState";
 import type { useProjectState } from "../state/useProjectState";

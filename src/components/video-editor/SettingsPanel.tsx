@@ -1110,6 +1110,8 @@ export function SettingsPanel({
 	);
 	const [experimentalUpdatesEnabled, setExperimentalUpdatesEnabled] = useState(false);
 	const [savingExperimentalUpdates, setSavingExperimentalUpdates] = useState(false);
+	const [internalActiveEffectSection] = useState<EditorEffectSection>("scene");
+	const activeEffectSection = activeEffectSectionProp ?? internalActiveEffectSection;
 	const removeBackgroundStateRef = useRef<{
 		aspectRatio: AspectRatio;
 		padding: Padding;
@@ -1166,6 +1168,8 @@ export function SettingsPanel({
 	};
 
 	useEffect(() => {
+		if (!isBackgroundPanel && activeEffectSection !== "scene") return;
+
 		let mounted = true;
 		(async () => {
 			try {
@@ -1196,7 +1200,7 @@ export function SettingsPanel({
 		return () => {
 			mounted = false;
 		};
-	}, []);
+	}, [activeEffectSection, isBackgroundPanel]);
 
 	const colorPalette = [
 		"#FF0000",
@@ -1231,8 +1235,6 @@ export function SettingsPanel({
 	const customColorInputRef = useRef<HTMLInputElement | null>(null);
 	const cursorClickEffectColorInputRef = useRef<HTMLInputElement | null>(null);
 	const defaultWebcam = initialEditorPreferences.webcam;
-	const [internalActiveEffectSection] = useState<EditorEffectSection>("scene");
-	const activeEffectSection = activeEffectSectionProp ?? internalActiveEffectSection;
 	const [builtInCursorPreviewUrls, setBuiltInCursorPreviewUrls] = useState<
 		Partial<Record<string, string>>
 	>({});
