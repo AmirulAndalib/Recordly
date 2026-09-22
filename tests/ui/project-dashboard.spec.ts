@@ -317,7 +317,19 @@ test("dashboard supports creation sort, independent folders, shared settings and
 				card.querySelector("[data-project-caption]")!.getBoundingClientRect().height,
 			]),
 		);
-	for (const [avatar, caption] of heights) expect(avatar).toBe(caption);
+	for (const [avatar, caption] of heights) {
+		expect(avatar).toBe(caption);
+		expect(avatar).toBe(48);
+	}
+	const spacing = await home
+		.locator("[data-project-caption]")
+		.first()
+		.evaluate((element) => {
+			const caption = element.getBoundingClientRect();
+			const avatar = element.previousElementSibling!.getBoundingClientRect();
+			return { gap: caption.left - avatar.right, top: caption.top - avatar.top };
+		});
+	expect(spacing).toEqual({ gap: 16, top: 0 });
 	const avatar = home.locator('[aria-label="Local profile"]').first();
 	const circle = await avatar.evaluate((element) => {
 		const style = getComputedStyle(element);
@@ -451,6 +463,20 @@ test("project hover plays a muted five-second preview and stops on exit", async 
 				),
 		)
 		.toBe(true);
+	const fill = await preview.evaluate((element) => {
+		const card = element.getBoundingClientRect();
+		const frame = element.firstElementChild!.getBoundingClientRect();
+		return {
+			card: card.toJSON(),
+			frame: frame.toJSON(),
+			covers:
+				frame.left <= card.left + 1 &&
+				frame.top <= card.top + 1 &&
+				frame.right >= card.right - 1 &&
+				frame.bottom >= card.bottom - 1,
+		};
+	});
+	expect(fill, JSON.stringify(fill)).toMatchObject({ covers: true });
 	await expect(preview).toHaveCount(0, { timeout: 8000 });
 	await page.mouse.move(0, 0);
 	await card.hover();

@@ -404,8 +404,7 @@ export function registerRecordingHandlers(
 	ipcMain.handle(
 		"start-native-screen-recording",
 		async (_, source: SelectedSource, options?: NativeMacRecordingOptions) => {
-			// Capture starts before the renderer publishes its recording-state
-			// transition, so protect the HUD at the actual capture boundary.
+			// Refresh window protection; it applies only while recording is active.
 			reassertHudOverlayCaptureProtection();
 			const visibleWindowBounds = source.id?.startsWith("window:")
 				? await bringSelectedWindowForward(source)

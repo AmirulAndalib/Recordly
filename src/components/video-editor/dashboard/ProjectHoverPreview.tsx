@@ -81,6 +81,7 @@ export function ProjectHoverPreview({
 	}, [onFinish]);
 	return (
 		<div
+			style={{ containerType: "size" }}
 			data-project-hover-preview
 			className={`pointer-events-none absolute inset-0 overflow-hidden rounded-xl ${playing ? "opacity-100" : "opacity-0"}`}
 			aria-hidden="true"
@@ -88,6 +89,7 @@ export function ProjectHoverPreview({
 			<VideoPlayback
 				{...editor}
 				autoPlay
+				fillPreview
 				ref={playback}
 				videoPath={data.videoUrl}
 				webcamVideoPath={data.webcamUrl}

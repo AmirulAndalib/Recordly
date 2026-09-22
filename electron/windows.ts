@@ -153,7 +153,8 @@ function applyHudOverlayCaptureProtectionToWindow(hud: BrowserWindow, enabled: b
 	}
 
 	try {
-		hud.setContentProtection(enabled);
+		// Keep the idle HUD visible to screenshots and other capture applications.
+		hud.setContentProtection(enabled && hudOverlayRecordingActive);
 	} catch (error) {
 		console.warn("Failed to apply HUD capture protection:", error);
 	}

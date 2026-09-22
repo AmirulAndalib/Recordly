@@ -29,7 +29,11 @@ import {
 	DEFAULT_WALLPAPER_RELATIVE_PATH,
 	isVideoWallpaperSource,
 } from "@/lib/wallpapers";
-import { type AspectRatio, formatAspectRatioForCSS } from "@/utils/aspectRatioUtils";
+import {
+	type AspectRatio,
+	getAspectRatioValue,
+	formatAspectRatioForCSS,
+} from "@/utils/aspectRatioUtils";
 import { AnnotationOverlay } from "./AnnotationOverlay";
 import { type CaptionEditTarget, normalizeCaptionEditText } from "./captionEditing";
 import { buildActiveCaptionLayout } from "./captionLayout";
@@ -218,6 +222,7 @@ function getEffectiveNativeAspectRatio(
 
 interface VideoPlaybackProps {
 	autoPlay?: boolean;
+	fillPreview?: boolean;
 	clipRegions: ClipRegion[];
 	videoPath: string;
 	onDurationChange: (duration: number) => void;
@@ -305,6 +310,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		{
 			videoPath,
 			autoPlay = false,
+			fillPreview = false,
 			onDurationChange,
 			onPreviewReadyChange,
 			onTimeUpdate,
@@ -2364,7 +2370,17 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				ref={previewFrameRef}
 				className="relative overflow-hidden"
 				style={{
-					width: "100%",
+					width: fillPreview
+						? `max(100cqw, calc(100cqh * ${getAspectRatioValue(aspectRatio, nativeAspectRatio)}))`
+						: "100%",
+					...(fillPreview
+						? {
+								position: "absolute" as const,
+								left: "50%",
+								top: "50%",
+								transform: "translate(-50%, -50%)",
+							}
+						: {}),
 					aspectRatio: formatAspectRatioForCSS(aspectRatio, nativeAspectRatio),
 					borderRadius: 0,
 					clipPath: "none",

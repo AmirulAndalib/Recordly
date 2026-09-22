@@ -98,9 +98,9 @@ export function ProjectCard({
 					</span>
 				)}
 			</Button>
-			<div className="flex items-start justify-between gap-3 pt-4">
-				<AccountAvatar label={accountLabel} className="!size-[46px]" />
-				<div data-project-caption className="min-w-0 flex-1">
+			<div className="flex items-start justify-between gap-4 pt-5">
+				<AccountAvatar label={accountLabel} className="!size-[48px]" />
+				<div data-project-caption className="h-12 min-w-0 flex-1">
 					{editing ? (
 						<form
 							onSubmit={(event) => {
@@ -111,7 +111,7 @@ export function ProjectCard({
 							<input
 								autoFocus
 								aria-label="Project name"
-								className="inline-project-name h-6 w-full text-[12px] font-medium"
+								className="inline-project-name h-5 w-full text-[12px] font-medium"
 								value={name}
 								disabled={busy}
 								maxLength={120}
@@ -128,7 +128,7 @@ export function ProjectCard({
 					) : (
 						<p
 							title={entry.name}
-							className="truncate text-[12px] font-medium leading-[18px]"
+							className="truncate text-[12px] font-medium leading-5"
 						>
 							{entry.name}
 						</p>

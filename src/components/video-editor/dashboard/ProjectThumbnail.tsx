@@ -65,7 +65,7 @@ export function ProjectThumbnail({
 					loading="lazy"
 					draggable={false}
 					onError={() => setFailedSource(sourceKey)}
-					className="h-full w-full object-contain"
+					className="h-full w-full object-cover"
 				/>
 			) : (
 				<ImageSquare weight="fill" className="size-8 text-muted-foreground/20" />
