@@ -43,7 +43,7 @@ test("home dashboard searches, sorts, opens projects and returns to the editor",
 		};
 	});
 	await page.goto("/?windowType=editor");
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard", exact: true });
 	await expect(home).toBeVisible();
 	const cards = home.getByRole("list", { name: "Your projects" }).locator("li > button");
@@ -77,7 +77,7 @@ test("home dashboard searches, sorts, opens projects and returns to the editor",
 		page.getByRole("button", { name: "Remove custom color", exact: true }),
 	).toBeVisible();
 	await page.keyboard.press("Escape");
-	await home.getByRole("button", { name: "Projects", exact: true }).click();
+	await home.getByRole("button", { name: "Home", exact: true }).click();
 	await expect(home.locator('[aria-label="Local profile"]')).toHaveCount(3);
 
 	await home.getByRole("button", { name: "Options for App walkthrough", exact: true }).click();
@@ -91,14 +91,14 @@ test("home dashboard searches, sorts, opens projects and returns to the editor",
 	await home.getByRole("button", { name: "Tutorials", exact: true }).click();
 	await expect(cards).toHaveCount(1);
 	await expect(cards.first()).toHaveAccessibleName("App walkthrough");
-	await home.getByRole("button", { name: "Projects", exact: true }).click();
+	await home.getByRole("button", { name: "Home", exact: true }).click();
 	await home.getByRole("button", { name: "Last 7 days", exact: true }).click();
 	await expect(cards).toHaveCount(0);
 	await home.getByRole("button", { name: "All", exact: true }).click();
 	await expect(cards).toHaveCount(3);
 	await home.getByRole("button", { name: "Settings", exact: true }).click();
 	await expect(home.getByRole("region", { name: "Dashboard settings" })).toBeVisible();
-	await home.getByRole("button", { name: "Projects", exact: true }).click();
+	await home.getByRole("button", { name: "Home", exact: true }).click();
 	await home.getByRole("button", { name: "New", exact: true }).click();
 	await expect(page.locator("html")).toHaveAttribute("data-hud-opened", "true");
 	await home.getByRole("button", { name: "Select projects to delete" }).click();
@@ -132,7 +132,7 @@ test("home dashboard searches, sorts, opens projects and returns to the editor",
 test("home dashboard explains an empty library", async ({ page }) => {
 	await installDesktopBridge(page);
 	await page.goto("/?windowType=editor");
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	await expect(page.getByText("No projects yet")).toBeVisible();
 	await page.getByRole("button", { name: "Back to editor" }).click();
 	await expect(page.getByRole("button", { name: "Rename project" })).toBeVisible();
@@ -152,7 +152,7 @@ test("autosave creates one untitled project, stays idle without edits, and refre
 	await page.waitForTimeout(1800);
 	await expect(page.locator("html")).toHaveAttribute("data-project-creates", "1");
 	expect(await page.locator("html").getAttribute("data-project-saves")).toBe(before);
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	await expect(page.getByRole("dialog", { name: "Projects dashboard" })).toBeVisible();
 	await expect(page.locator("html")).toHaveAttribute(
 		"data-saved-thumbnail",
@@ -179,7 +179,7 @@ test("deletion refreshes the grid and keeps unselected projects", async ({ page 
 		};
 	});
 	await page.goto("/?windowType=editor");
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });
 	await home.getByRole("button", { name: "Select projects to delete" }).click();
 	await home.getByRole("list").getByRole("button", { name: "Delete", exact: true }).click();
@@ -230,7 +230,7 @@ test("cards rename inline, preserve folder chips and use existing share links", 
 		};
 	});
 	await page.goto("/?windowType=editor");
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });
 	await expect(home.getByRole("button", { name: "Remove Demo from Work" })).toContainText("Work");
 	await home.getByRole("button", { name: "Options for Demo" }).click();
@@ -290,12 +290,9 @@ test("dashboard supports creation sort, independent folders, shared settings and
 	await page.goto("/?windowType=editor");
 	await page.getByRole("radio", { name: "Videos", exact: true }).click();
 	await expect(page.getByRole("complementary", { name: "Videos" })).toBeVisible();
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });
-	await home.getByRole("button", { name: "Next announcement" }).click();
-	await expect(
-		home.getByRole("img", { name: "Announcement banner placeholder 2" }),
-	).toBeVisible();
+	await expect(home.getByLabel("Announcements", { exact: true })).toHaveCount(0);
 	await home.getByRole("button", { name: "Sort projects" }).click();
 	await page.getByRole("menuitem", { name: "Last created", exact: true }).click();
 	await expect(
@@ -378,7 +375,7 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 	await scene.click();
 	await expect(scene).toBeChecked();
 	await expect(videos).not.toBeChecked();
-	const homeButton = page.getByRole("button", { name: "Open projects", exact: true });
+	const homeButton = page.getByRole("button", { name: "Home", exact: true });
 	await expect(homeButton.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await homeButton.click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });

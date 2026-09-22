@@ -12,7 +12,6 @@ import type { useExportSettings } from "../export/useExportSettings";
 import type { useExportStatusViewModel } from "../export/useExportStatusViewModel";
 import type { useVideoEditorPresets } from "../presets/useVideoEditorPresets";
 import type { useProjectState } from "../state/useProjectState";
-import { APP_HEADER_ICON_BUTTON_CLASS } from "../TutorialHelp";
 import { EditorExportMenu } from "./EditorExportMenu";
 import { EditorPresetMenu } from "./EditorPresetMenu";
 
@@ -109,11 +108,12 @@ export function EditorHeader(props: Props) {
 					variant="ghost"
 					size="sm"
 					onClick={handleOpenProjectBrowser}
-					className={APP_HEADER_ICON_BUTTON_CLASS}
-					title={t("editor.project.projects", "Open projects")}
-					aria-label={t("editor.project.projects", "Open projects")}
+					className="h-9 shrink-0 gap-2 px-3"
+					title="Home"
+					aria-label="Home"
 				>
 					<House weight="fill" className="h-4 w-4" />
+					<span>Home</span>
 				</Button>
 				<span
 					aria-hidden="true"

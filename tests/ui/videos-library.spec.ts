@@ -76,7 +76,7 @@ test("Videos supports selection, remove all, undo and real timeline drag inserti
 	await expect(panel.getByText("first.mp4", { exact: true })).toBeVisible();
 	const videosButton = page.getByRole("button", { name: "Videos", exact: true });
 	expect((await videosButton.boundingBox())!.x).toBeLessThan(
-		(await page.getByRole("button", { name: "Open projects", exact: true }).boundingBox())!.x,
+		(await page.getByRole("button", { name: "Home", exact: true }).boundingBox())!.x,
 	);
 	expect((await panel.boundingBox())!.x).toBeLessThan(100);
 	await expect(videosButton).toHaveClass(/button--secondary/);

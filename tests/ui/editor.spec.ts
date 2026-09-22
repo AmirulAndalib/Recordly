@@ -63,7 +63,7 @@ test("editor loads video, switches tools and edits export options", async ({ pag
 		fullPage: true,
 		animations: "disabled",
 	});
-	await page.getByRole("button", { name: "Open projects", exact: true }).click();
+	await page.getByRole("button", { name: "Home", exact: true }).click();
 	await expect(page.getByRole("dialog", { name: "Projects", exact: true })).toBeVisible();
 	await page.keyboard.press("Escape");
 	await page.getByRole("button", { name: "Crop Video", exact: true }).click();

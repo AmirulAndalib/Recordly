@@ -4,7 +4,7 @@ import {
 	Cloud,
 	File,
 	GearSix,
-	ImageSquare,
+	House,
 	Plus,
 	UploadSimple,
 	UserCircle,
@@ -66,11 +66,11 @@ export function DashboardSidebar({
 						aria-current={section === "projects" ? "page" : undefined}
 						onClick={() => setSection("projects")}
 					>
-						<ImageSquare
+						<House
 							weight={section === "projects" ? "fill" : "regular"}
 							className="size-[18px]"
 						/>
-						Projects
+						Home
 					</Button>
 					<Button
 						variant="ghost"

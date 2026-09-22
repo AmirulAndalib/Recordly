@@ -3,7 +3,7 @@ export type AnnouncementConfig = { enabled: boolean; banners: AnnouncementBanner
 
 /** Code-only configuration. One banner hides navigation; an empty list hides the card. */
 export const dashboardAnnouncements: AnnouncementConfig = {
-	enabled: true,
+	enabled: false,
 	banners: [
 		{ src: "announcements/placeholder-1.svg", alt: "Announcement banner placeholder 1" },
 		{ src: "announcements/placeholder-2.svg", alt: "Announcement banner placeholder 2" },
