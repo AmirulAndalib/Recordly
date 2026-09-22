@@ -8,7 +8,7 @@ import {
 	SunIcon,
 	MoonIcon,
 	DesktopIcon,
-} from "@phosphor-icons/react";
+} from "@/components/ui/icons";
 import type { ReactElement } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { useScopedT } from "@/contexts/I18nContext";

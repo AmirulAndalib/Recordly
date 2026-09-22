@@ -1,5 +1,5 @@
 import { useI18n } from "@/contexts/I18nContext";
-import { GoogleLogo, SignOut, XLogo } from "@phosphor-icons/react";
+import { GoogleLogo, SignOut, XLogo } from "@/components/ui/icons";
 import type { User } from "@supabase/supabase-js";
 import { type FormEvent, useEffect, useState } from "react";
 import {

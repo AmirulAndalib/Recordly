@@ -1,0 +1,254 @@
+import { AccountAvatar } from "@/components/ui/account-avatar";
+import { Dropdown } from "@heroui/react";
+import { Check, DotsThree, FolderSimple, Plus } from "@/components/ui/icons";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { getProjectShareLink, moveProjectShareLink } from "../cloud/projectShareLinks";
+import type { ProjectLibraryEntry } from "../ProjectBrowserDialog";
+import { ProjectThumbnail } from "./ProjectThumbnail";
+import type { DashboardProps } from "./types";
+import type { DashboardModel } from "./useDashboardModel";
+
+type Props = Pick<
+	DashboardProps & DashboardModel,
+	| "accountLabel"
+	| "busy"
+	| "selecting"
+	| "selected"
+	| "toggleSelected"
+	| "openEntry"
+	| "run"
+	| "onShareProject"
+	| "onRenameProject"
+	| "folders"
+	| "save"
+	| "assignFolder"
+> & { entry: ProjectLibraryEntry };
+export function ProjectCard({
+	accountLabel,
+	entry,
+	busy,
+	selecting,
+	selected,
+	toggleSelected,
+	openEntry,
+	run,
+	onShareProject,
+	onRenameProject,
+	folders,
+	save,
+	assignFolder,
+}: Props) {
+	const [editing, setEditing] = useState(false);
+	const renaming = useRef(false);
+	const [name, setName] = useState(entry.name);
+	const assignedFolders = folders.filter((folder) => folder.paths.includes(entry.path));
+	const folder = assignedFolders[0];
+	const shareUrl = getProjectShareLink(entry.path);
+	const rename = () => {
+		if (renaming.current) return;
+		renaming.current = true;
+		void run(async () => {
+			if (!name.trim() || name.trim() === entry.name) {
+				setEditing(false);
+				return;
+			}
+			const target = await onRenameProject(entry.path, name.trim());
+			save(
+				folders.map((folder) => ({
+					...folder,
+					paths: folder.paths.map((path) => (path === entry.path ? target : path)),
+				})),
+			);
+			moveProjectShareLink(entry.path, target);
+			setEditing(false);
+		}).finally(() => {
+			renaming.current = false;
+		});
+	};
+	return (
+		<li className="group min-w-0">
+			<Button
+				variant="ghost"
+				disabled={busy}
+				aria-label={entry.name}
+				onClick={() => (selecting ? toggleSelected(entry.path) : openEntry(entry))}
+				aria-pressed={selecting ? selected.includes(entry.path) : undefined}
+				className="relative block h-auto w-full min-w-0 rounded-xl p-0"
+			>
+				<ProjectThumbnail
+					key={`${entry.thumbnailPath}-${entry.updatedAt}`}
+					revision={entry.updatedAt}
+					path={entry.thumbnailPath}
+				/>
+				{selecting && (
+					<span
+						className={`absolute right-2 top-2 flex size-5 items-center justify-center rounded-md ${selected.includes(entry.path) ? "bg-accent text-white" : "bg-background/90"}`}
+					>
+						{selected.includes(entry.path) && <Check className="size-3.5" />}
+					</span>
+				)}
+			</Button>
+			<div className="flex items-start justify-between gap-3 pt-4">
+				<AccountAvatar label={accountLabel} className="!size-[46px]" />
+				<div data-project-caption className="min-w-0 flex-1">
+					{editing ? (
+						<form
+							onSubmit={(event) => {
+								event.preventDefault();
+								rename();
+							}}
+						>
+							<input
+								autoFocus
+								aria-label="Project name"
+								className="inline-project-name h-6 w-full text-[12px] font-medium"
+								value={name}
+								disabled={busy}
+								maxLength={120}
+								onChange={(event) => setName(event.target.value)}
+								onBlur={rename}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") {
+										event.preventDefault();
+										setEditing(false);
+									}
+								}}
+							/>
+						</form>
+					) : (
+						<p
+							title={entry.name}
+							className="truncate text-[12px] font-medium leading-[18px]"
+						>
+							{entry.name}
+						</p>
+					)}
+					<div className="mt-1 flex h-6 min-w-0 items-center gap-3 overflow-x-auto [scrollbar-width:none]">
+						<p className="shrink-0 text-[11px] text-muted-foreground">
+							{new Date(entry.updatedAt).toLocaleDateString(undefined, {
+								month: "short",
+								day: "numeric",
+							})}
+						</p>
+						<div
+							aria-label={`Folders for ${entry.name}`}
+							className="flex min-w-0 items-center gap-2"
+						>
+							{assignedFolders.map((item) => (
+								<Button
+									key={item.id}
+									variant="ghost"
+									size="sm"
+									aria-label={`Remove ${entry.name} from ${item.name}`}
+									onClick={() => assignFolder(entry.path, item.id)}
+									className="h-6 min-w-0 max-w-28 shrink-0 gap-1.5 rounded-full bg-default/40 px-2.5 text-[11px]"
+								>
+									<FolderSimple
+										weight="fill"
+										className="size-3 shrink-0"
+										style={{ color: item.color }}
+									/>
+									<span className="truncate">{item.name}</span>
+								</Button>
+							))}
+							<Dropdown>
+								<Button
+									variant="ghost"
+									size="sm"
+									aria-label={`Add folder to ${entry.name}`}
+									className="h-6 min-w-0 shrink-0 gap-1.5 rounded-full px-2.5 text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+								>
+									<Plus className="size-3" />
+									Add folder
+								</Button>
+								<Dropdown.Popover>
+									<Dropdown.Menu aria-label="Assign project folder">
+										{folders.map((item) => (
+											<Dropdown.Item
+												key={item.id}
+												id={item.id}
+												textValue={item.name}
+												onAction={() => assignFolder(entry.path, item.id)}
+											>
+												<FolderSimple
+													weight="fill"
+													style={{ color: item.color }}
+												/>
+												{item.name}
+												{item.paths.includes(entry.path) && (
+													<Check className="size-3" />
+												)}
+											</Dropdown.Item>
+										))}
+										{folder && (
+											<Dropdown.Item
+												id="remove"
+												onAction={() => assignFolder(entry.path, "none")}
+											>
+												Remove from all folders
+											</Dropdown.Item>
+										)}
+										{!folders.length && (
+											<Dropdown.Item id="empty" isDisabled>
+												Create a folder in the sidebar
+											</Dropdown.Item>
+										)}
+									</Dropdown.Menu>
+								</Dropdown.Popover>
+							</Dropdown>
+						</div>
+					</div>
+				</div>
+				<Dropdown>
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label={`Options for ${entry.name}`}
+						className="size-6 min-w-6 text-muted-foreground"
+					>
+						<DotsThree weight="bold" className="size-5" />
+					</Button>
+					<Dropdown.Popover>
+						<Dropdown.Menu aria-label="Project options">
+							<Dropdown.Item id="open" onAction={() => openEntry(entry)}>
+								Open project
+							</Dropdown.Item>
+							<Dropdown.Item
+								id="rename"
+								onAction={() => {
+									setName(entry.name);
+									setEditing(true);
+								}}
+							>
+								Rename
+							</Dropdown.Item>
+							<Dropdown.Item
+								id="share"
+								onAction={() =>
+									void run(async () => {
+										if (shareUrl)
+											await window.electronAPI.openExternalUrl(shareUrl);
+										else await onShareProject(entry.path);
+									})
+								}
+							>
+								{shareUrl ? "View in web" : "Share"}
+							</Dropdown.Item>
+							<Dropdown.Item
+								id="reveal"
+								onAction={() =>
+									void run(async () => {
+										await window.electronAPI.revealInFolder(entry.path);
+									})
+								}
+							>
+								Show in folder
+							</Dropdown.Item>
+						</Dropdown.Menu>
+					</Dropdown.Popover>
+				</Dropdown>
+			</div>
+		</li>
+	);
+}

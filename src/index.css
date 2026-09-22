@@ -97,14 +97,6 @@
 .editor-playback {
 	container-type: inline-size;
 }
-@media (max-width: 1000px) {
-	.editor-header {
-		grid-template-columns: minmax(0, 1fr) minmax(0, 0.4fr) minmax(0, 1fr);
-	}
-	.project-file-extension {
-		display: none;
-	}
-}
 @container (max-width: 760px) {
 	.editor-playback-tools {
 		grid-row: 2;
@@ -174,3 +166,34 @@
 		animation: none;
 	}
 }
+
+/* Keep dashboard focus visible without the oversized default halo. */
+.dashboard-surface :is(button, input, [role="combobox"]):focus-visible,
+.dashboard-surface [data-focus-visible="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.dashboard-surface .folder-row > button {
+  background: transparent;
+}
+
+.inline-project-name {
+ background: transparent;
+ border: 0;
+ border-radius: 0;
+ box-shadow: none;
+ outline: none;
+ padding: 0;
+ color: inherit;
+}
+.inline-project-name:focus { outline: none; box-shadow: none; }
+
+.dashboard-shell {
+ background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%);
+}
+
+.dark .dashboard-shell { background-color: var(--background); }
+.dark .dashboard-shell > .card { background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%); }
+
+.dashboard-settings .custom-scrollbar { padding-inline: 0; scrollbar-gutter: auto !important; }

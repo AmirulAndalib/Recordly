@@ -6,6 +6,7 @@ import { toFileUrl } from "./projectPersistence";
 export type ProjectLibraryEntry = {
 	path: string;
 	name: string;
+	createdAt?: number;
 	updatedAt: number;
 	thumbnailPath: string | null;
 	isCurrent: boolean;

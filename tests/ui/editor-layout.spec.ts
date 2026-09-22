@@ -42,9 +42,7 @@ test("advanced controls preserve values and remember each section's view", async
 	await page.screenshot({ path: "test-results/editor-color-picker.png", animations: "disabled" });
 });
 
-test("header stays centered with long names, native chrome and compact windows", async ({
-	page,
-}) => {
+test("header breadcrumb fits long names, native chrome and compact windows", async ({ page }) => {
 	await installDesktopBridge(page);
 	await page.goto("/?windowType=editor");
 	await expect(page.getByRole("button", { name: "Rename project" })).toBeVisible({
@@ -53,7 +51,7 @@ test("header stays centered with long names, native chrome and compact windows",
 	await page.getByRole("button", { name: "Rename project" }).click();
 	await page
 		.getByRole("textbox", { name: "Project name" })
-		.fill("A very long project title that should stay centered and never cover the toolbar");
+		.fill("A very long project title that should truncate and never cover the toolbar");
 	// Validate the editing state as well as the display state.
 	for (const width of [1440, 1280, 800]) {
 		await page.setViewportSize({ width, height: 800 });
@@ -85,8 +83,8 @@ test("header stays centered with long names, native chrome and compact windows",
 				),
 			);
 			const [left, center, right] = boxes;
-			expect(Math.abs(center!.x + center!.width / 2 - width / 2)).toBeLessThan(1);
-			expect(left!.x + left!.width).toBeLessThanOrEqual(center!.x);
+			expect(center!.x).toBeGreaterThan(left!.x);
+			expect(left!.x + left!.width).toBeLessThanOrEqual(right!.x);
 			expect(center!.x + center!.width).toBeLessThanOrEqual(right!.x);
 			const buttons = await page.locator(".editor-playback button").evaluateAll((nodes) =>
 				nodes
@@ -116,4 +114,29 @@ test("header stays centered with long names, native chrome and compact windows",
 	}
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: "Rename project" })).toBeVisible();
+});
+
+test("header name edits in place and saves on blur without a boxed input", async ({ page }) => {
+	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		window.electronAPI.saveProjectFileNamed = async (_data, name) => ({
+			success: true,
+			path: `/projects/${name}.recordly`,
+		});
+	});
+	await page.goto("/?windowType=editor");
+	await expect(page.getByRole("button", { name: "Rename project" })).toContainText(
+		"Untitled Project",
+	);
+	await page.getByRole("button", { name: "Rename project" }).click();
+	const input = page.getByRole("textbox", { name: "Project name" });
+	await expect(input).toHaveCSS("box-shadow", "none");
+	await expect(input).toHaveCSS("border-top-width", "0px");
+	await input.fill("Launch demo");
+	await input.press("Tab");
+	await expect(page.getByRole("button", { name: "Rename project" })).toContainText("Launch demo");
+	await page.getByRole("button", { name: "Rename project" }).click();
+	await input.fill("Discard this");
+	await input.press("Escape");
+	await expect(page.getByRole("button", { name: "Rename project" })).toContainText("Launch demo");
 });

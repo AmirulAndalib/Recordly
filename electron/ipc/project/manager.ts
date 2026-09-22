@@ -1,3 +1,4 @@
+import { hasFreshProjectThumbnail } from "./thumbnailFreshness";
 import { existsSync, constants as fsConstants, realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -335,10 +336,7 @@ export async function buildProjectLibraryEntry(
 		}
 
 		const thumbnailPath = getProjectThumbnailPath(normalizedPath);
-		const thumbnailExists = await fs
-			.access(thumbnailPath, fsConstants.R_OK)
-			.then(() => true)
-			.catch(() => false);
+		const thumbnailExists = await hasFreshProjectThumbnail(thumbnailPath, stats.mtimeMs);
 
 		return {
 			path: normalizedPath,
@@ -352,6 +350,7 @@ export async function buildProjectLibraryEntry(
 					"",
 				),
 			updatedAt: stats.mtimeMs,
+			createdAt: stats.birthtimeMs || stats.ctimeMs,
 			thumbnailPath: thumbnailExists ? thumbnailPath : null,
 			isCurrent: Boolean(
 				currentProjectPath && normalizePath(currentProjectPath) === normalizedPath,

@@ -1,3 +1,5 @@
+import { AccountProfileContext } from "@/components/ui/account-avatar";
+import { DashboardSettingsContext } from "../dashboard/DashboardSettings";
 import { RecordlySignInDialog, type SignInReason } from "@/components/auth/RecordlySignInDialog";
 import { useRecordlyAuth } from "@/components/auth/useRecordlyAuth";
 import { useVideoSourceRecovery } from "../hooks/useVideoSourceRecovery";
@@ -132,31 +134,57 @@ export function EditorShell(props: Props) {
 	} = editing;
 	const { dialogActions, status: exportStatus, exportMessage } = exportController;
 	const editorDialogs = (
-		<EditorDialogs
-			t={t}
-			projectSaveDialogOpen={project.projectSaveDialogOpen}
-			setProjectSaveDialogOpen={project.setProjectSaveDialogOpen}
-			projectSaveDialogDraft={project.projectSaveDialogDraft}
-			setProjectSaveDialogDraft={project.setProjectSaveDialogDraft}
-			projectSaveDialogInputRef={ui.projectSaveDialogInputRef}
-			isSavingProjectDialog={project.isSavingProjectDialog}
-			resolveProjectSaveDialog={lifecycle.resolveProjectSaveDialog}
-			handleProjectSaveDialogSubmit={saveActions.handleProjectSaveDialogSubmit}
-			unsavedChangesDialogOpen={project.unsavedChangesDialogOpen}
-			setUnsavedChangesDialogOpen={project.setUnsavedChangesDialogOpen}
-			unsavedChangesDialogActionLabel={project.unsavedChangesDialogActionLabel}
-			resolveUnsavedChangesDialog={lifecycle.resolveUnsavedChangesDialog}
-			projectBrowserOpen={project.projectBrowserOpen}
-			setProjectBrowserOpen={project.setProjectBrowserOpen}
-			projectLibraryEntries={project.projectLibraryEntries}
-			projectBrowserAnchorRef={
-				project.error ? ui.projectBrowserFallbackTriggerRef : ui.projectBrowserTriggerRef
-			}
-			handleImportMediaOrProject={openActions.handleImportMediaOrProject}
-			handleOpenProjectFromLibrary={openActions.handleOpenProjectFromLibrary}
-			nativeCaptureUnavailableModalOpen={ui.nativeCaptureUnavailableModalOpen}
-			setNativeCaptureUnavailableModalOpen={ui.setNativeCaptureUnavailableModalOpen}
-		/>
+		<AccountProfileContext.Provider value={auth.user}>
+			<DashboardSettingsContext.Provider
+				value={
+					<SettingsPanel
+						{...settingsPanelProps}
+						activeEffectSection="settings"
+						selectedAnnotationId={null}
+						selectedClipId={null}
+						advanced
+					/>
+				}
+			>
+				<EditorDialogs
+					t={t}
+					projectSaveDialogOpen={project.projectSaveDialogOpen}
+					setProjectSaveDialogOpen={project.setProjectSaveDialogOpen}
+					projectSaveDialogDraft={project.projectSaveDialogDraft}
+					setProjectSaveDialogDraft={project.setProjectSaveDialogDraft}
+					projectSaveDialogInputRef={ui.projectSaveDialogInputRef}
+					isSavingProjectDialog={project.isSavingProjectDialog}
+					resolveProjectSaveDialog={lifecycle.resolveProjectSaveDialog}
+					handleProjectSaveDialogSubmit={saveActions.handleProjectSaveDialogSubmit}
+					unsavedChangesDialogOpen={project.unsavedChangesDialogOpen}
+					setUnsavedChangesDialogOpen={project.setUnsavedChangesDialogOpen}
+					unsavedChangesDialogActionLabel={project.unsavedChangesDialogActionLabel}
+					resolveUnsavedChangesDialog={lifecycle.resolveUnsavedChangesDialog}
+					projectBrowserOpen={project.projectBrowserOpen}
+					setProjectBrowserOpen={project.setProjectBrowserOpen}
+					projectLibraryEntries={project.projectLibraryEntries}
+					projectError={project.error}
+					onDashboardSignIn={() => requestSignIn("account")}
+					onDeleteProjects={openActions.handleDeleteProjects}
+					onRenameProject={openActions.handleRenameLibraryProject}
+					onShareProject={async (path) => {
+						if (
+							path !== project.currentProjectPath &&
+							!(await openActions.handleOpenProjectFromLibrary(path))
+						)
+							return;
+						project.setProjectBrowserOpen(false);
+						if (!auth.user) requestSignIn("share");
+						else setShareRequestNonce((value) => value + 1);
+					}}
+					accountLabel={auth.user?.email}
+					handleImportMediaOrProject={openActions.handleImportMediaOrProject}
+					handleOpenProjectFromLibrary={openActions.handleOpenProjectFromLibrary}
+					nativeCaptureUnavailableModalOpen={ui.nativeCaptureUnavailableModalOpen}
+					setNativeCaptureUnavailableModalOpen={ui.setNativeCaptureUnavailableModalOpen}
+				/>
+			</DashboardSettingsContext.Provider>
+		</AccountProfileContext.Provider>
 	);
 	if (project.loading && !project.error)
 		return (
@@ -209,8 +237,6 @@ export function EditorShell(props: Props) {
 	return (
 		<div className="flex h-screen flex-col overflow-hidden bg-editor-bg text-foreground selection:bg-accent/20">
 			<EditorHeader
-				videosOpen={library.open}
-				onToggleVideos={() => library.setOpen((open) => !open)}
 				t={t}
 				headerLeftControlsPaddingClass={headerLeftControlsPaddingClass}
 				project={project}
@@ -295,6 +321,8 @@ export function EditorShell(props: Props) {
 			>
 				<div className="relative z-10 flex min-h-0 flex-1 pt-3">
 					<EditorSidebar
+						accountUser={auth.user}
+						onToggleVideos={() => library.setOpen((open) => !open)}
 						onAccountClick={() => requestSignIn("account")}
 						panelContent={
 							library.open ? <RecordingLibraryPanel library={library} /> : undefined

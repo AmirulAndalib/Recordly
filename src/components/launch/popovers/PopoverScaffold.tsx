@@ -1,6 +1,6 @@
 import { ToggleButton } from "@heroui/react";
 import { Button } from "@/components/ui/button";
-import { MicrophoneIcon, MicrophoneSlashIcon } from "@phosphor-icons/react";
+import { MicrophoneIcon, MicrophoneSlashIcon } from "@/components/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAudioLevelMeter } from "@/hooks/useAudioLevelMeter";

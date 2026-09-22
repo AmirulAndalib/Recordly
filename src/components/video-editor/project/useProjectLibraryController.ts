@@ -112,8 +112,8 @@ export function useProjectLibraryController({
 		}
 
 		const canvas = document.createElement("canvas");
-		const targetWidth = 320;
-		const targetHeight = 180;
+		const targetWidth = 1600;
+		const targetHeight = 1200;
 		canvas.width = targetWidth;
 		canvas.height = targetHeight;
 

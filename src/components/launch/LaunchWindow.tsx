@@ -10,7 +10,7 @@ import {
 	VideoCameraIcon,
 	VideoCameraSlashIcon,
 	XIcon,
-} from "@phosphor-icons/react";
+} from "@/components/ui/icons";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { RxDragHandleDots2 } from "react-icons/rx";
@@ -212,7 +212,6 @@ function LaunchWindowContent() {
 			paused={paused}
 			microphoneEnabled={microphoneEnabled}
 			elapsed={elapsed}
-			onToggleMicrophone={() => setMicrophoneEnabled(!microphoneEnabled)}
 			onPauseResume={paused ? resumeRecording : pauseRecording}
 			onStopRecording={toggleRecording}
 			onHideHud={() => window.electronAPI?.hudOverlayHide?.()}
@@ -250,7 +249,7 @@ function LaunchWindowContent() {
 						}
 					/>
 
-					<Separator orientation="vertical" className="mx-[5px] h-6" />
+					<Separator orientation="vertical" className="mx-[5px] h-6 self-center" />
 				</>
 			)}
 
@@ -364,7 +363,7 @@ function LaunchWindowContent() {
 				<div className={styles.recDot} />
 			</Button>
 
-			<Separator orientation="vertical" className="mx-[5px] h-6" />
+			<Separator orientation="vertical" className="mx-[5px] h-6 self-center" />
 
 			<div className="relative w-0 h-0">
 				<ProjectPopover

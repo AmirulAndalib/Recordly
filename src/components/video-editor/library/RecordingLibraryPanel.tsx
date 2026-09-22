@@ -9,7 +9,7 @@ import {
 	ArrowCounterClockwise,
 	DotsThree,
 	FolderOpen,
-} from "@phosphor-icons/react";
+} from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { RECORDING_DRAG_TYPE } from "@/types/recordingLibrary";
 import { cn } from "@/lib/utils";

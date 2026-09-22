@@ -1,4 +1,4 @@
-import { Keyboard, ArrowCounterClockwise as RotateCcw } from "@phosphor-icons/react";
+import { Keyboard, ArrowCounterClockwise as RotateCcw } from "@/components/ui/icons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";

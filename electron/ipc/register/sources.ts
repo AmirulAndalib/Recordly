@@ -1,7 +1,12 @@
+import { createRecordingEditorNavigation } from "../../recordingEditorNavigation";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { app, BrowserWindow, desktopCapturer, ipcMain, systemPreferences } from "electron";
-import { reassertHudOverlayMousePassthrough } from "../../windows";
+import {
+	createHudOverlayWindow,
+	getHudOverlayWindow,
+	reassertHudOverlayMousePassthrough,
+} from "../../windows";
 import { ALLOW_RECORDLY_WINDOW_CAPTURE } from "../constants";
 import {
 	getNativeMacWindowSources,
@@ -119,6 +124,7 @@ export function registerSourceHandlers({
 	createSourceSelectorWindow: () => BrowserWindow;
 	getSourceSelectorWindow: () => BrowserWindow | null;
 }) {
+	const recordingNavigation = createRecordingEditorNavigation(createEditorWindow);
 	ipcMain.handle("get-sources", async (_, opts) => {
 		const cacheKey = JSON.stringify({
 			types: opts?.types,
@@ -589,12 +595,22 @@ body{background:transparent;overflow:hidden;width:100vw;height:100vh}
 		}
 		createSourceSelectorWindow();
 	});
+	ipcMain.handle("show-recording-hud", (event) => {
+		recordingNavigation.setReturnWindow(BrowserWindow.fromWebContents(event.sender));
+		const hud = getHudOverlayWindow();
+		if (hud && !hud.isDestroyed()) {
+			hud.show();
+			hud.focus();
+		} else {
+			createHudOverlayWindow();
+		}
+	});
 	ipcMain.handle("switch-to-editor", () => {
 		console.log("[switch-to-editor] Opening editor window");
 		const sourceSelectorWin = getSourceSelectorWindow();
 		if (sourceSelectorWin && !sourceSelectorWin.isDestroyed()) {
 			sourceSelectorWin.close();
 		}
-		createEditorWindow();
+		recordingNavigation.open();
 	});
 }

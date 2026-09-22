@@ -7,7 +7,7 @@ import {
 	Scissors,
 	GearSix as Settings2,
 	XLogo as Twitter,
-} from "@phosphor-icons/react";
+} from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
