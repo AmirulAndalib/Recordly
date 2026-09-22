@@ -519,6 +519,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	renameLibraryProject: (path: string, name: string) =>
 		ipcRenderer.invoke("rename-library-project", path, name),
 	trashProjectFiles: (paths: string[]) => ipcRenderer.invoke("trash-project-files", paths),
+	showProjectDashboard: () => ipcRenderer.invoke("show-project-dashboard"),
 	switchToEditor: () => {
 		return ipcRenderer.invoke("switch-to-editor");
 	},

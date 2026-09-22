@@ -1,3 +1,4 @@
+import { RawThumbnail } from "./RawRecordings";
 import { AccountAvatar } from "@/components/ui/account-avatar";
 import { Dropdown } from "@heroui/react";
 import { Check, DotsThree, FolderSimple, Plus } from "@/components/ui/icons";
@@ -83,13 +84,20 @@ export function ProjectCard({
 				aria-pressed={selecting ? selected.includes(entry.path) : undefined}
 				className="relative block h-auto w-full min-w-0 rounded-xl p-0"
 			>
-				<ProjectThumbnail
-					key={`${entry.thumbnailPath}-${entry.updatedAt}`}
-					revision={entry.updatedAt}
-					path={entry.thumbnailPath}
-					projectPath={entry.path}
-					previewActive={hovering && !selecting && !busy}
-				/>
+				{entry.rawSource ? (
+					<RawThumbnail
+						entry={entry.rawSource}
+						active={hovering && !selecting && !busy}
+					/>
+				) : (
+					<ProjectThumbnail
+						key={`${entry.thumbnailPath}-${entry.updatedAt}`}
+						revision={entry.updatedAt}
+						path={entry.thumbnailPath}
+						projectPath={entry.path}
+						previewActive={hovering && !selecting && !busy}
+					/>
+				)}
 				{selecting && (
 					<span
 						className={`absolute right-2 top-2 flex size-5 items-center justify-center rounded-md ${selected.includes(entry.path) ? "bg-accent text-white" : "bg-background/90"}`}
@@ -110,7 +118,7 @@ export function ProjectCard({
 						>
 							<input
 								autoFocus
-								aria-label="Project name"
+								aria-label={entry.rawSource ? "Raw file name" : "Project name"}
 								className="inline-project-name h-5 w-full text-[12px] font-medium"
 								value={name}
 								disabled={busy}
@@ -221,7 +229,7 @@ export function ProjectCard({
 					<Dropdown.Popover>
 						<Dropdown.Menu aria-label="Project options">
 							<Dropdown.Item id="open" onAction={() => openEntry(entry)}>
-								Open project
+								{entry.rawSource ? "Preview file" : "Open project"}
 							</Dropdown.Item>
 							<Dropdown.Item
 								id="rename"
@@ -232,19 +240,24 @@ export function ProjectCard({
 							>
 								Rename
 							</Dropdown.Item>
+							{!entry.rawSource && (
+								<Dropdown.Item
+									id="share"
+									onAction={() =>
+										void run(async () => {
+											if (shareUrl)
+												await window.electronAPI.openExternalUrl(shareUrl);
+											else await onShareProject(entry.path);
+										})
+									}
+								>
+									{shareUrl ? "View in web" : "Share"}
+								</Dropdown.Item>
+							)}
 							<Dropdown.Item
-								id="share"
-								onAction={() =>
-									void run(async () => {
-										if (shareUrl)
-											await window.electronAPI.openExternalUrl(shareUrl);
-										else await onShareProject(entry.path);
-									})
+								aria-label={
+									entry.rawSource ? `Show ${entry.name} in folder` : undefined
 								}
-							>
-								{shareUrl ? "View in web" : "Share"}
-							</Dropdown.Item>
-							<Dropdown.Item
 								id="reveal"
 								onAction={() =>
 									void run(async () => {

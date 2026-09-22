@@ -1,10 +1,18 @@
+import { useRawLibrary } from "./useRawLibrary";
 import { useMemo, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import type { ProjectLibraryEntry } from "../ProjectBrowserDialog";
 import type { DashboardProps } from "./types";
 import { useDashboardMetadata } from "./useDashboardMetadata";
 import { useProjectFolders } from "./useProjectFolders";
-export function useDashboardModel({ entries, onOpenChange, onOpenProject }: DashboardProps) {
+export function useDashboardModel({
+	entries,
+	onOpenChange,
+	onOpenProject,
+	onRenameProject,
+	onDeleteProjects,
+	open,
+}: DashboardProps) {
 	const { metadata, update } = useDashboardMetadata();
 	const [selecting, setSelecting] = useState(false);
 	const [selected, setSelected] = useState<string[]>([]);
@@ -30,12 +38,24 @@ export function useDashboardModel({ entries, onOpenChange, onOpenProject }: Dash
 	const [query, setQuery] = useState("");
 	const [period, setPeriod] = useState("all");
 	const [sort, setSort] = useState("recent");
-	const [section, setSection] = useState("projects");
+	const [section, changeSection] = useState("projects");
+	const [library, setLibrary] = useState("projects");
+	const raw = useRawLibrary(open && library === "raw");
+	const [rawPreview, setRawPreview] = useState<ProjectLibraryEntry | null>(null);
+	const isRaw = library === "raw";
+	const setSection = (next: string) => {
+		if (next === "projects" || next === "raw") setLibrary(next);
+		changeSection(next);
+		setQuery("");
+		setSelecting(false);
+		setSelected([]);
+	};
+	const libraryEntries = isRaw ? raw.entries : entries;
 	const [busy, setBusy] = useState(false);
 	const { folders, save } = useProjectFolders();
 	const visible = useMemo(
 		() =>
-			entries
+			libraryEntries
 				.filter((entry) => {
 					const cutoff =
 						period === "week"
@@ -57,7 +77,7 @@ export function useDashboardModel({ entries, onOpenChange, onOpenProject }: Dash
 							? (b.createdAt ?? b.updatedAt) - (a.createdAt ?? a.updatedAt)
 							: b.updatedAt - a.updatedAt,
 				),
-		[entries, query, period, sort, folders, section],
+		[libraryEntries, query, period, sort, folders, section],
 	);
 	const run = async (action: () => Promise<void>) => {
 		if (busy) return;
@@ -71,15 +91,25 @@ export function useDashboardModel({ entries, onOpenChange, onOpenProject }: Dash
 		}
 	};
 	const openEntry = (entry: ProjectLibraryEntry) =>
-		entry.isCurrent
-			? onOpenChange(false)
-			: void run(async () => {
-					await onOpenProject(entry.path);
-				});
+		entry.rawSource
+			? setRawPreview(entry)
+			: entry.isCurrent
+				? onOpenChange(false)
+				: void run(async () => {
+						await onOpenProject(entry.path);
+					});
 	const navClass = (active: boolean) =>
 		`h-10 w-full justify-start gap-3 px-3 text-[13px] ${active ? "bg-default/50 font-medium" : "text-muted-foreground"}`;
 
 	return {
+		isRaw,
+		rawPreview,
+		setRawPreview,
+		rawLoading: raw.loading,
+		rawError: raw.error,
+		refreshRaw: raw.refresh,
+		onRenameProject: isRaw ? raw.rename : onRenameProject,
+		onDeleteProjects: isRaw ? raw.remove : onDeleteProjects,
 		metadata,
 		update,
 		selecting,

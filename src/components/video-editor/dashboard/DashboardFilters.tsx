@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { DashboardModel } from "./useDashboardModel";
 
 export function DashboardFilters({
+	isRaw,
 	period,
 	setPeriod,
 	selecting,
@@ -19,6 +20,7 @@ export function DashboardFilters({
 	setConfirmDelete,
 }: Pick<
 	DashboardModel,
+	| "isRaw"
 	| "period"
 	| "setPeriod"
 	| "selecting"
@@ -55,7 +57,9 @@ export function DashboardFilters({
 						variant="ghost"
 						size="icon"
 						className="size-7 min-w-7 text-danger"
-						aria-label="Select projects to delete"
+						aria-label={
+							isRaw ? "Select raw files to remove" : "Select projects to delete"
+						}
 						aria-pressed={selecting}
 						onClick={() => {
 							setSelecting(!selecting);
@@ -69,21 +73,25 @@ export function DashboardFilters({
 					<Button
 						variant="ghost"
 						size="sm"
-						aria-label="Sort projects"
+						aria-label={isRaw ? "Sort raw files" : "Sort projects"}
 						className="h-7 gap-2 text-xs text-muted-foreground"
 					>
 						{sort === "recent"
-							? "Last edited"
+							? isRaw
+								? "Last created"
+								: "Last edited"
 							: sort === "created"
 								? "Last created"
 								: "Name"}
 						<CaretDown className="size-3" />
 					</Button>
 					<Dropdown.Popover>
-						<Dropdown.Menu aria-label="Sort projects">
-							<Dropdown.Item id="recent" onAction={() => setSort("recent")}>
-								Last edited
-							</Dropdown.Item>
+						<Dropdown.Menu aria-label={isRaw ? "Sort raw files" : "Sort projects"}>
+							{!isRaw && (
+								<Dropdown.Item id="recent" onAction={() => setSort("recent")}>
+									Last edited
+								</Dropdown.Item>
+							)}
 							<Dropdown.Item id="created" onAction={() => setSort("created")}>
 								Last created
 							</Dropdown.Item>
@@ -110,7 +118,7 @@ export function DashboardFilters({
 						disabled={!selected.length || busy}
 						onClick={() => setConfirmDelete(true)}
 					>
-						Delete
+						{isRaw ? "Remove" : "Delete"}
 					</Button>
 					<Button
 						variant="ghost"

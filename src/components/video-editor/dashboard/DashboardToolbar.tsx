@@ -9,11 +9,12 @@ import type { DashboardProps } from "./types";
 import type { DashboardModel } from "./useDashboardModel";
 
 export function DashboardToolbar({
+	isRaw,
 	query,
 	setQuery,
 	run,
 	busy,
-}: Pick<DashboardProps & DashboardModel, "query" | "setQuery" | "run" | "busy">) {
+}: Pick<DashboardProps & DashboardModel, "query" | "setQuery" | "run" | "busy" | "isRaw">) {
 	return (
 		<>
 			<header
@@ -28,8 +29,8 @@ export function DashboardToolbar({
 					<Input
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
-						aria-label="Search projects"
-						placeholder="Search projects…"
+						aria-label={isRaw ? "Search raw files" : "Search projects"}
+						placeholder={isRaw ? "Search raw files…" : "Search projects…"}
 						className="h-11 w-full border-0 bg-default/30 pl-10 shadow-none"
 					/>
 				</div>

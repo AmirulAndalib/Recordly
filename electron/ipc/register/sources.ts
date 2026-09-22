@@ -605,6 +605,9 @@ body{background:transparent;overflow:hidden;width:100vw;height:100vh}
 			createHudOverlayWindow();
 		}
 	});
+	ipcMain.handle("show-project-dashboard", () => {
+		recordingNavigation.open(false);
+	});
 	ipcMain.handle("switch-to-editor", () => {
 		console.log("[switch-to-editor] Opening editor window");
 		const sourceSelectorWin = getSourceSelectorWindow();

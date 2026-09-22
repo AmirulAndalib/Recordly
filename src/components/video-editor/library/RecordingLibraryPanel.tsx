@@ -91,7 +91,7 @@ export function RecordingLibraryPanel({
 								textValue="Open recordings folder"
 								onAction={() => void window.electronAPI.openRecordingsFolder()}
 							>
-								<FolderOpen className="size-4" />
+								<FolderOpen weight="fill" className="size-4" />
 								<Label>Open recordings folder</Label>
 							</Dropdown.Item>
 							<Dropdown.Item

@@ -345,6 +345,14 @@ test("dashboard supports creation sort, independent folders, shared settings and
 	await expect(home.getByRole("row", { name: "Dark", exact: true })).toBeVisible();
 	await expect(home.getByRole("switch", { name: "Experimental updates" })).toBeVisible();
 	await expect(home.getByRole("switch", { name: "Connect Zooms" })).toBeVisible();
+	await expect(home.getByText("Recordings folder", { exact: true })).toBeVisible();
+	await home.getByRole("button", { name: "Change folder" }).click();
+	await expect(home.getByText("/new-recordings", { exact: true })).toBeVisible();
+	const capture = home.getByRole("switch", { name: "Hide HUD from recordings" });
+	await capture.press("Space");
+	await expect(page.locator("html")).toHaveAttribute("data-hide-hud", "true");
+	await expect(home.getByRole("button", { name: "Open file", exact: true })).toBeVisible();
+	await expect(home.getByText("Preview update UI", { exact: true })).toBeVisible();
 	await page.screenshot({ path: "test-results/dashboard-settings.png" });
 });
 
@@ -371,8 +379,8 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 			return { success: true };
 		};
 		window.electronAPI.getRecordingThumbnail = async () => ({
-			success: false,
-			error: "No thumbnail",
+			success: true,
+			value: `${location.origin}/tests/ui/fixtures/recording-thumbnail.jpg`,
 		});
 	});
 	await page.goto("/?windowType=editor");
@@ -396,12 +404,40 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 	await expect(home.getByRole("textbox", { name: "Search projects" })).toHaveCount(0);
 	await home.getByRole("textbox", { name: "Search raw files" }).fill("mic");
 	await expect(home.getByRole("list", { name: "Raw files" }).locator("li")).toHaveCount(1);
-	await home.getByRole("button", { name: "Show screen.mic.wav in folder" }).click();
+	await home.getByRole("button", { name: "Options for screen.mic.wav" }).click();
+	await page.getByRole("menuitem", { name: "Show screen.mic.wav in folder" }).click();
 	await expect(page.locator("html")).toHaveAttribute(
 		"data-revealed",
 		"/recordings/screen.mic.wav",
 	);
-	await page.screenshot({ path: "test-results/dashboard-raw.png" });
+	await home.getByRole("textbox", { name: "Search raw files" }).fill("");
+	await home.getByRole("button", { name: "Sort raw files" }).click();
+	await page.getByRole("menuitem", { name: "Name", exact: true }).click();
+	await expect(
+		home.getByRole("list", { name: "Raw files" }).locator("li > button").first(),
+	).toHaveAccessibleName("screen.mic.wav");
+	await expect(page.getByRole("menu", { name: "Sort raw files" })).toHaveCount(0);
+	await page.mouse.move(200, 40);
+	await page.screenshot({ path: "test-results/dashboard-raw.png", animations: "disabled" });
+	await home.getByRole("button", { name: "New folder", exact: true }).click();
+	await home.getByRole("button", { name: "Add folder to screen.mp4", exact: true }).click();
+	await page.getByRole("menuitem", { name: "Untitled folder", exact: true }).click();
+	await home.getByRole("button", { name: "Untitled folder", exact: true }).click();
+	await expect(home.getByRole("list", { name: "Raw files" }).locator("li")).toHaveCount(1);
+	await home.getByRole("button", { name: "Options for screen.mp4" }).click();
+	await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+	await home.getByRole("textbox", { name: "Raw file name" }).fill("Original take");
+	await home.getByRole("textbox", { name: "Raw file name" }).press("Enter");
+	await expect(home.getByRole("button", { name: "Original take", exact: true })).toBeVisible();
+	await home.getByRole("button", { name: "Original take", exact: true }).click();
+	await expect(page.getByRole("dialog", { name: "Raw file preview" })).toBeVisible();
+	await page.keyboard.press("Escape");
+	await home.getByRole("button", { name: "Select raw files to remove" }).click();
+	await home.getByRole("button", { name: "Original take", exact: true }).click();
+	await home.getByRole("button", { name: "Remove", exact: true }).click();
+	await page.getByRole("button", { name: "Remove from library", exact: true }).click();
+	await expect(home.getByRole("button", { name: "Original take", exact: true })).toHaveCount(0);
+	await home.getByRole("button", { name: "Raw", exact: true }).click();
 });
 
 test("project hover plays a muted five-second preview and stops on exit", async ({ page }) => {
@@ -477,6 +513,8 @@ test("project hover plays a muted five-second preview and stops on exit", async 
 		};
 	});
 	expect(fill, JSON.stringify(fill)).toMatchObject({ covers: true });
+	expect(fill.frame.width / fill.frame.height).toBeCloseTo(4 / 3, 2);
+	expect(fill.frame.width).toBeCloseTo(fill.card.width, 0);
 	await expect(preview).toHaveCount(0, { timeout: 8000 });
 	await page.mouse.move(0, 0);
 	await card.hover();

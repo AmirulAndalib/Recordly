@@ -9,7 +9,7 @@ type IconProps = SVGProps<SVGSVGElement> & {
 const solar =
 	(Linear: ComponentType<SolarIconProps>, Bold: ComponentType<SolarIconProps>, slash = false) =>
 	({ weight, mirrored, size, ...props }: IconProps) => {
-		const Icon = weight === "fill" ? Bold : Linear;
+		const Icon = weight === "fill" || weight === "bold" ? Bold : Linear;
 		const style = { ...props.style, ...(mirrored ? { transform: "scaleX(-1)" } : {}) };
 		if (slash)
 			return (
@@ -20,7 +20,7 @@ const solar =
 					viewBox="0 0 24 24"
 					fill="none"
 					style={style}
-					data-icon-style={weight === "fill" ? "bold" : "linear"}
+					data-icon-style={weight === "fill" || weight === "bold" ? "bold" : "linear"}
 				>
 					<Icon size={24} />
 					<path
@@ -35,7 +35,7 @@ const solar =
 			<Icon
 				{...props}
 				size={size}
-				data-icon-style={weight === "fill" ? "bold" : "linear"}
+				data-icon-style={weight === "fill" || weight === "bold" ? "bold" : "linear"}
 				style={style}
 			/>
 		);

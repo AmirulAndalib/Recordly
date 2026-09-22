@@ -1,142 +1,104 @@
-import { Button, Input, Modal } from "@heroui/react";
-import { useCallback, useEffect, useState } from "react";
-import { File, FolderOpen } from "@/components/ui/icons";
-import { toast } from "@/components/ui/toast";
+import { Modal } from "@heroui/react";
+import { useEffect, useRef, useState } from "react";
+import { MusicNotes } from "@/components/ui/icons";
+import type { ProjectLibraryEntry } from "../ProjectBrowserDialog";
 import type { RecordingLibraryEntry } from "@/types/recordingLibrary";
-export function RawRecordings() {
-	const [entries, setEntries] = useState<RecordingLibraryEntry[]>([]);
-	const [query, setQuery] = useState("");
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-	const [preview, setPreview] = useState<RecordingLibraryEntry | null>(null);
-	const refresh = useCallback(async () => {
-		setLoading(true);
-		setError("");
-		try {
-			const result = await window.electronAPI.listRecordings(true);
-			if (!result.success) throw Error(result.error);
-			setEntries(result.value);
-		} catch (error) {
-			setError(error instanceof Error ? error.message : "Could not load raw recordings");
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+const isAudio = (name: string) => /\.(wav|m4a|mp3|ogg|flac)$/i.test(name);
+export function RawThumbnail({ entry, active }: { entry: RecordingLibraryEntry; active: boolean }) {
+	const video = useRef<HTMLVideoElement>(null);
+	const [poster, setPoster] = useState<string>();
 	useEffect(() => {
-		void refresh();
-	}, [refresh]);
-	const reveal = async (path?: string) => {
-		try {
-			const result = path
-				? { success: true, path }
-				: await window.electronAPI.getRecordingsDirectory();
-			if (!result.success || !result.path) throw Error("Could not open recordings folder");
-			await window.electronAPI.revealInFolder(result.path);
-		} catch {
-			toast.error("Could not show recordings in folder");
+		let active = true;
+		if (!isAudio(entry.name))
+			void window.electronAPI
+				.getRecordingThumbnail(entry.path)
+				.then((result) => {
+					if (active && result.success) setPoster(result.value);
+				})
+				.catch(() => {});
+		return () => {
+			active = false;
+		};
+	}, [entry.path, entry.name]);
+	useEffect(() => {
+		const element = video.current;
+		if (!element) return;
+		if (!active || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			element.pause();
+			element.currentTime = 0;
+			return;
 		}
-	};
-	const visible = entries.filter((entry) =>
-		entry.name.toLowerCase().includes(query.trim().toLowerCase()),
-	);
+		const timer = window.setTimeout(() => {
+			element.currentTime = 0;
+			void element.play().catch(() => {});
+		}, 300);
+		const stop = () => {
+			if (document.hidden) element.pause();
+		};
+		document.addEventListener("visibilitychange", stop);
+		return () => {
+			clearTimeout(timer);
+			element.pause();
+			document.removeEventListener("visibilitychange", stop);
+		};
+	}, [active]);
 	return (
-		<section aria-label="Raw recordings" className="py-10">
-			<header className="mb-8 flex items-center justify-between gap-5">
-				<div>
-					<h1 className="text-lg font-semibold">Raw</h1>
-					<p className="mt-2 text-sm text-muted-foreground">
-						Original screen recordings, camera footage, and audio files.
-					</p>
-				</div>
-				<Button variant="secondary" onPress={() => void reveal()}>
-					<FolderOpen />
-					Show folder
-				</Button>
-			</header>
-			<Input
-				aria-label="Search raw files"
-				placeholder="Search raw files…"
-				value={query}
-				onChange={(event) => setQuery(event.target.value)}
-				className="mb-6 w-full"
-			/>
-			{loading ? (
-				<p role="status" className="py-12 text-sm text-muted-foreground">
-					Loading recordings…
-				</p>
-			) : error ? (
-				<div role="alert">
-					<p>{error}</p>
-					<Button variant="secondary" onPress={() => void refresh()}>
-						Retry
-					</Button>
-				</div>
-			) : visible.length ? (
-				<ul aria-label="Raw files" className="space-y-3">
-					{visible.map((entry) => (
-						<li
-							key={entry.path}
-							className="flex items-center gap-4 rounded-xl bg-default/20 p-4"
-						>
-							<File className="size-6 shrink-0 text-muted-foreground" />
-							<Button
-								variant="ghost"
-								className="h-auto min-w-0 flex-1 justify-start p-0 text-left"
-								onPress={() => setPreview(entry)}
-							>
-								<span className="min-w-0">
-									<span className="block truncate text-sm">{entry.name}</span>
-									<span className="mt-1 block text-xs text-muted-foreground">
-										{new Date(entry.createdAt).toLocaleDateString()} ·{" "}
-										{(entry.bytes / 1048576).toFixed(1)} MB
-									</span>
-								</span>
-							</Button>
-							<Button
-								isIconOnly
-								variant="ghost"
-								aria-label={`Show ${entry.name} in folder`}
-								onPress={() => void reveal(entry.path)}
-							>
-								<FolderOpen className="size-4" />
-							</Button>
-						</li>
-					))}
-				</ul>
+		<div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-default/60">
+			{isAudio(entry.name) ? (
+				<MusicNotes weight="fill" className="size-8 text-muted-foreground/40" />
 			) : (
-				<p className="py-12 text-center text-sm text-muted-foreground">
-					{query ? "No matching raw files" : "No raw recordings yet"}
-				</p>
+				<video
+					ref={video}
+					poster={poster}
+					src={entry.url}
+					muted
+					playsInline
+					preload="metadata"
+					className="h-full w-full object-cover"
+					onTimeUpdate={(event) => {
+						if (event.currentTarget.currentTime >= 5) event.currentTarget.pause();
+					}}
+				/>
 			)}
-			<Modal
-				isOpen={!!preview}
-				onOpenChange={(open) => {
-					if (!open) setPreview(null);
-				}}
-			>
-				<Modal.Backdrop>
-					<Modal.Container size="lg">
-						<Modal.Dialog aria-label="Raw file preview">
-							<Modal.CloseTrigger />
-							<Modal.Header>
-								<Modal.Heading>{preview?.name}</Modal.Heading>
-							</Modal.Header>
-							<Modal.Body>
-								{preview &&
-									(/\.(wav|m4a|mp3|ogg|flac)$/i.test(preview.name) ? (
-										<audio controls src={preview.url} className="w-full" />
-									) : (
-										<video
-											controls
-											src={preview.url}
-											className="max-h-[65vh] w-full rounded-xl"
-										/>
-									))}
-							</Modal.Body>
-						</Modal.Dialog>
-					</Modal.Container>
-				</Modal.Backdrop>
-			</Modal>
-		</section>
+		</div>
+	);
+}
+export function RawPreview({
+	entry,
+	onClose,
+}: {
+	entry: ProjectLibraryEntry | null;
+	onClose: () => void;
+}) {
+	return (
+		<Modal
+			isOpen={!!entry}
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
+			<Modal.Backdrop>
+				<Modal.Container size="lg">
+					<Modal.Dialog aria-label="Raw file preview">
+						<Modal.CloseTrigger />
+						<Modal.Header>
+							<Modal.Heading>{entry?.name}</Modal.Heading>
+						</Modal.Header>
+						<Modal.Body>
+							{entry?.rawSource &&
+								(isAudio(entry.rawSource.name) ? (
+									<audio controls src={entry.rawSource.url} className="w-full" />
+								) : (
+									<video
+										controls
+										src={entry.rawSource.url}
+										className="max-h-[65vh] w-full rounded-xl"
+									/>
+								))}
+						</Modal.Body>
+					</Modal.Dialog>
+				</Modal.Container>
+			</Modal.Backdrop>
+		</Modal>
 	);
 }

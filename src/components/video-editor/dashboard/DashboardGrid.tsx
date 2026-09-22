@@ -1,4 +1,4 @@
-import { RawRecordings } from "./RawRecordings";
+import { RawPreview } from "./RawRecordings";
 import { Cloud, ImageSquare } from "@/components/ui/icons";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,13 @@ import type { DashboardProps } from "./types";
 import type { DashboardModel } from "./useDashboardModel";
 
 export function DashboardGrid({
+	onImportFile,
+	isRaw,
+	rawPreview,
+	setRawPreview,
+	rawLoading,
+	rawError,
+	refreshRaw,
 	error,
 	section,
 	accountLabel,
@@ -31,6 +38,13 @@ export function DashboardGrid({
 	run,
 }: Pick<
 	DashboardProps & DashboardModel,
+	| "onImportFile"
+	| "isRaw"
+	| "rawPreview"
+	| "setRawPreview"
+	| "rawLoading"
+	| "rawError"
+	| "refreshRaw"
 	| "error"
 	| "section"
 	| "accountLabel"
@@ -59,9 +73,7 @@ export function DashboardGrid({
 					</p>
 				)}
 				{section === "settings" ? (
-					<DashboardSettings />
-				) : section === "raw" ? (
-					<RawRecordings />
+					<DashboardSettings onImportFile={onImportFile} />
 				) : section === "shared" ? (
 					<div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
 						<Cloud weight="fill" className="size-8 opacity-40" />
@@ -76,7 +88,7 @@ export function DashboardGrid({
 					</div>
 				) : visible.length ? (
 					<ul
-						aria-label="Your projects"
+						aria-label={isRaw ? "Raw files" : "Your projects"}
 						className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))] gap-x-7 gap-y-10 lg:gap-x-9"
 					>
 						{visible.map((entry) => (
@@ -103,7 +115,19 @@ export function DashboardGrid({
 				) : (
 					<div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
 						<ImageSquare weight="fill" className="size-8 opacity-30" />
-						<p>{query ? "No matching projects" : "No projects yet"}</p>
+						<p>
+							{isRaw
+								? rawLoading
+									? "Loading recordings…"
+									: rawError ||
+										(query ? "No matching raw files" : "No raw recordings yet")
+								: query
+									? "No matching projects"
+									: "No projects yet"}
+						</p>
+						{isRaw && rawError && (
+							<Button onClick={() => void refreshRaw()}>Retry</Button>
+						)}
 						{query && (
 							<Button variant="ghost" size="sm" onClick={() => setQuery("")}>
 								Clear search
@@ -111,6 +135,7 @@ export function DashboardGrid({
 						)}
 					</div>
 				)}
+				<RawPreview entry={rawPreview} onClose={() => setRawPreview(null)} />
 			</main>
 		</>
 	);

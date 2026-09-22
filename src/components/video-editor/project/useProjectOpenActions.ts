@@ -200,6 +200,17 @@ export function useProjectOpenActions({
 	]);
 
 	useEffect(() => {
+		const openRequestedDashboard = () => {
+			if (!localStorage.getItem("recordly.open-dashboard")) return;
+			localStorage.removeItem("recordly.open-dashboard");
+			if (!project.projectBrowserOpen) void handleOpenProjectBrowser();
+		};
+		openRequestedDashboard();
+		window.addEventListener("storage", openRequestedDashboard);
+		return () => window.removeEventListener("storage", openRequestedDashboard);
+	}, [handleOpenProjectBrowser, project.projectBrowserOpen]);
+
+	useEffect(() => {
 		const removeLoad = window.electronAPI.onMenuLoadProject(
 			() => void handleOpenProjectBrowser(),
 		);
@@ -225,16 +236,17 @@ export function useProjectOpenActions({
 		},
 		[project, refreshProjectLibrary],
 	);
- const handleRenameLibraryProject = async (path: string, name: string) => {
-  const result = await window.electronAPI.renameLibraryProject(path, name);
-  if (!result.success || !result.path) throw new Error(result.error || "Could not rename project");
-  if (project.currentProjectPath === path) project.setCurrentProjectPath(result.path);
-  await refreshProjectLibrary();
-  return result.path;
- };
+	const handleRenameLibraryProject = async (path: string, name: string) => {
+		const result = await window.electronAPI.renameLibraryProject(path, name);
+		if (!result.success || !result.path)
+			throw new Error(result.error || "Could not rename project");
+		if (project.currentProjectPath === path) project.setCurrentProjectPath(result.path);
+		await refreshProjectLibrary();
+		return result.path;
+	};
 
 	return {
- handleRenameLibraryProject,
+		handleRenameLibraryProject,
 		handleOpenProjectFromLibrary,
 		handleImportMediaOrProject,
 		handleOpenProjectBrowser,

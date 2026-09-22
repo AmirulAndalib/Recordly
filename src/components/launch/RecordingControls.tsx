@@ -1,4 +1,5 @@
 import {
+	House,
 	MicrophoneIcon,
 	MicrophoneSlashIcon,
 	MinusIcon,
@@ -11,6 +12,7 @@ import { Button, Separator, Tooltip } from "@heroui/react";
 import styles from "./LaunchWindow.module.css";
 
 interface RecordingControlsProps {
+	onHome: () => void;
 	paused: boolean;
 	microphoneEnabled: boolean;
 	elapsed: number;
@@ -21,6 +23,7 @@ interface RecordingControlsProps {
 	formatTime: (seconds: number) => string;
 }
 export function RecordingControls({
+	onHome,
 	paused,
 	microphoneEnabled,
 	elapsed,
@@ -34,6 +37,15 @@ export function RecordingControls({
 	const actionClass = `size-9 min-w-9 rounded-full ${styles.electronNoDrag}`;
 	return (
 		<div role="group" aria-label="Recording controls" className="flex items-center gap-2">
+			<Button
+				isIconOnly
+				variant="ghost"
+				className={actionClass}
+				aria-label="Home"
+				onPress={onHome}
+			>
+				<House weight="fill" className="size-4" />
+			</Button>
 			<div
 				className="flex items-center gap-3 px-2"
 				role="status"

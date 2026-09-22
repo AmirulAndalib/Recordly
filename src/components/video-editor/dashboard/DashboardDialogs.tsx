@@ -13,6 +13,7 @@ import type { DashboardProps } from "./types";
 import type { DashboardModel } from "./useDashboardModel";
 
 export function DashboardDialogs({
+	isRaw,
 	folders,
 	busy,
 	confirmDelete,
@@ -25,6 +26,7 @@ export function DashboardDialogs({
 	setSelecting,
 }: Pick<
 	DashboardProps & DashboardModel,
+	| "isRaw"
 	| "folders"
 	| "busy"
 	| "confirmDelete"
@@ -42,11 +44,15 @@ export function DashboardDialogs({
 				<DialogContent className="max-w-sm">
 					<DialogHeader>
 						<DialogTitle>
-							Delete {selected.length} project{selected.length === 1 ? "" : "s"}?
+							{isRaw ? "Remove" : "Delete"} {selected.length}{" "}
+							{isRaw ? "raw file" : "project"}
+							{selected.length === 1 ? "" : "s"}?
 						</DialogTitle>
 					</DialogHeader>
 					<p className="text-sm text-muted-foreground">
-						Project files move to Trash. Source recordings are kept.
+						{isRaw
+							? "Remove these files from the library. Original files stay on disk so existing projects keep working."
+							: "Project files move to Trash. Source recordings are kept."}
 					</p>
 					<DialogFooter>
 						<Button variant="ghost" onClick={() => setConfirmDelete(false)}>
@@ -71,7 +77,7 @@ export function DashboardDialogs({
 								})
 							}
 						>
-							Move to Trash
+							{isRaw ? "Remove from library" : "Move to Trash"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
