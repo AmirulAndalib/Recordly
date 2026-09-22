@@ -1,3 +1,4 @@
+import { isHudInEditorMode } from "./hudEditorMode";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -448,12 +449,24 @@ ipcMain.handle("set-hud-overlay-capture-protection", (_event, enabled: boolean) 
 });
 
 const editorWindows = new Set<BrowserWindow>();
+let recordingPreparationActive = false;
+function getHudEditorMode() {
+	return isHudInEditorMode(
+		editorWindows.size,
+		recordingPreparationActive,
+		hudOverlayRecordingActive,
+	);
+}
+export function setHudRecordingPreparationActive(active: boolean) {
+	recordingPreparationActive = active;
+	notifyEditorMode();
+}
 function notifyEditorMode() {
 	if (hudOverlayWindow && !hudOverlayWindow.webContents.isDestroyed()) {
-		hudOverlayWindow.webContents.send("editor-mode-changed", editorWindows.size > 0);
+		hudOverlayWindow.webContents.send("editor-mode-changed", getHudEditorMode());
 	}
 }
-ipcMain.handle("get-editor-mode", () => editorWindows.size > 0);
+ipcMain.handle("get-editor-mode", getHudEditorMode);
 
 export function createHudOverlayWindow(): BrowserWindow {
 	const perfStart = Date.now();
@@ -691,6 +704,7 @@ export function reassertHudOverlayMousePassthrough(): void {
 
 export function setHudOverlayRecordingActive(recording: boolean): void {
 	hudOverlayRecordingActive = Boolean(recording);
+	notifyEditorMode();
 	hudOverlayFallbackExpanded = false;
 	applyHudOverlayBounds();
 	reassertHudOverlayCaptureProtection();
@@ -947,6 +961,7 @@ export function createEditorWindow(): BrowserWindow {
 		},
 	});
 
+	recordingPreparationActive = false;
 	editorWindows.add(win);
 	notifyEditorMode();
 	win.once("closed", () => {

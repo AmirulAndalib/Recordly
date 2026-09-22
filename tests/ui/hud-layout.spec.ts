@@ -17,12 +17,10 @@ test("HUD dividers are vertically centered", async ({ page }) => {
 	const home = page.getByRole("button", { name: "Home", exact: true });
 	await expect(home.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await expect(page.getByRole("button", { name: "More", exact: true })).toHaveCount(0);
-	const icon = await home
-		.locator("svg")
-		.evaluate((element) => ({
-			width: element.getBoundingClientRect().width,
-			height: element.getBoundingClientRect().height,
-		}));
+	const icon = await home.locator("svg").evaluate((element) => ({
+		width: element.getBoundingClientRect().width,
+		height: element.getBoundingClientRect().height,
+	}));
 	expect(icon).toEqual({ width: 20, height: 20 });
 	await page.screenshot({ path: "test-results/hud-idle.png", animations: "disabled" });
 	await home.click();
@@ -54,4 +52,59 @@ test("recording HUD uses uniform controls and a readable timer", async ({ page }
 	);
 	for (const size of sizes) expect(size).toEqual([36, 36]);
 	await page.screenshot({ path: "test-results/hud-recording.png" });
+});
+
+test("New recording mode starts the webcam with an editor still open and releases it on Home", async ({
+	page,
+}) => {
+	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		window.electronAPI.getEditorMode = async () => true;
+		window.electronAPI.onEditorModeChanged = (callback) => {
+			const listener = (event: Event) => callback((event as CustomEvent<boolean>).detail);
+			window.addEventListener("test-editor-mode", listener);
+			return () => window.removeEventListener("test-editor-mode", listener);
+		};
+		window.electronAPI.getRecordingPreferences = async () => ({
+			success: true,
+			microphoneEnabled: false,
+			webcamEnabled: true,
+			systemAudioEnabled: false,
+		});
+		navigator.mediaDevices.getUserMedia = async () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = 320;
+			canvas.height = 320;
+			const context = canvas.getContext("2d")!;
+			context.fillStyle = "#2874ff";
+			context.fillRect(0, 0, 320, 320);
+			const stream = canvas.captureStream(24);
+			setInterval(() => context.fillRect(0, 0, 320, 320), 100);
+			return stream;
+		};
+		navigator.mediaDevices.enumerateDevices = async () => [];
+	});
+	await page.goto("/?windowType=hud-overlay");
+	const preview = page.locator("video").first();
+	await expect(preview).toBeVisible();
+	await expect
+		.poll(() => preview.evaluate((video: HTMLVideoElement) => video.srcObject === null))
+		.toBe(true);
+	await page.evaluate(() =>
+		window.dispatchEvent(new CustomEvent("test-editor-mode", { detail: false })),
+	);
+	await expect
+		.poll(() =>
+			preview.evaluate(
+				(video: HTMLVideoElement) =>
+					!!video.srcObject && !video.paused && video.videoWidth === 320,
+			),
+		)
+		.toBe(true);
+	await page.evaluate(() =>
+		window.dispatchEvent(new CustomEvent("test-editor-mode", { detail: true })),
+	);
+	await expect
+		.poll(() => preview.evaluate((video: HTMLVideoElement) => video.srcObject === null))
+		.toBe(true);
 });

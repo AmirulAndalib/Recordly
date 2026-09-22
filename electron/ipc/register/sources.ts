@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { app, BrowserWindow, desktopCapturer, ipcMain, systemPreferences } from "electron";
 import {
+	setHudRecordingPreparationActive,
 	createHudOverlayWindow,
 	getHudOverlayWindow,
 	reassertHudOverlayMousePassthrough,
@@ -596,6 +597,7 @@ body{background:transparent;overflow:hidden;width:100vw;height:100vh}
 		createSourceSelectorWindow();
 	});
 	ipcMain.handle("show-recording-hud", (event) => {
+		setHudRecordingPreparationActive(true);
 		recordingNavigation.setReturnWindow(BrowserWindow.fromWebContents(event.sender));
 		const hud = getHudOverlayWindow();
 		if (hud && !hud.isDestroyed()) {
@@ -606,9 +608,11 @@ body{background:transparent;overflow:hidden;width:100vw;height:100vh}
 		}
 	});
 	ipcMain.handle("show-project-dashboard", () => {
+		setHudRecordingPreparationActive(false);
 		recordingNavigation.open(false);
 	});
 	ipcMain.handle("switch-to-editor", () => {
+		setHudRecordingPreparationActive(false);
 		console.log("[switch-to-editor] Opening editor window");
 		const sourceSelectorWin = getSourceSelectorWindow();
 		if (sourceSelectorWin && !sourceSelectorWin.isDestroyed()) {
