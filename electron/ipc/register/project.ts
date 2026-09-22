@@ -20,6 +20,7 @@ import {
 	isTrustedProjectPath,
 	listProjectLibraryEntries,
 	loadProjectFromPath,
+	readProjectPreview,
 	loadRecentProjectPaths,
 	persistRecordingsDirectorySetting,
 	rememberApprovedLocalReadPath,
@@ -217,15 +218,22 @@ async function ensureNamedProjectSaveDoesNotOverwriteDifferentProject(
 }
 
 export function registerProjectHandlers() {
- ipcMain.handle("rename-library-project", async (_, source: string, name: string) => {
-  try {
-   const entries = await listProjectLibraryEntries();
-   const target = await renameLibraryProject(source, name, entries.entries.map(entry => entry.path), value => [getProjectThumbnailPath(value), getProjectBackupPath(value)]);
-   if (currentProjectPath === source) setCurrentProjectPath(target);
-   await rememberRecentProject(target);
-   return {success: true, path: target};
-  } catch(error) { return {success: false, error: String(error)}; }
- });
+	ipcMain.handle("rename-library-project", async (_, source: string, name: string) => {
+		try {
+			const entries = await listProjectLibraryEntries();
+			const target = await renameLibraryProject(
+				source,
+				name,
+				entries.entries.map((entry) => entry.path),
+				(value) => [getProjectThumbnailPath(value), getProjectBackupPath(value)],
+			);
+			if (currentProjectPath === source) setCurrentProjectPath(target);
+			await rememberRecentProject(target);
+			return { success: true, path: target };
+		} catch (error) {
+			return { success: false, error: String(error) };
+		}
+	});
 	const imports = new Map<number, AbortController>();
 	const pendingImports = new Map<number, Set<string>>();
 	const watchedImportSenders = new WeakSet<Electron.WebContents>();
@@ -266,6 +274,13 @@ export function registerProjectHandlers() {
 	ipcMain.handle("get-recording-thumbnail", async (_, file: string) => {
 		try {
 			return { success: true, value: await getRecordingThumbnail(file) };
+		} catch (error) {
+			return { success: false, error: String(error) };
+		}
+	});
+	ipcMain.handle("get-project-preview", async (_, projectPath: string) => {
+		try {
+			return { success: true, value: await readProjectPreview(projectPath) };
 		} catch (error) {
 			return { success: false, error: String(error) };
 		}

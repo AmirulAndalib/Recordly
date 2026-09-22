@@ -29,6 +29,7 @@ export async function installDesktopBridge(page: Page, videoFixture = "preview.m
 					return () => window.removeEventListener("test-window-chrome", listener);
 				},
 				getAppVersion: async () => "1.4.0",
+				getProjectPreview: async () => ({ success: false, error: "Preview unavailable" }),
 				getAnnouncements: async () => ({ success: true, announcements: [] }),
 				loadCurrentProjectFile: async () => ({ success: false }),
 				createProjectFile: async () => {

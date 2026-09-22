@@ -15,6 +15,9 @@ import type { useProjectState } from "../state/useProjectState";
 import { EditorExportMenu } from "./EditorExportMenu";
 import { EditorPresetMenu } from "./EditorPresetMenu";
 
+// Keep the preset implementation available for future use.
+const SHOW_PRESETS_BUTTON = false;
+
 type Props = {
 	t: ReturnType<typeof useI18n>["t"];
 	headerLeftControlsPaddingClass: string;
@@ -208,7 +211,7 @@ export function EditorHeader(props: Props) {
 						<Redo2 className="h-4 w-4" />
 					</Button>
 				</div>
-				<EditorPresetMenu t={t} presets={presets} />
+				{SHOW_PRESETS_BUTTON && <EditorPresetMenu t={t} presets={presets} />}
 				<EditorExportMenu
 					t={t}
 					exportSettings={exportSettings}

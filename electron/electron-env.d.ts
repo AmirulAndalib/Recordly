@@ -762,7 +762,16 @@ interface Window {
 			commit?: boolean,
 		) => Promise<{ success: boolean; error?: string }>;
 		cancelRecordingImport: () => Promise<{ success: boolean }>;
-		listRecordings: (includeSources?: boolean) => Promise<
+		getProjectPreview: (
+			projectPath: string,
+		) => Promise<
+			import("../src/types/recordingLibrary").LibraryResult<
+				import("../src/types/projectPreview").ProjectPreviewData
+			>
+		>;
+		listRecordings: (
+			includeSources?: boolean,
+		) => Promise<
 			import("../src/types/recordingLibrary").LibraryResult<
 				import("../src/types/recordingLibrary").RecordingLibraryEntry[]
 			>
@@ -842,7 +851,10 @@ interface Window {
 			message?: string;
 			canceled?: boolean;
 		}>;
-		renameLibraryProject: (path: string, name: string) => Promise<{success: boolean; path?: string; error?: string}>;
+		renameLibraryProject: (
+			path: string,
+			name: string,
+		) => Promise<{ success: boolean; path?: string; error?: string }>;
 		trashProjectFiles: (
 			paths: string[],
 		) => Promise<{ success: boolean; deleted: string[]; errors: string[] }>;
@@ -853,7 +865,7 @@ interface Window {
 				path: string;
 				name: string;
 				createdAt?: number;
-	updatedAt: number;
+				updatedAt: number;
 				thumbnailPath: string | null;
 				isCurrent: boolean;
 				isInProjectsDirectory: boolean;

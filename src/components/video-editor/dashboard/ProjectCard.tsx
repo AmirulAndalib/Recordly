@@ -39,6 +39,7 @@ export function ProjectCard({
 	save,
 	assignFolder,
 }: Props) {
+	const [hovering, setHovering] = useState(false);
 	const [editing, setEditing] = useState(false);
 	const renaming = useRef(false);
 	const [name, setName] = useState(entry.name);
@@ -72,6 +73,12 @@ export function ProjectCard({
 				variant="ghost"
 				disabled={busy}
 				aria-label={entry.name}
+				onPointerEnter={(event) => {
+					if (event.pointerType === "mouse") setHovering(true);
+				}}
+				onPointerLeave={() => setHovering(false)}
+				onFocus={() => setHovering(true)}
+				onBlur={() => setHovering(false)}
 				onClick={() => (selecting ? toggleSelected(entry.path) : openEntry(entry))}
 				aria-pressed={selecting ? selected.includes(entry.path) : undefined}
 				className="relative block h-auto w-full min-w-0 rounded-xl p-0"
@@ -80,6 +87,8 @@ export function ProjectCard({
 					key={`${entry.thumbnailPath}-${entry.updatedAt}`}
 					revision={entry.updatedAt}
 					path={entry.thumbnailPath}
+					projectPath={entry.path}
+					previewActive={hovering && !selecting && !busy}
 				/>
 				{selecting && (
 					<span

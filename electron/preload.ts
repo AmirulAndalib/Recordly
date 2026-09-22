@@ -516,7 +516,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	showRecordingHud: () => ipcRenderer.invoke("show-recording-hud"),
 	createProjectFile: (data: unknown, thumbnail?: string | null) =>
 		ipcRenderer.invoke("create-project-file", data, thumbnail),
-	renameLibraryProject: (path: string, name: string) => ipcRenderer.invoke("rename-library-project", path, name),
+	renameLibraryProject: (path: string, name: string) =>
+		ipcRenderer.invoke("rename-library-project", path, name),
 	trashProjectFiles: (paths: string[]) => ipcRenderer.invoke("trash-project-files", paths),
 	switchToEditor: () => {
 		return ipcRenderer.invoke("switch-to-editor");
@@ -804,7 +805,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	finishRecordingImport: (keepPath: string, commit?: boolean) =>
 		ipcRenderer.invoke("finish-recording-import", keepPath, commit),
 	cancelRecordingImport: () => ipcRenderer.invoke("cancel-recording-import"),
-	listRecordings: (includeSources?: boolean) => ipcRenderer.invoke("list-recordings", includeSources),
+	getProjectPreview: (projectPath: string) =>
+		ipcRenderer.invoke("get-project-preview", projectPath),
+	listRecordings: (includeSources?: boolean) =>
+		ipcRenderer.invoke("list-recordings", includeSources),
 	setRecordingsRemoved: (paths: string[], removed: boolean) =>
 		ipcRenderer.invoke("set-recordings-removed", paths, removed),
 	importRecording: (

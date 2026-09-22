@@ -391,3 +391,70 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 	);
 	await page.screenshot({ path: "test-results/dashboard-raw.png" });
 });
+
+test("project hover plays a muted five-second preview and stops on exit", async ({ page }) => {
+	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		window.electronAPI.listProjectFiles = async () => ({
+			success: true,
+			projects: [],
+			entries: [
+				{
+					path: "/projects/hover.recordly",
+					name: "Hover preview",
+					updatedAt: 1,
+					thumbnailPath: null,
+					isCurrent: false,
+					isInProjectsDirectory: true,
+				},
+			],
+		});
+		window.electronAPI.getProjectPreview = async () => {
+			document.documentElement.dataset.previewRequests = String(
+				Number(document.documentElement.dataset.previewRequests || 0) + 1,
+			);
+			return {
+				success: true,
+				value: {
+					videoUrl: `${location.origin}/tests/ui/fixtures/preview.mp4`,
+					webcamUrl: null,
+					project: {
+						version: 1,
+						videoPath: "/recordings/preview.mp4",
+						editor: {
+							clipRegions: [
+								{ id: "clip", startMs: 0, endMs: 6000, sourceStartMs: 0, speed: 1 },
+							],
+						},
+					},
+				},
+			};
+		};
+	});
+	await page.goto("/?windowType=editor");
+	await expect(page.getByRole("button", { name: "Open presets" })).toHaveCount(0);
+	await page.getByRole("button", { name: "Home", exact: true }).click();
+	const card = page.getByRole("button", { name: "Hover preview", exact: true });
+	await expect(card).toBeVisible();
+	await expect(page.locator("html")).not.toHaveAttribute("data-preview-requests");
+	await card.hover();
+	const preview = page.locator("[data-project-hover-preview]");
+	await expect(preview).toBeVisible();
+	await expect
+		.poll(() =>
+			preview
+				.locator("video")
+				.first()
+				.evaluate(
+					(video: HTMLVideoElement) =>
+						!video.paused && video.currentTime > 0 && video.muted,
+				),
+		)
+		.toBe(true);
+	await expect(preview).toHaveCount(0, { timeout: 8000 });
+	await page.mouse.move(0, 0);
+	await card.hover();
+	await expect(preview).toBeVisible();
+	await page.mouse.move(0, 0);
+	await expect(preview).toHaveCount(0);
+});
