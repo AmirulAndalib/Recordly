@@ -47,3 +47,35 @@ it("rejects unconfirmed submissions", async () => {
 	api.invoke.mockResolvedValue({ data: {}, error: null });
 	await expect(submitFeedback(input)).rejects.toThrow("not confirmed");
 });
+
+it("aborts a stalled request after one minute and permits a subsequent submission", async () => {
+	const { FunctionsClient } = await import("@supabase/functions-js");
+	vi.useFakeTimers();
+	let signal: AbortSignal | null | undefined;
+	try {
+		const functions = new FunctionsClient("https://example.test/functions/v1", {
+			customFetch: (_url, options) =>
+				new Promise((_resolve, reject) => {
+					signal = options?.signal;
+					signal?.addEventListener(
+						"abort",
+						() => reject(new DOMException("Aborted", "AbortError")),
+						{ once: true },
+					);
+				}),
+		});
+		api.invoke.mockImplementation(functions.invoke.bind(functions));
+		const pending = submitFeedback(input).catch((error) => error);
+		await vi.advanceTimersByTimeAsync(59_999);
+		expect(signal?.aborted).toBe(false);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(signal?.aborted).toBe(true);
+		expect(feedbackErrorMessage(await pending)).toBe(
+			"Could not send feedback. Please try again.",
+		);
+		api.invoke.mockResolvedValue({ data: { success: true }, error: null });
+		await expect(submitFeedback(input)).resolves.toBeUndefined();
+	} finally {
+		vi.useRealTimers();
+	}
+});

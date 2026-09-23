@@ -44,7 +44,7 @@ export async function submitFeedback(input: {
 	body.set("message", input.message.trim());
 	if (input.logs !== null) body.set("logs", input.logs);
 	for (const file of input.files) body.append("files", file);
-	const result = await client.functions.invoke("submit-feedback", { body });
+	const result = await client.functions.invoke("submit-feedback", { body, timeout: 60_000 });
 	if (result.error) {
 		const response = result.error.context;
 		if (response instanceof Response) {

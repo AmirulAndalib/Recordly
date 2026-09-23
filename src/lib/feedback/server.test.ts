@@ -72,15 +72,34 @@ it("cleans partial uploads and does not expose backend errors", async () => {
 	expect(await response.json()).toEqual({ code: "SUBMISSION_FAILED" });
 	expect(backend.remove).toHaveBeenCalledWith([expect.stringMatching(/^user-id\//)]);
 });
-it("caps streamed request bodies even without a content-length header", async () => {
+it("caps a valid multipart stream before consuming the entire oversized upload", async () => {
+	const multipart = request([new File([new Uint8Array(16 * 1024 * 1024)], "large.bin")]);
+	const bytes = new Uint8Array(await multipart.arrayBuffer());
+	let produced = 0;
+	let cancelled = false;
+	const body = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			if (produced === bytes.length) {
+				controller.close();
+				return;
+			}
+			const end = Math.min(produced + 64 * 1024, bytes.length);
+			controller.enqueue(bytes.slice(produced, end));
+			produced = end;
+		},
+		cancel() {
+			cancelled = true;
+		},
+	});
 	const req = new Request("https://example.test", {
 		method: "POST",
-		headers: {
-			Authorization: "Bearer session",
-			"Content-Type": "multipart/form-data; boundary=x",
-		},
-		body: new Uint8Array(12 * 1024 * 1024),
-	});
+		headers: multipart.headers,
+		body,
+		duplex: "half",
+	} as RequestInit);
+	expect(req.headers.has("content-length")).toBe(false);
 	expect((await handle(req)).status).toBe(400);
 	expect(backend.reserve).not.toHaveBeenCalled();
+	expect(cancelled).toBe(true);
+	expect(produced).toBeLessThan(bytes.length);
 });
