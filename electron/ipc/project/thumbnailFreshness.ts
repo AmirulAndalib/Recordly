@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
+import {
+	PROJECT_THUMBNAIL_WIDTH,
+	PROJECT_THUMBNAIL_HEIGHT,
+} from "../../../src/lib/projectThumbnail";
 
 // Older releases wrote 320px previews. Hide those and previews predating edits;
-// the editor replaces them with a full-resolution render when returning home.
+// the editor replaces them with a current-size render when returning home.
 export async function hasFreshProjectThumbnail(thumbnailPath: string, projectModifiedAt: number) {
 	let file: Awaited<ReturnType<typeof fs.open>> | undefined;
 	try {
@@ -13,8 +17,8 @@ export async function hasFreshProjectThumbnail(thumbnailPath: string, projectMod
 		return (
 			bytesRead === 24 &&
 			header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) &&
-			header.readUInt32BE(16) >= 1600 &&
-			header.readUInt32BE(20) >= 1200
+			header.readUInt32BE(16) >= PROJECT_THUMBNAIL_WIDTH &&
+			header.readUInt32BE(20) >= PROJECT_THUMBNAIL_HEIGHT
 		);
 	} catch {
 		return false;

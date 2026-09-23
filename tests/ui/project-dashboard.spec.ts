@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { hasFreshProjectThumbnail } from "../../electron/ipc/project/thumbnailFreshness";
 import { expect, test } from "@playwright/test";
 import { installDesktopBridge } from "./bridge";
 
@@ -140,8 +143,30 @@ test("home dashboard explains an empty library", async ({ page }) => {
 
 test("autosave creates one untitled project, stays idle without edits, and refreshes its preview on exit without a saved toast", async ({
 	page,
-}) => {
+}, testInfo) => {
 	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		const save = window.electronAPI.saveProjectFile;
+		window.electronAPI.saveProjectFile = async (...args) => {
+			const result = await save(...args);
+			if (args[3]) document.documentElement.dataset.savedThumbnail = args[3];
+			return result;
+		};
+		window.electronAPI.listProjectFiles = async () => ({
+			success: true,
+			projects: [],
+			entries: [
+				{
+					path: "/projects/preview.recordly",
+					name: "Generated preview",
+					updatedAt: 1,
+					thumbnailPath: document.documentElement.dataset.savedThumbnail ?? null,
+					isCurrent: true,
+					isInProjectsDirectory: true,
+				},
+			],
+		});
+	});
 	await page.goto("/?windowType=editor");
 	await expect(page.locator("html")).toHaveAttribute("data-project-creates", "1");
 	await expect(page.getByRole("button", { name: "Rename project" })).toContainText(
@@ -158,6 +183,19 @@ test("autosave creates one untitled project, stays idle without edits, and refre
 		"data-saved-thumbnail",
 		/^data:image\/png;base64,/,
 	);
+	const thumbnail = await page.locator("html").getAttribute("data-saved-thumbnail");
+	const file = testInfo.outputPath("generated-preview.png");
+	await fs.mkdir(path.dirname(file), { recursive: true });
+	await fs.writeFile(file, Buffer.from(thumbnail!.split(",")[1], "base64"));
+	// Exercise the actual main-process acceptance check against renderer output.
+	expect(await hasFreshProjectThumbnail(file, 0)).toBe(true);
+	const image = page
+		.getByRole("button", { name: "Generated preview", exact: true })
+		.locator("img");
+	await expect(image).toBeVisible();
+	await expect
+		.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth))
+		.toBe(640);
 	await expect(page.getByText(/Project saved/)).toHaveCount(0);
 });
 

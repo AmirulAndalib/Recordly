@@ -4,7 +4,7 @@ import path from "node:path";
 import { expect, it } from "vitest";
 import { hasFreshProjectThumbnail } from "./thumbnailFreshness";
 
-it("rejects legacy, stale, missing and broken previews while accepting a fresh high-resolution PNG", async () => {
+it("rejects legacy, stale, missing and broken previews while accepting a fresh current-size or larger PNG", async () => {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "recordly-preview-"));
 	const file = path.join(dir, "preview.png");
 	try {
@@ -15,6 +15,10 @@ it("rejects legacy, stale, missing and broken previews while accepting a fresh h
 		header.writeUInt32BE(180, 20);
 		await fs.writeFile(file, header);
 		expect(await hasFreshProjectThumbnail(file, 0)).toBe(false);
+		header.writeUInt32BE(640, 16);
+		header.writeUInt32BE(480, 20);
+		await fs.writeFile(file, header);
+		expect(await hasFreshProjectThumbnail(file, 0)).toBe(true);
 		header.writeUInt32BE(1600, 16);
 		header.writeUInt32BE(1200, 20);
 		await fs.writeFile(file, header);
