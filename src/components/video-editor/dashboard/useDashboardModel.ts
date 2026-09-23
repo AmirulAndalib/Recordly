@@ -121,6 +121,8 @@ export function useDashboardModel({
 		toggleSelected,
 		assignFolder,
 		query,
+		hasActiveFilters:
+			Boolean(query.trim()) || period !== "all" || folders.some((f) => f.id === section),
 		setQuery,
 		period,
 		setPeriod,

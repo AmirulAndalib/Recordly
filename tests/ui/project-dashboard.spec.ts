@@ -470,6 +470,7 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 	await scene.click();
 	await expect(scene).toBeChecked();
 	await expect(videos).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByRole("complementary", { name: "Clips" })).toHaveCount(0);
 	const homeButton = page.getByRole("button", { name: "Home", exact: true });
 	await expect(homeButton.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await homeButton.click();
@@ -717,16 +718,21 @@ test("sidebar cards, separate Import, and shortcut settings use the dashboard fl
 	await home.getByRole("button", { name: "Customize", exact: true }).click();
 	const shortcuts = page.getByRole("dialog", { name: "Keyboard Shortcuts", exact: true });
 	await expect(shortcuts).toBeVisible();
-	const change = shortcuts.getByRole("button", { name: "Change Add Zoom shortcut", exact: true });
+	const change = shortcuts.getByRole("button", { name: /^Change Add Zoom shortcut, currently / });
 	await change.click();
+	await expect(shortcuts.getByRole("button", { name: /^Add Zoom: / })).toHaveAccessibleName(
+		/press.*key/i,
+	);
 	await page.keyboard.press("j");
 	await expect(change).toHaveText("J");
+	await expect(change).toHaveAccessibleName("Change Add Zoom shortcut, currently J");
 	await shortcuts.getByRole("button", { name: "Save", exact: true }).scrollIntoViewIfNeeded();
 	await page.screenshot({ path: "test-results/dashboard-shortcuts.png", animations: "disabled" });
 	await shortcuts.getByRole("button", { name: "Save", exact: true }).click();
 	await expect(shortcuts).not.toBeVisible();
 	await home.getByRole("button", { name: "Customize", exact: true }).click();
 	await expect(change).toHaveText("J");
+	await expect(change).toHaveAccessibleName("Change Add Zoom shortcut, currently J");
 	await page.setViewportSize({ width: 800, height: 600 });
 	await expect(shortcuts.getByRole("button", { name: "Save", exact: true })).toBeInViewport();
 	await expect(
@@ -736,4 +742,24 @@ test("sidebar cards, separate Import, and shortcut settings use the dashboard fl
 		path: "test-results/dashboard-shortcuts-compact.png",
 		animations: "disabled",
 	});
+});
+
+test("empty filtered libraries do not prompt for a first recording", async ({ page }) => {
+	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		window.electronAPI.getCurrentVideoPath = async () => ({ success: false });
+	});
+	await page.goto("/?windowType=editor");
+	const home = page.getByRole("dialog", { name: "Projects dashboard" });
+	const first = home.getByRole("button", { name: "Record your first video", exact: true });
+	await expect(first).toBeVisible();
+	await home.getByRole("button", { name: "Last 7 days", exact: true }).click();
+	await expect(home.getByText("No matching projects", { exact: true })).toBeVisible();
+	await expect(first).toHaveCount(0);
+	await home.getByRole("button", { name: "All", exact: true }).click();
+	await expect(first).toBeVisible();
+	await home.getByRole("button", { name: "New folder", exact: true }).click();
+	await home.getByRole("button", { name: "Untitled folder", exact: true }).click();
+	await expect(home.getByText("No matching projects", { exact: true })).toBeVisible();
+	await expect(first).toHaveCount(0);
 });

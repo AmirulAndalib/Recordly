@@ -35,6 +35,7 @@ export function DashboardGrid({
 	selected,
 	openEntry,
 	query,
+	hasActiveFilters,
 	setQuery,
 	run,
 }: Pick<
@@ -62,6 +63,7 @@ export function DashboardGrid({
 	| "selected"
 	| "openEntry"
 	| "query"
+	| "hasActiveFilters"
 	| "setQuery"
 	| "run"
 >) {
@@ -115,7 +117,7 @@ export function DashboardGrid({
 					</ul>
 				) : (
 					<div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-						{!isRaw && !query ? (
+						{!isRaw && !hasActiveFilters ? (
 							<span aria-hidden="true" className="text-4xl">
 								🦗
 							</span>
@@ -127,12 +129,14 @@ export function DashboardGrid({
 								? rawLoading
 									? "Loading recordings…"
 									: rawError ||
-										(query ? "No matching raw files" : "No raw recordings yet")
-								: query
+										(hasActiveFilters
+											? "No matching raw files"
+											: "No raw recordings yet")
+								: hasActiveFilters
 									? "No matching projects"
 									: "It's looking empty in here..."}
 						</p>
-						{!isRaw && !query && (
+						{!isRaw && !hasActiveFilters && (
 							<RecordNewButton busy={busy} run={run} first className="mt-2" />
 						)}
 						{isRaw && rawError && (
