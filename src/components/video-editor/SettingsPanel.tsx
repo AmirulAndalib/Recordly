@@ -233,18 +233,26 @@ function MotionPresetCards({
 			value={activePresetId ?? undefined}
 			onChange={(value) => onApply(value as CursorMotionPresetId)}
 		>
-			<Label className="text-xs font-medium">{title}</Label>
+			<Label className="text-[13px] font-medium">{title}</Label>
 			{MOTION_PRESET_ORDER.map((presetId) => (
-				<Radio key={presetId} value={presetId}>
+				<Radio
+					key={presetId}
+					value={presetId}
+					className="rounded-xl border border-separator p-3"
+				>
 					<Radio.Content>
 						<Radio.Control>
 							<Radio.Indicator />
 						</Radio.Control>
-						<Label>{tSettings(`effects.motionPresets.${presetId}.label`)}</Label>
+						<div className="flex min-w-0 flex-col gap-1">
+							<Label className="text-[13px] font-medium">
+								{tSettings(`effects.motionPresets.${presetId}.label`)}
+							</Label>
+							<Description className="text-xs leading-relaxed">
+								{tSettings(`effects.motionPresets.${presetId}.description`)}
+							</Description>
+						</div>
 					</Radio.Content>
-					<Description>
-						{tSettings(`effects.motionPresets.${presetId}.description`)}
-					</Description>
 				</Radio>
 			))}
 		</RadioGroup>
@@ -2123,7 +2131,7 @@ export function SettingsPanel({
 				{whisperModelDownloadStatus === "downloading" ? (
 					<div className="h-2 overflow-hidden rounded-full bg-foreground/5">
 						<div
-							className="h-full rounded-full bg-[#2196f3] transition-all"
+							className="h-full rounded-full bg-accent transition-all"
 							style={{ width: `${whisperModelDownloadProgress}%` }}
 						/>
 					</div>
@@ -2312,7 +2320,7 @@ export function SettingsPanel({
 					)}
 				</SettingsCategory>
 				<SettingsCategory category="motion">
-					<section className="flex flex-col gap-3">
+					<section className="flex flex-col gap-6">
 						<SettingsRow
 							title={tSettings(
 								"effects.autoApplyFreshRecordingZooms",

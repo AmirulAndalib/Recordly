@@ -11,7 +11,7 @@ export type SidebarCard = {
 
 /** Code-only sidebar content. Empty cards or enabled:false hides this area. */
 export const sidebarCardConfig: { enabled: boolean; cards: SidebarCard[] } = {
-	enabled: true,
+	enabled: false,
 	cards: [
 		{
 			id: "placeholder",

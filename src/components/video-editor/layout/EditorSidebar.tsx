@@ -1,4 +1,3 @@
-import { File } from "@/components/ui/icons";
 import { AccountAvatar } from "@/components/ui/account-avatar";
 import type { User } from "@supabase/supabase-js";
 import { Camera, ClosedCaptioning, Cursor, Gear, FrameCorners } from "@/components/ui/icons";
@@ -20,7 +19,6 @@ import type { EditorEffectSection } from "../types";
 
 type Props = {
 	accountUser?: User | null;
-	onToggleVideos: () => void;
 	panelContent?: ReactNode;
 	onAccountClick?: () => void;
 	t: ReturnType<typeof useI18n>["t"];
@@ -32,7 +30,6 @@ type Props = {
 export function EditorSidebar({
 	t,
 	accountUser,
-	onToggleVideos,
 	activeSection,
 	setActiveSection,
 	settingsPanelProps,
@@ -80,19 +77,12 @@ export function EditorSidebar({
 					className="w-full items-center gap-2"
 					selectionMode="single"
 					disallowEmptySelection
-					selectedKeys={[panelContent ? "videos" : activeSection]}
+					selectedKeys={panelContent ? [] : [activeSection]}
 					onSelectionChange={(keys) => {
 						const key = Array.from(keys)[0];
-						if (key === "videos") onToggleVideos();
-						else if (key) setActiveSection(key as EditorEffectSection);
+						if (key) setActiveSection(key as EditorEffectSection);
 					}}
 				>
-					<Tooltip>
-						<ToggleButton id="videos" variant="ghost" isIconOnly aria-label="Clips">
-							<File weight={panelContent ? "fill" : "regular"} className="size-5" />
-						</ToggleButton>
-						<Tooltip.Content placement="right">Clips</Tooltip.Content>
-					</Tooltip>
 					{sections.map((section) => (
 						<Tooltip key={section.id}>
 							<ToggleButton

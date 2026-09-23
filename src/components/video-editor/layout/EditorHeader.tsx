@@ -1,3 +1,4 @@
+import { Separator } from "@heroui/react";
 import {
 	House,
 	FilmStrip,
@@ -109,16 +110,6 @@ export function EditorHeader(props: Props) {
 				style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
 			>
 				<Button
-					variant="secondary"
-					size="sm"
-					className="mr-2 h-9 shrink-0 gap-2"
-					aria-expanded={props.clipsOpen}
-					onClick={props.onToggleClips}
-				>
-					<FilmStrip weight={props.clipsOpen ? "fill" : "regular"} className="size-4" />
-					Clips
-				</Button>
-				<Button
 					ref={projectBrowserTriggerRef}
 					type="button"
 					variant="ghost"
@@ -139,7 +130,7 @@ export function EditorHeader(props: Props) {
 				</span>
 
 				<div
-					className="editor-header-title flex min-w-0 flex-1 items-center"
+					className="editor-header-title flex min-w-0 items-center"
 					style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
 				>
 					{isEditingProjectName ? (
@@ -193,6 +184,17 @@ export function EditorHeader(props: Props) {
 						</Button>
 					)}
 				</div>
+				<Separator orientation="vertical" className="mx-3 h-5 shrink-0" />
+				<Button
+					variant="secondary"
+					size="sm"
+					className="h-9 shrink-0 gap-2"
+					aria-expanded={props.clipsOpen}
+					onClick={props.onToggleClips}
+				>
+					<FilmStrip weight={props.clipsOpen ? "fill" : "regular"} className="size-4" />
+					Clips
+				</Button>
 			</div>
 
 			<div

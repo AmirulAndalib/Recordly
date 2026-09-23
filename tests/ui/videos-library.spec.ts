@@ -75,8 +75,8 @@ test("Clips supports selection, remove all, undo and real timeline drag insertio
 		.toBeGreaterThan(0);
 	await expect(panel.getByText("first.mp4", { exact: true })).toBeVisible();
 	const videosButton = page.getByRole("button", { name: "Clips", exact: true });
-	expect((await videosButton.boundingBox())!.x).toBeLessThan(
-		(await page.getByRole("button", { name: "Home", exact: true }).boundingBox())!.x,
+	expect((await videosButton.boundingBox())!.x).toBeGreaterThan(
+		(await page.getByRole("button", { name: "Rename project", exact: true }).boundingBox())!.x,
 	);
 	expect((await panel.boundingBox())!.x).toBeLessThan(100);
 	await expect(videosButton).toHaveClass(/button--secondary/);

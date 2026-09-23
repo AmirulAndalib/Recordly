@@ -17,7 +17,7 @@ export function SettingsRow({
 		<section
 			className={stacked ? "flex flex-col gap-3" : "flex items-center justify-between gap-4"}
 		>
-			<div className="min-w-0 space-y-1">
+			<div className="flex min-w-0 flex-col gap-1">
 				<Label className="text-[13px] font-medium">{title}</Label>
 				{description && (
 					<Description className="text-xs leading-relaxed">{description}</Description>

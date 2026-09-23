@@ -327,7 +327,7 @@ test("dashboard supports creation sort, independent folders, shared settings and
 		});
 	});
 	await page.goto("/?windowType=editor");
-	await page.getByRole("radio", { name: "Clips", exact: true }).click();
+	await page.getByRole("button", { name: "Clips", exact: true }).click();
 	await expect(page.getByRole("complementary", { name: "Clips" })).toBeVisible();
 	await page.getByRole("button", { name: "Home", exact: true }).click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });
@@ -390,6 +390,16 @@ test("dashboard supports creation sort, independent folders, shared settings and
 	await expect(home.getByText("Preview update UI", { exact: true })).toBeVisible();
 	await home.getByRole("row", { name: "Motion", exact: true }).click();
 	await expect(home.getByRole("switch", { name: "Connect Zooms" })).toBeVisible();
+	const motion = home.getByRole("region", { name: "Motion settings", exact: true });
+	const label = await motion.getByText("Connect Zooms", { exact: true }).boundingBox();
+	const description = await motion
+		.getByText("Smooth consecutive zoom regions into a continuous camera move.", {
+			exact: true,
+		})
+		.boundingBox();
+	expect(description!.y - (label!.y + label!.height)).toBeGreaterThanOrEqual(3);
+	expect(description!.x).toBe(label!.x);
+	await page.screenshot({ path: "test-results/settings-motion.png", animations: "disabled" });
 	await home.getByRole("row", { name: "Recording", exact: true }).click();
 	await expect(home.getByText("Recordings folder", { exact: true })).toBeVisible();
 	await home.getByRole("button", { name: "Change folder" }).click();
@@ -435,16 +445,17 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 	});
 	await page.goto("/?windowType=editor");
 	const scene = page.getByRole("radio", { name: "Scene", exact: true });
-	const videos = page.getByRole("radio", { name: "Clips", exact: true });
+	const videos = page.getByRole("button", { name: "Clips", exact: true });
+	await expect(page.getByRole("radio", { name: "Clips", exact: true })).toHaveCount(0);
 	await expect(scene).toBeChecked();
 	await expect(scene.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await videos.click();
-	await expect(videos).toBeChecked();
+	await expect(videos).toHaveAttribute("aria-expanded", "true");
 	await expect(videos.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await expect(scene.locator("svg")).toHaveAttribute("data-icon-style", "linear");
 	await scene.click();
 	await expect(scene).toBeChecked();
-	await expect(videos).not.toBeChecked();
+	await expect(videos).toHaveAttribute("aria-expanded", "false");
 	const homeButton = page.getByRole("button", { name: "Home", exact: true });
 	await expect(homeButton.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await homeButton.click();
@@ -678,12 +689,8 @@ test("sidebar cards, separate Import, and shortcut settings use the dashboard fl
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });
 	const sidebar = home.getByRole("complementary", { name: "Library navigation" });
 	await expect(sidebar.getByRole("button", { name: "Import", exact: true })).toHaveCount(0);
-	const banner = sidebar.getByRole("img", { name: "Placeholder banner" });
-	await expect
-		.poll(() => banner.evaluate((image: HTMLImageElement) => image.naturalWidth))
-		.toBeGreaterThan(0);
+	await expect(sidebar.getByRole("img", { name: "Placeholder banner" })).toHaveCount(0);
 	const settings = sidebar.getByRole("button", { name: "Settings", exact: true });
-	expect((await banner.boundingBox())!.y).toBeLessThan((await settings.boundingBox())!.y);
 	const importButton = home.getByRole("button", { name: "Import", exact: true });
 	const all = home.getByRole("button", { name: "All", exact: true });
 	expect(
