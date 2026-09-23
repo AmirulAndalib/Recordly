@@ -1,18 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const api = vi.hoisted(() => ({
-	getUser: vi.fn(),
-	upload: vi.fn(),
-	remove: vi.fn(),
-	insert: vi.fn(),
-}));
+const api = vi.hoisted(() => ({ getUser: vi.fn(), invoke: vi.fn() }));
 vi.mock("@/lib/auth/recordlyAuth", () => ({
-	recordlyAuth: {
-		auth: { getUser: api.getUser },
-		storage: { from: () => ({ upload: api.upload, remove: api.remove }) },
-		from: () => ({ insert: api.insert }),
-	},
+	recordlyAuth: { auth: { getUser: api.getUser }, functions: { invoke: api.invoke } },
 }));
-import { submitFeedback } from "./submitFeedback";
+import { feedbackErrorMessage, submitFeedback } from "./submitFeedback";
 const input = {
 	title: " Bug ",
 	subject: "bug",
@@ -23,30 +14,36 @@ const input = {
 beforeEach(() => {
 	vi.resetAllMocks();
 	api.getUser.mockResolvedValue({ data: { user: { id: "user-id" } }, error: null });
-	api.upload.mockResolvedValue({ error: null });
-	api.insert.mockResolvedValue({ error: null });
-	api.remove.mockResolvedValue({ error: null });
+	api.invoke.mockResolvedValue({ data: { success: true }, error: null });
 });
-it("stores a report only after its private attachments upload", async () => {
+it("submits attachments and diagnostics through the server endpoint", async () => {
 	await submitFeedback(input);
-	expect(api.upload).toHaveBeenCalledOnce();
-	expect(api.insert).toHaveBeenCalledWith(
-		expect.objectContaining({
-			user_id: "user-id",
-			title: "Bug",
-			message: "Steps",
-			attachments: [expect.objectContaining({ name: "notes.txt" })],
-		}),
-	);
-	expect(api.remove).not.toHaveBeenCalled();
+	const [name, { body }] = api.invoke.mock.calls[0];
+	expect(name).toBe("submit-feedback");
+	expect(body.get("title")).toBe("Bug");
+	expect(body.get("message")).toBe("Steps");
+	expect(body.get("logs")).toBe("logs");
+	expect(body.getAll("files")[0].name).toBe("notes.txt");
 });
-it("cleans uploaded attachments up when the report is rejected", async () => {
-	api.insert.mockResolvedValue({ error: new Error("unavailable") });
-	await expect(submitFeedback(input)).rejects.toThrow("unavailable");
-	expect(api.remove).toHaveBeenCalledWith([expect.stringMatching(/^user-id\//)]);
-});
-it("does not upload when the account session has expired", async () => {
+it("does not submit when the session has expired and explains how to recover", async () => {
 	api.getUser.mockResolvedValue({ data: { user: null }, error: null });
-	await expect(submitFeedback(input)).rejects.toThrow("sign in");
-	expect(api.upload).not.toHaveBeenCalled();
+	const error = await submitFeedback(input).catch((error) => error);
+	expect(feedbackErrorMessage(error)).toContain("sign in again");
+	expect(api.invoke).not.toHaveBeenCalled();
+});
+it("shows the server quota error without exposing internal errors", async () => {
+	api.invoke.mockResolvedValue({
+		error: {
+			context: new Response(JSON.stringify({ code: "FEEDBACK_LIMIT" }), { status: 429 }),
+		},
+	});
+	const error = await submitFeedback(input).catch((error) => error);
+	expect(feedbackErrorMessage(error)).toContain("tomorrow");
+	expect(feedbackErrorMessage(new Error("database private details"))).toBe(
+		"Could not send feedback. Please try again.",
+	);
+});
+it("rejects unconfirmed submissions", async () => {
+	api.invoke.mockResolvedValue({ data: {}, error: null });
+	await expect(submitFeedback(input)).rejects.toThrow("not confirmed");
 });

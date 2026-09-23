@@ -40,15 +40,19 @@ export function installFeedbackDiagnostics() {
 	window.addEventListener("error", (event) => record("error", [event.message]));
 	window.addEventListener("unhandledrejection", (event) => record("rejection", [event.reason]));
 }
+const MAX_DIAGNOSTIC_BYTES = 290_000;
 export function feedbackDiagnostics() {
-	return JSON.stringify(
-		{
-			capturedAt: new Date().toISOString(),
-			platform: navigator.platform,
-			userAgent: navigator.userAgent,
-			logs: [...entries],
-		},
-		null,
-		2,
-	);
+	const metadata = {
+		capturedAt: new Date().toISOString(),
+		platform: navigator.platform.slice(0, 2000),
+		userAgent: navigator.userAgent.slice(0, 2000),
+	};
+	const logs = [...entries];
+	const encoder = new TextEncoder();
+	let payload = JSON.stringify({ ...metadata, logs });
+	while (encoder.encode(payload).byteLength > MAX_DIAGNOSTIC_BYTES && logs.length) {
+		logs.shift();
+		payload = JSON.stringify({ ...metadata, logs });
+	}
+	return payload;
 }

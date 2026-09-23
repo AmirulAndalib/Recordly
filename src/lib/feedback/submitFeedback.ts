@@ -1,5 +1,20 @@
 import { recordlyAuth } from "@/lib/auth/recordlyAuth";
 
+export class FeedbackError extends Error {}
+
+export function feedbackErrorMessage(error: unknown) {
+	return error instanceof FeedbackError
+		? error.message
+		: "Could not send feedback. Please try again.";
+}
+
+const submissionErrors: Record<string, string> = {
+	SIGN_IN_REQUIRED: "Please sign in again to send feedback.",
+	INVALID_FEEDBACK: "Check your subject and description, then try again.",
+	INVALID_ATTACHMENTS: "Attach up to 5 nonempty files totaling 10 MB or less.",
+	FEEDBACK_LIMIT: "You’ve reached today’s feedback limit. Please try again tomorrow.",
+};
+
 export const MAX_FILES = 5;
 export const MAX_BYTES = 10 * 1024 * 1024;
 export function validateAttachments(files: File[]) {
@@ -17,40 +32,29 @@ export async function submitFeedback(input: {
 	logs: string | null;
 }) {
 	const client = recordlyAuth;
-	if (!client) throw new Error("Feedback is unavailable until account services are configured.");
+	if (!client)
+		throw new FeedbackError("Feedback is unavailable until account services are configured.");
 	const { data, error } = await client.auth.getUser();
-	if (error || !data.user) throw new Error("Please sign in again to send feedback.");
+	if (error || !data.user) throw new FeedbackError("Please sign in again to send feedback.");
 	const validation = validateAttachments(input.files);
-	if (validation) throw new Error(validation);
-	const id = crypto.randomUUID();
-	const uploaded: string[] = [];
-	const attachments = [];
-	try {
-		for (const file of input.files) {
-			const path = `${data.user.id}/${id}/${crypto.randomUUID()}`;
-			const { error: uploadError } = await client.storage
-				.from("feedback-attachments")
-				.upload(path, file, { contentType: "application/octet-stream" });
-			if (uploadError) throw uploadError;
-			uploaded.push(path);
-			attachments.push({ path, name: file.name, size: file.size, type: file.type });
+	if (validation) throw new FeedbackError(validation);
+	const body = new FormData();
+	body.set("title", input.title.trim());
+	body.set("subject", input.subject);
+	body.set("message", input.message.trim());
+	if (input.logs !== null) body.set("logs", input.logs);
+	for (const file of input.files) body.append("files", file);
+	const result = await client.functions.invoke("submit-feedback", { body });
+	if (result.error) {
+		const response = result.error.context;
+		if (response instanceof Response) {
+			if (response.status === 401) throw new FeedbackError(submissionErrors.SIGN_IN_REQUIRED);
+			const payload = await response.json().catch(() => null);
+			if (payload?.code && Object.keys(submissionErrors).includes(payload.code)) {
+				throw new FeedbackError(submissionErrors[payload.code]);
+			}
 		}
-		const { error: insertError } = await client.from("feedback_reports").insert({
-			id,
-			user_id: data.user.id,
-			title: input.title.trim(),
-			subject: input.subject,
-			message: input.message.trim(),
-			logs: input.logs,
-			attachments,
-		});
-		if (insertError) throw insertError;
-	} catch (error) {
-		if (uploaded.length)
-			await client.storage
-				.from("feedback-attachments")
-				.remove(uploaded)
-				.catch(() => undefined);
-		throw error;
+		throw result.error;
 	}
+	if (result.data?.success !== true) throw new Error("Feedback submission was not confirmed");
 }

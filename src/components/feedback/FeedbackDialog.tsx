@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { ChatDots, File, X } from "@/components/ui/icons";
 import { feedbackDiagnostics } from "@/lib/feedback/diagnostics";
-import { submitFeedback, validateAttachments } from "@/lib/feedback/submitFeedback";
+import {
+	feedbackErrorMessage,
+	submitFeedback,
+	validateAttachments,
+} from "@/lib/feedback/submitFeedback";
 
 export function FeedbackDialog({
 	className,
@@ -103,8 +107,8 @@ export function FeedbackDialog({
 								setSubject("");
 								setMessage("");
 								setFiles([]);
-							} catch {
-								setError("Could not send feedback. Please try again.");
+							} catch (error) {
+								setError(feedbackErrorMessage(error));
 							} finally {
 								sendingRef.current = false;
 								setSending(false);
@@ -116,7 +120,10 @@ export function FeedbackDialog({
 							isRequired
 							isDisabled={sending}
 							value={subject}
-							onChange={setSubject}
+							onChange={(value) => {
+								setSubject(value);
+								setError("");
+							}}
 							className="w-full"
 						>
 							<Label>Subject</Label>
@@ -127,7 +134,10 @@ export function FeedbackDialog({
 							isRequired
 							isDisabled={sending}
 							value={message}
-							onChange={setMessage}
+							onChange={(value) => {
+								setMessage(value);
+								setError("");
+							}}
 							className="w-full"
 						>
 							<Label>Description</Label>

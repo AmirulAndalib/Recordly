@@ -20,3 +20,25 @@ describe("feedback diagnostics", () => {
 		expect(validateAttachments([file(100)])).toBeNull();
 	});
 });
+
+it("bounds final JSON bytes for Unicode, escapes, and oversized metadata", async () => {
+	const { vi } = await import("vitest");
+	vi.stubGlobal("window", new EventTarget());
+	vi.stubGlobal("navigator", { platform: "平台".repeat(5000), userAgent: "代理".repeat(5000) });
+	const { installFeedbackDiagnostics, feedbackDiagnostics } = await import("./diagnostics");
+	const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+	try {
+		installFeedbackDiagnostics();
+		for (let i = 0; i < 100; i++) console.warn(`${i}: ${'中\\\"\u0001'.repeat(500)}`);
+		const payload = feedbackDiagnostics();
+		expect(new TextEncoder().encode(payload).length).toBeLessThanOrEqual(290000);
+		const data = JSON.parse(payload);
+		expect(data.logs.length).toBeGreaterThan(0);
+		expect(data.logs.length).toBeLessThan(100);
+		expect(data.logs.at(-1)).toContain("99:");
+		expect(data.capturedAt).toBeTruthy();
+	} finally {
+		warn.mockRestore();
+		vi.unstubAllGlobals();
+	}
+});

@@ -27,8 +27,14 @@ test("feedback preserves a draft on failure, supports attachments, and includes 
 	await expect(modal.getByRole("checkbox")).toHaveCount(0);
 	await expect(modal.getByLabel("Title", { exact: true })).toHaveCount(0);
 	await modal.getByRole("button", { name: "Send feedback", exact: true }).click();
-	await expect(modal.getByRole("alert")).toContainText("Could not send feedback");
+	await expect(modal.getByRole("alert")).toContainText(/sign in again|unavailable/i);
 	await expect(modal.getByLabel("Subject", { exact: true })).toHaveValue("Export stops early");
+	await modal.getByLabel("Subject", { exact: true }).fill("Export stops early (updated)");
+	await expect(modal.getByRole("alert")).toHaveCount(0);
+	await modal.getByRole("button", { name: "Send feedback", exact: true }).click();
+	await expect(modal.getByRole("alert")).toBeVisible();
+	await modal.getByLabel("Description", { exact: true }).fill("Updated reproduction steps.");
+	await expect(modal.getByRole("alert")).toHaveCount(0);
 	await page.screenshot({ path: "test-results/feedback.png" });
 	await modal.getByRole("button", { name: "Close", exact: true }).click();
 	await page.getByRole("button", { name: "Home", exact: true }).click();
