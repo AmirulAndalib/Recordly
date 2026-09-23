@@ -4,8 +4,25 @@
 @custom-variant dark (&:where(.dark, .dark *));
 @source "../index.html";
 
+/* DM Sans is bundled for consistent typography and offline desktop use. */
+@font-face {
+	font-family: "DM Sans";
+	src: url("./assets/fonts/dm-sans/DMSans-Variable.ttf") format("truetype");
+	font-style: normal;
+	font-weight: 100 1000;
+	font-display: swap;
+}
+@font-face {
+	font-family: "DM Sans";
+	src: url("./assets/fonts/dm-sans/DMSans-Italic-Variable.ttf") format("truetype");
+	font-style: italic;
+	font-weight: 100 1000;
+	font-display: swap;
+}
+
 /* Layout aliases only. All component colors and styling come from HeroUI's default theme. */
 @theme inline {
+	--font-sans: var(--app-font-sans);
 	--color-primary: var(--accent);
 	--color-primary-foreground: var(--accent-foreground);
 	--color-secondary: var(--default);
@@ -34,7 +51,7 @@
 @layer base {
 	:root {
 		--app-font-sans:
-			ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			"DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 		--brand-accent: var(--accent);
 		--brand-accent-rgb: 0, 111, 238;
 		--primary: var(--accent);
