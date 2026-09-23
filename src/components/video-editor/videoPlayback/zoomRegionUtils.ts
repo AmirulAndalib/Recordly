@@ -1,10 +1,18 @@
 import type { ZoomFocus, ZoomRegion } from "../types";
 import { ZOOM_DEPTH_SCALES } from "../types";
-import { TRANSITION_WINDOW_MS, ZOOM_IN_TRANSITION_WINDOW_MS } from "./constants";
+import {
+	TRANSITION_WINDOW_MS,
+	ZOOM_IN_TRANSITION_WINDOW_MS,
+	ZOOM_OUT_EARLY_START_MS,
+} from "./constants";
 import { clampFocusToScale } from "./focusUtils";
 import { clamp01, easeOutZoom } from "./mathUtils";
 
 const CHAINED_ZOOM_PAN_GAP_MS = 1350;
+const CONNECTED_ZOOM_PAN_DURATION_MS = 1000;
+const ZOOM_IN_OVERLAP_MS = 1000;
+// Shift the original animation timing 300ms earlier without changing its motion.
+const ZOOM_ANIMATION_LEAD_MS = -100;
 
 type DominantRegionOptions = {
 	connectZooms?: boolean;
@@ -16,6 +24,7 @@ type ConnectedRegionPair = {
 	currentRegion: ZoomRegion;
 	nextRegion: ZoomRegion;
 	transitionStart: number;
+	transitionEnd: number;
 };
 
 type ConnectedPanTransition = {
@@ -33,18 +42,34 @@ export function computeRegionStrength(
 ) {
 	const zoomInDurationMs = Math.max(1, options.zoomInDurationMs ?? ZOOM_IN_TRANSITION_WINDOW_MS);
 	const zoomOutDurationMs = Math.max(1, options.zoomOutDurationMs ?? TRANSITION_WINDOW_MS);
-	const length = region.endMs - region.startMs;
-	if (length <= 0 || timeMs <= region.startMs || timeMs >= region.endMs) return 0;
+	const adjustedTimeMs = timeMs - ZOOM_ANIMATION_LEAD_MS;
+	const leadInStart = region.startMs + ZOOM_IN_OVERLAP_MS - ZOOM_IN_TRANSITION_WINDOW_MS;
+	let zoomOutStart = region.endMs - ZOOM_OUT_EARLY_START_MS;
+	let zoomInEnd = leadInStart + zoomInDurationMs;
 
-	// Short blocks proportionally compress both ramps, with no discontinuity at
-	// their meeting point. Every duration setting stays inside the block.
-	const fit = Math.min(1, length / (zoomInDurationMs + zoomOutDurationMs));
-	const inDuration = zoomInDurationMs * fit;
-	const outDuration = zoomOutDurationMs * fit;
-	if (timeMs < region.startMs + inDuration) {
-		return easeOutZoom((timeMs - region.startMs) / inDuration);
+	if (zoomInEnd > zoomOutStart) {
+		const midpoint = (zoomInEnd + zoomOutStart) / 2;
+		zoomInEnd = midpoint;
+		zoomOutStart = midpoint;
 	}
-	return 1 - easeOutZoom(clamp01((timeMs - (region.endMs - outDuration)) / outDuration));
+
+	const leadOutEnd = zoomOutStart + zoomOutDurationMs;
+
+	if (adjustedTimeMs < leadInStart || adjustedTimeMs > leadOutEnd) {
+		return 0;
+	}
+
+	if (adjustedTimeMs < zoomInEnd) {
+		const progress = (adjustedTimeMs - leadInStart) / zoomInDurationMs;
+		return easeOutZoom(progress);
+	}
+
+	if (adjustedTimeMs <= zoomOutStart) {
+		return 1;
+	}
+
+	const progress = clamp01((adjustedTimeMs - zoomOutStart) / zoomOutDurationMs);
+	return 1 - easeOutZoom(progress);
 }
 
 function getResolvedFocus(region: ZoomRegion, zoomScale: number): ZoomFocus {
@@ -60,14 +85,16 @@ function getConnectedRegionPairs(regions: ZoomRegion[]) {
 		const nextRegion = sortedRegions[index + 1];
 		const gapMs = nextRegion.startMs - currentRegion.endMs;
 
-		if (gapMs < 0 || gapMs > CHAINED_ZOOM_PAN_GAP_MS) {
+		if (gapMs > CHAINED_ZOOM_PAN_GAP_MS) {
 			continue;
 		}
 
 		pairs.push({
 			currentRegion,
 			nextRegion,
-			transitionStart: currentRegion.endMs,
+			transitionStart: currentRegion.endMs + ZOOM_ANIMATION_LEAD_MS,
+			transitionEnd:
+				currentRegion.endMs + ZOOM_ANIMATION_LEAD_MS + CONNECTED_ZOOM_PAN_DURATION_MS,
 		});
 	}
 
@@ -83,30 +110,33 @@ function getActiveRegion(
 	const activeRegions = regions
 		.map((region) => {
 			const outgoingPair = connectedPairs.find((pair) => pair.currentRegion.id === region.id);
+			if (outgoingPair) {
+				if (timeMs >= outgoingPair.transitionStart) {
+					return { region, strength: 0 };
+				}
+
+				const zoomOutStart =
+					outgoingPair.currentRegion.endMs -
+					ZOOM_OUT_EARLY_START_MS +
+					ZOOM_ANIMATION_LEAD_MS;
+				if (timeMs >= zoomOutStart) {
+					return { region, strength: 1 };
+				}
+			}
+
 			const incomingPair = connectedPairs.find((pair) => pair.nextRegion.id === region.id);
-			const start = incomingPair?.transitionStart ?? region.startMs;
-			if (timeMs < start || (!incomingPair && timeMs === start) || timeMs >= region.endMs)
-				return { region, strength: 0 };
-			if (incomingPair || outgoingPair) {
-				const inDuration = Math.max(
-					1,
-					options.zoomInDurationMs ?? ZOOM_IN_TRANSITION_WINDOW_MS,
-				);
-				const outDuration = Math.max(1, options.zoomOutDurationMs ?? TRANSITION_WINDOW_MS);
-				const total = (incomingPair ? 0 : inDuration) + (outgoingPair ? 0 : outDuration);
-				const fit = total > 0 ? Math.min(1, (region.endMs - start) / total) : 1;
-				const strengthIn = incomingPair
-					? 1
-					: easeOutZoom(clamp01((timeMs - start) / (inDuration * fit)));
-				const strengthOut = outgoingPair
-					? 1
-					: 1 -
-						easeOutZoom(
-							clamp01(
-								(timeMs - (region.endMs - outDuration * fit)) / (outDuration * fit),
-							),
-						);
-				return { region, strength: Math.min(strengthIn, strengthOut) };
+			if (incomingPair) {
+				if (timeMs < incomingPair.transitionStart) {
+					return { region, strength: 0 };
+				}
+
+				const nextRegionZoomOutStart =
+					incomingPair.nextRegion.endMs -
+					ZOOM_OUT_EARLY_START_MS +
+					ZOOM_ANIMATION_LEAD_MS;
+				if (timeMs < nextRegionZoomOutStart) {
+					return { region, strength: 1 };
+				}
 			}
 
 			return { region, strength: computeRegionStrength(region, timeMs, options) };
@@ -137,6 +167,24 @@ function getActiveRegion(
 	};
 }
 
+function getConnectedRegionHold(timeMs: number, connectedPairs: ConnectedRegionPair[]) {
+	for (const pair of connectedPairs) {
+		if (timeMs >= pair.transitionEnd && timeMs < pair.nextRegion.startMs) {
+			const nextScale = ZOOM_DEPTH_SCALES[pair.nextRegion.depth];
+			return {
+				region: {
+					...pair.nextRegion,
+					focus: getResolvedFocus(pair.nextRegion, nextScale),
+				},
+				strength: 1,
+				blendedScale: null,
+			};
+		}
+	}
+
+	return null;
+}
+
 export function findDominantRegion(
 	regions: ZoomRegion[],
 	timeMs: number,
@@ -148,6 +196,13 @@ export function findDominantRegion(
 	transition: ConnectedPanTransition | null;
 } {
 	const connectedPairs = options.connectZooms ? getConnectedRegionPairs(regions) : [];
+
+	if (options.connectZooms) {
+		const connectedHold = getConnectedRegionHold(timeMs, connectedPairs);
+		if (connectedHold) {
+			return { ...connectedHold, transition: null };
+		}
+	}
 
 	const activeRegion = getActiveRegion(regions, timeMs, connectedPairs, options);
 	return activeRegion

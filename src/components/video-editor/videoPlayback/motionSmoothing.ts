@@ -317,26 +317,3 @@ export function getZoomSpringConfig(
 		tuning,
 	);
 }
-
-/** Keep spring lag inside the zoom envelope, including an exact neutral end frame. */
-export function stepBoundedZoomSpring(
-	springs: { scale: SpringState; x: SpringState; y: SpringState },
-	target: { scale: number; x: number; y: number },
-	deltaMs: number,
-	config: SpringConfig,
-	envelopeActive = true,
-) {
-	const scale = stepSpringValue(springs.scale, target.scale, deltaMs, config);
-	const x = stepSpringValue(springs.x, target.x, deltaMs, config);
-	const y = stepSpringValue(springs.y, target.y, deltaMs, config);
-	const boundedScale = Math.max(1, envelopeActive ? Math.min(target.scale, scale) : scale);
-	if (target.scale <= 1 || boundedScale !== scale) {
-		const ratio = scale > 1 ? (boundedScale - 1) / (scale - 1) : 0;
-		const result = { scale: boundedScale, x: x * ratio, y: y * ratio };
-		resetSpringState(springs.scale, result.scale);
-		resetSpringState(springs.x, result.x);
-		resetSpringState(springs.y, result.y);
-		return result;
-	}
-	return { scale, x, y };
-}
