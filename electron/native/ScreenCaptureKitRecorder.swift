@@ -1086,10 +1086,12 @@ DispatchQueue.global(qos: .utility).async {
 		}
 
 		if input == "stop" {
-			service.stop()
 			break
 		}
 	}
+	// EOF means the Electron parent exited or restarted. Finalize and release
+	// capture devices just as we do for an explicit stop command.
+	service.stop()
 }
 
 if !service.waitUntilFinished() {
