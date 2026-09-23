@@ -40,11 +40,14 @@ import {
 	getZoomSpringConfig,
 	resetSpringState,
 	type SpringState,
-	stepSpringValue,
+	stepBoundedZoomSpring,
 } from "@/components/video-editor/videoPlayback/motionSmoothing";
 import { getSceneEffectMetrics } from "@/components/video-editor/videoPlayback/sceneEffects";
 import { resolveSceneZoomTarget } from "@/components/video-editor/videoPlayback/sceneMotion";
-import { getWebcamMediaTargetTimeSeconds, isWebcamVisibleAtSourceTime } from "@/components/video-editor/videoPlayback/webcamSync";
+import {
+	getWebcamMediaTargetTimeSeconds,
+	isWebcamVisibleAtSourceTime,
+} from "@/components/video-editor/videoPlayback/webcamSync";
 import {
 	applyZoomTransform,
 	computeZoomTransform,
@@ -75,7 +78,6 @@ import { renderAnnotations } from "./annotationRenderer";
 import { renderCaptions } from "./captionRenderer";
 import { ForwardFrameSource } from "./forwardFrameSource";
 import { resolveMediaElementSource } from "./localMediaSource";
-
 
 interface FrameRenderConfig {
 	timelineEffects?: boolean;
@@ -1649,24 +1651,16 @@ export class FrameRenderer {
 			resetSpringState(this.springX, state.x);
 			resetSpringState(this.springY, state.y);
 		} else {
-			state.appliedScale = stepSpringValue(
-				this.springScale,
-				projectedTransform.scale,
+			const bounded = stepBoundedZoomSpring(
+				{ scale: this.springScale, x: this.springX, y: this.springY },
+				projectedTransform,
 				deltaMs,
 				zoomSpringConfig,
+				target.progress < 1,
 			);
-			state.x = stepSpringValue(
-				this.springX,
-				projectedTransform.x,
-				deltaMs,
-				zoomSpringConfig,
-			);
-			state.y = stepSpringValue(
-				this.springY,
-				projectedTransform.y,
-				deltaMs,
-				zoomSpringConfig,
-			);
+			state.appliedScale = bounded.scale;
+			state.x = bounded.x;
+			state.y = bounded.y;
 		}
 
 		return Math.max(
@@ -1739,7 +1733,11 @@ export class FrameRenderer {
 		const webcam = this.config.webcam;
 		const webcamDecodedFrame = this.webcamDecodedFrame;
 		const webcamVideo = this.webcamVideoElement;
-		if (!webcam?.enabled || !isWebcamVisibleAtSourceTime(webcam, this.currentVideoTime) || (!webcamDecodedFrame && !webcamVideo)) {
+		if (
+			!webcam?.enabled ||
+			!isWebcamVisibleAtSourceTime(webcam, this.currentVideoTime) ||
+			(!webcamDecodedFrame && !webcamVideo)
+		) {
 			return;
 		}
 

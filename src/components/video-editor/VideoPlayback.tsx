@@ -107,7 +107,7 @@ import {
 	getZoomSpringConfig,
 	resetSpringState,
 	type SpringState,
-	stepSpringValue,
+	stepBoundedZoomSpring,
 } from "./videoPlayback/motionSmoothing";
 import { updateOverlayIndicator } from "./videoPlayback/overlayUtils";
 import { supportsPreviewPlaybackRate } from "./videoPlayback/playbackRate";
@@ -2094,24 +2094,20 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				let appliedY: number;
 
 				if (motionMode === "spring" && contentAdvanced) {
-					appliedScale = stepSpringValue(
-						springScaleRef.current,
-						projectedTransform.scale,
+					const bounded = stepBoundedZoomSpring(
+						{
+							scale: springScaleRef.current,
+							x: springXRef.current,
+							y: springYRef.current,
+						},
+						projectedTransform,
 						deltaMs,
 						zoomSpringConfig,
+						target.progress < 1,
 					);
-					appliedX = stepSpringValue(
-						springXRef.current,
-						projectedTransform.x,
-						deltaMs,
-						zoomSpringConfig,
-					);
-					appliedY = stepSpringValue(
-						springYRef.current,
-						projectedTransform.y,
-						deltaMs,
-						zoomSpringConfig,
-					);
+					appliedScale = bounded.scale;
+					appliedX = bounded.x;
+					appliedY = bounded.y;
 				} else if (motionMode === "snap") {
 					// Timeline seeks and classic mode intentionally evaluate the exact target.
 					appliedScale = projectedTransform.scale;

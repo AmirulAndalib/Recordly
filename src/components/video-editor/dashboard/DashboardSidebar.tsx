@@ -55,7 +55,7 @@ export function DashboardSidebar({
 					<img
 						src={`${import.meta.env.BASE_URL}app-icons/recordly-64.png`}
 						alt=""
-						className="size-7"
+						className="size-7 rounded-lg"
 					/>
 					<span className="text-[15px] font-semibold tracking-tight">Recordly</span>
 				</div>

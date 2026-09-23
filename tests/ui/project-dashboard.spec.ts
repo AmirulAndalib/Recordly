@@ -522,3 +522,17 @@ test("project hover plays a muted five-second preview and stops on exit", async 
 	await page.mouse.move(0, 0);
 	await expect(preview).toHaveCount(0);
 });
+
+test("Home opens normally without a current recording", async ({ page }) => {
+	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		window.electronAPI.getCurrentVideoPath = async () => ({ success: false });
+		localStorage.setItem("recordly.open-dashboard", String(Date.now()));
+	});
+	await page.goto("/?windowType=editor");
+	const home = page.getByRole("dialog", { name: "Projects dashboard", exact: true });
+	await expect(home).toBeVisible();
+	await expect(home.getByRole("textbox", { name: "Search projects" })).toBeVisible();
+	await expect(page.getByText("No video to load.", { exact: false })).toHaveCount(0);
+	await expect(page.getByRole("alert")).toHaveCount(0);
+});
