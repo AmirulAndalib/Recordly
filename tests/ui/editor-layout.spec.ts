@@ -140,3 +140,14 @@ test("header name edits in place and saves on blur without a boxed input", async
 	await input.press("Escape");
 	await expect(page.getByRole("button", { name: "Rename project" })).toContainText("Launch demo");
 });
+
+test("new zoom blocks default to 1.8x", async ({ page }) => {
+	await installDesktopBridge(page);
+	await page.goto("/?windowType=editor");
+	await page.getByRole("button", { name: "Add Zoom (Z)", exact: true }).click();
+	await page.locator('[data-variant="zoom"] .timeline-block').first().click();
+	await expect(page.getByRole("row", { name: "1.8×", exact: true })).toHaveAttribute(
+		"aria-selected",
+		"true",
+	);
+});

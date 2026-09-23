@@ -381,17 +381,27 @@ test("dashboard supports creation sort, independent folders, shared settings and
 	await expect(home.getByRole("textbox", { name: "Search projects" })).toHaveCount(0);
 	await expect(home.getByRole("button", { name: "Sort projects" })).toHaveCount(0);
 	await expect(home.getByRole("row", { name: "Dark", exact: true })).toBeVisible();
+	await expect(home.getByRole("grid", { name: "Settings sections" })).toHaveCount(1);
+	await expect(home.getByRole("switch", { name: "Connect Zooms" })).toHaveCount(0);
+	await home.getByRole("row", { name: "Advanced", exact: true }).click();
 	await expect(home.getByRole("switch", { name: "Experimental updates" })).toBeVisible();
+	await expect(home.getByText("Preview update UI", { exact: true })).toBeVisible();
+	await home.getByRole("row", { name: "Motion", exact: true }).click();
 	await expect(home.getByRole("switch", { name: "Connect Zooms" })).toBeVisible();
+	await home.getByRole("row", { name: "Recording", exact: true }).click();
 	await expect(home.getByText("Recordings folder", { exact: true })).toBeVisible();
 	await home.getByRole("button", { name: "Change folder" }).click();
 	await expect(home.getByText("/new-recordings", { exact: true })).toBeVisible();
 	const capture = home.getByRole("switch", { name: "Hide HUD from recordings" });
 	await capture.press("Space");
 	await expect(page.locator("html")).toHaveAttribute("data-hide-hud", "true");
+	await home.getByRole("row", { name: "Files", exact: true }).click();
 	await expect(home.getByRole("button", { name: "Open file", exact: true })).toBeVisible();
-	await expect(home.getByText("Preview update UI", { exact: true })).toBeVisible();
-	await page.screenshot({ path: "test-results/dashboard-settings.png" });
+	await home.getByRole("row", { name: "Recording", exact: true }).click();
+	await expect(home.getByText("/new-recordings", { exact: true })).toBeVisible();
+	await home.getByRole("row", { name: "General", exact: true }).click();
+	await expect(home.getByRole("row", { name: "Dark", exact: true })).toBeVisible();
+	await page.screenshot({ path: "test-results/dashboard-settings.png", animations: "disabled" });
 });
 
 test("Solar navigation selection, circular initials, and Raw sources are consistent", async ({
