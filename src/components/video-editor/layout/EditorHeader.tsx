@@ -1,5 +1,6 @@
 import {
 	House,
+	FilmStrip,
 	ArrowClockwise as Redo2,
 	ArrowCounterClockwise as Undo2,
 } from "@/components/ui/icons";
@@ -19,6 +20,8 @@ import { EditorPresetMenu } from "./EditorPresetMenu";
 const SHOW_PRESETS_BUTTON = false;
 
 type Props = {
+	clipsOpen: boolean;
+	onToggleClips: () => void;
 	t: ReturnType<typeof useI18n>["t"];
 	headerLeftControlsPaddingClass: string;
 	project: ReturnType<typeof useProjectState>;
@@ -105,6 +108,16 @@ export function EditorHeader(props: Props) {
 				className={`editor-header-start flex min-w-0 items-center gap-1 ${headerLeftControlsPaddingClass}`}
 				style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
 			>
+				<Button
+					variant="secondary"
+					size="sm"
+					className="mr-2 h-9 shrink-0 gap-2"
+					aria-expanded={props.clipsOpen}
+					onClick={props.onToggleClips}
+				>
+					<FilmStrip weight={props.clipsOpen ? "fill" : "regular"} className="size-4" />
+					Clips
+				</Button>
 				<Button
 					ref={projectBrowserTriggerRef}
 					type="button"

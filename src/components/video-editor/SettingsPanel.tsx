@@ -42,7 +42,8 @@ import { loadEditorPreferences, saveEditorPreferences } from "./editorPreference
 import { getDefaultBorderRadiusPercent } from "./projectPersistence";
 import { SliderControl } from "./SliderControl";
 import { WallpaperGrid } from "./WallpaperGrid";
-import { KeyboardShortcutsDialog } from "./TutorialHelp";
+import { useShortcuts } from "@/contexts/ShortcutsContext";
+import { SettingsRow } from "./SettingsRow";
 import type {
 	AnnotationRegion,
 	AnnotationType,
@@ -1004,6 +1005,7 @@ export function SettingsPanel({
 	);
 	const [experimentalUpdatesEnabled, setExperimentalUpdatesEnabled] = useState(false);
 	const [savingExperimentalUpdates, setSavingExperimentalUpdates] = useState(false);
+	const { openConfig: openShortcutsConfig } = useShortcuts();
 	const [internalActiveEffectSection] = useState<EditorEffectSection>("scene");
 	const activeEffectSection = activeEffectSectionProp ?? internalActiveEffectSection;
 	const removeBackgroundStateRef = useRef<{
@@ -1793,7 +1795,7 @@ export function SettingsPanel({
 					style={{ scrollbarGutter: "stable" }}
 				>
 					<div className="mb-4 flex items-center gap-2">
-						<Palette className="w-4 h-4 text-[#2563EB]" />
+						<Palette className="w-4 h-4 text-accent" />
 						<span className="text-sm font-medium text-foreground">
 							{tSettings("background.title")}
 						</span>
@@ -2241,8 +2243,7 @@ export function SettingsPanel({
 				categories={advanced ? ["general", "motion", "advanced"] : ["general", "motion"]}
 			>
 				<SettingsCategory category="general">
-					<section className="flex flex-col gap-4">
-						<SectionLabel>{t("editor.theme.appearance", "Appearance")}</SectionLabel>
+					<SettingsRow title={t("editor.theme.appearance", "Appearance")} stacked>
 						<ChoiceGroup
 							type="single"
 							aria-label={t("editor.theme.appearance", "Appearance")}
@@ -2264,10 +2265,9 @@ export function SettingsPanel({
 								{t("editor.theme.system", "System")}
 							</ChoiceItem>
 						</ChoiceGroup>
-					</section>
+					</SettingsRow>
 
-					<section className="flex flex-col gap-4">
-						<SectionLabel>{t("common.app.language", "Language")}</SectionLabel>
+					<SettingsRow title={t("common.app.language", "Language")} stacked>
 						<Select
 							value={locale}
 							onValueChange={(value) => setLocale(value as AppLocale)}
@@ -2283,24 +2283,19 @@ export function SettingsPanel({
 								))}
 							</SelectContent>
 						</Select>
-					</section>
+					</SettingsRow>
 				</SettingsCategory>
 				<SettingsCategory category="advanced">
 					{advanced && (
 						<section className="flex flex-col gap-4">
 							<SectionLabel>{tSettings("updates.title", "Updates")}</SectionLabel>
-							<div className="flex items-center justify-between gap-3 py-2">
-								<div>
-									<div className="text-sm font-medium text-foreground">
-										{tSettings("updates.experimental", "Experimental updates")}
-									</div>
-									<div className="mt-0.5 text-xs text-muted-foreground/70">
-										{tSettings(
-											"updates.experimentalDescription",
-											"This is the front line of user testing - highly experimental so expect bugs",
-										)}
-									</div>
-								</div>
+							<SettingsRow
+								title={tSettings("updates.experimental", "Experimental updates")}
+								description={tSettings(
+									"updates.experimentalDescription",
+									"This is the front line of user testing - highly experimental so expect bugs",
+								)}
+							>
 								<Switch
 									checked={experimentalUpdatesEnabled}
 									disabled={savingExperimentalUpdates}
@@ -2312,27 +2307,22 @@ export function SettingsPanel({
 										"Experimental updates",
 									)}
 								/>
-							</div>
+							</SettingsRow>
 						</section>
 					)}
 				</SettingsCategory>
 				<SettingsCategory category="motion">
 					<section className="flex flex-col gap-3">
-						<div className="flex items-center justify-between gap-3 py-2">
-							<div>
-								<div className="text-sm font-medium text-foreground">
-									{tSettings(
-										"effects.autoApplyFreshRecordingZooms",
-										"Auto-apply fresh recording zooms",
-									)}
-								</div>
-								<div className="mt-0.5 text-xs text-muted-foreground/70">
-									{tSettings(
-										"effects.autoApplyFreshRecordingZoomsDescription",
-										"Suggest cursor-follow zooms automatically when you open a new recording.",
-									)}
-								</div>
-							</div>
+						<SettingsRow
+							title={tSettings(
+								"effects.autoApplyFreshRecordingZooms",
+								"Auto-apply fresh recording zooms",
+							)}
+							description={tSettings(
+								"effects.autoApplyFreshRecordingZoomsDescription",
+								"Suggest cursor-follow zooms automatically when you open a new recording.",
+							)}
+						>
 							<Switch
 								aria-label={tSettings(
 									"effects.autoApplyFreshRecordingZooms",
@@ -2341,19 +2331,14 @@ export function SettingsPanel({
 								checked={autoApplyFreshRecordingAutoZooms}
 								onCheckedChange={onAutoApplyFreshRecordingAutoZoomsChange}
 							/>
-						</div>
-						<div className="flex items-center justify-between gap-3 py-2">
-							<div>
-								<div className="text-sm font-medium text-foreground">
-									{tSettings("effects.connectZooms", "Connect neighboring zooms")}
-								</div>
-								<div className="mt-0.5 text-xs text-muted-foreground/70">
-									{tSettings(
-										"effects.connectZoomsDescription",
-										"Smooth consecutive zoom regions into a continuous camera move.",
-									)}
-								</div>
-							</div>
+						</SettingsRow>
+						<SettingsRow
+							title={tSettings("effects.connectZooms", "Connect neighboring zooms")}
+							description={tSettings(
+								"effects.connectZoomsDescription",
+								"Smooth consecutive zoom regions into a continuous camera move.",
+							)}
+						>
 							<Switch
 								aria-label={tSettings(
 									"effects.connectZooms",
@@ -2362,7 +2347,7 @@ export function SettingsPanel({
 								checked={connectZooms}
 								onCheckedChange={onConnectZoomsChange}
 							/>
-						</div>
+						</SettingsRow>
 					</section>
 
 					<section className="flex flex-col gap-4">
@@ -2375,17 +2360,15 @@ export function SettingsPanel({
 					</section>
 				</SettingsCategory>
 				<SettingsCategory category="general">
-					<section className="flex flex-col gap-4">
-						<SectionLabel>{t("editor.keyboardShortcuts.title")}</SectionLabel>
-						<KeyboardShortcutsDialog
-							triggerLabel={t("editor.keyboardShortcuts.customize")}
-							triggerClassName="h-9 w-full justify-start rounded-xl border border-foreground/10 bg-foreground/5 px-3 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground"
-						/>
-					</section>
+					<SettingsRow title={t("editor.keyboardShortcuts.title")}>
+						<Button variant="secondary" size="sm" onClick={openShortcutsConfig}>
+							{t("editor.keyboardShortcuts.customize")}
+						</Button>
+					</SettingsRow>
 				</SettingsCategory>
 				<SettingsCategory category="advanced">
 					{advanced && showDevMotionControls ? (
-						<section className="flex flex-col gap-4 rounded-xl border border-[#2563EB]/15 bg-[#2563EB]/5 p-3">
+						<section className="flex flex-col gap-4 rounded-xl border border-separator bg-surface-secondary p-3">
 							<div className="flex items-center justify-between gap-3">
 								<div>
 									<SectionLabel>
@@ -2398,7 +2381,7 @@ export function SettingsPanel({
 										)}
 									</div>
 								</div>
-								<span className="rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-[#2563EB]">
+								<span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-accent">
 									DEV
 								</span>
 							</div>

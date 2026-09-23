@@ -1,14 +1,6 @@
+import { SidebarCards } from "./SidebarCards";
 import { FolderRow } from "./FolderRow";
-import {
-	ArrowLeft,
-	Cloud,
-	File,
-	GearSix,
-	House,
-	Plus,
-	UploadSimple,
-	UserCircle,
-} from "@/components/ui/icons";
+import { Cloud, File, GearSix, House, Plus, UserCircle } from "@/components/ui/icons";
 
 import { Button } from "@/components/ui/button";
 
@@ -25,9 +17,6 @@ export function DashboardSidebar({
 	metadata,
 	update,
 	navClass,
-	run,
-	onImportFile,
-	onOpenChange,
 	onSignIn,
 	accountLabel,
 }: Pick<
@@ -39,9 +28,6 @@ export function DashboardSidebar({
 	| "metadata"
 	| "update"
 	| "navClass"
-	| "run"
-	| "onImportFile"
-	| "onOpenChange"
 	| "onSignIn"
 	| "accountLabel"
 >) {
@@ -142,22 +128,7 @@ export function DashboardSidebar({
 					))}
 				</div>
 				<div className="space-y-1 pt-6">
-					<Button
-						variant="ghost"
-						className={navClass(false)}
-						onClick={() => void run(onImportFile)}
-					>
-						<UploadSimple className="size-[18px]" />
-						Import
-					</Button>
-					<Button
-						variant="ghost"
-						className={navClass(false)}
-						onClick={() => onOpenChange(false)}
-					>
-						<ArrowLeft className="size-[18px]" />
-						Back to editor
-					</Button>
+					<SidebarCards />
 					<Button
 						variant="ghost"
 						className={navClass(section === "settings")}

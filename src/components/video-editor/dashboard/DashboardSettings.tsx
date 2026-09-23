@@ -1,5 +1,6 @@
 import { SettingsSections, SettingsCategory } from "../SettingsSections";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { SettingsRow } from "../SettingsRow";
 import { Switch } from "@/components/ui/switch";
 import { supportsHudCaptureProtection } from "@/lib/hudCaptureProtection";
 import { Button } from "@/components/ui/button";
@@ -48,30 +49,29 @@ export function DashboardSettings({ onImportFile }: { onImportFile: () => Promis
 					{settingsContent}
 				</SettingsCategory>
 				<SettingsCategory category="files">
-					<div className="flex items-center justify-between gap-8">
-						<p className="text-sm">Open video or project</p>
+					<SettingsRow title="Open video or project">
 						<Button
 							variant="secondary"
+							size="sm"
 							disabled={busy}
 							onClick={() => void run(onImportFile)}
 						>
 							Open file
 						</Button>
-					</div>
+					</SettingsRow>
 				</SettingsCategory>
 				<SettingsCategory category="recording">
-					<div className="flex items-center justify-between gap-8">
-						<div className="min-w-0">
-							<p className="text-sm">Recordings folder</p>
-							<p
-								className="mt-1 truncate text-xs text-muted-foreground"
-								title={recordings}
-							>
+					<SettingsRow
+						title="Recordings folder"
+						description={
+							<span className="block truncate" title={recordings}>
 								{recordings}
-							</p>
-						</div>
+							</span>
+						}
+					>
 						<Button
 							variant="secondary"
+							size="sm"
 							disabled={busy}
 							onClick={() =>
 								void run(async () => {
@@ -86,15 +86,12 @@ export function DashboardSettings({ onImportFile }: { onImportFile: () => Promis
 						>
 							Change folder
 						</Button>
-					</div>
+					</SettingsRow>
 					{captureSupported && (
-						<div className="flex items-center justify-between gap-8">
-							<div>
-								<p className="text-sm">Hide HUD from recordings</p>
-								<p className="mt-1 text-xs text-muted-foreground">
-									Only while recording. The idle HUD stays visible in captures.
-								</p>
-							</div>
+						<SettingsRow
+							title="Hide HUD from recordings"
+							description="Only while recording. The idle HUD stays visible in captures."
+						>
 							<Switch
 								aria-label="Hide HUD from recordings"
 								checked={hideHud}
@@ -111,15 +108,15 @@ export function DashboardSettings({ onImportFile }: { onImportFile: () => Promis
 									})
 								}
 							/>
-						</div>
+						</SettingsRow>
 					)}
 				</SettingsCategory>
 				<SettingsCategory category="advanced">
 					{import.meta.env.DEV && (
-						<div className="flex items-center justify-between gap-8">
-							<p className="text-sm">Preview update UI</p>
+						<SettingsRow title="Preview update UI">
 							<Button
 								variant="secondary"
+								size="sm"
 								disabled={busy}
 								onClick={() =>
 									void run(async () => {
@@ -129,24 +126,17 @@ export function DashboardSettings({ onImportFile }: { onImportFile: () => Promis
 							>
 								Preview
 							</Button>
-						</div>
+						</SettingsRow>
 					)}
 				</SettingsCategory>
 				<SettingsCategory category="files">
-					<div className="flex items-center justify-between gap-8">
-						<div>
-							<p className="text-sm">Projects folder</p>
-							{directory && (
-								<p
-									className="mt-1 max-w-xs truncate text-xs text-muted-foreground"
-									title={directory}
-								>
-									{directory}
-								</p>
-							)}
-						</div>
+					<SettingsRow
+						title="Projects folder"
+						description={directory || "Named projects save automatically."}
+					>
 						<Button
 							variant="secondary"
+							size="sm"
 							onClick={async () => {
 								try {
 									const result = await window.electronAPI.getProjectsDirectory();
@@ -161,7 +151,7 @@ export function DashboardSettings({ onImportFile }: { onImportFile: () => Promis
 						>
 							Show folder
 						</Button>
-					</div>
+					</SettingsRow>
 					<p className="text-xs text-muted-foreground">
 						Named projects save automatically. Previews refresh when you return to
 						Projects.

@@ -43,7 +43,7 @@ export function RecordingLibraryPanel({
 		<section
 			ref={panelRef}
 			tabIndex={-1}
-			aria-label="Videos library"
+			aria-label="Clips library"
 			data-recording-library
 			className="outline-none flex min-h-0 flex-1 flex-col"
 			onKeyDown={(event) => {
@@ -74,18 +74,18 @@ export function RecordingLibraryPanel({
 			}}
 		>
 			<header className="flex min-h-14 shrink-0 items-center gap-2 px-5 py-3">
-				<h2 className="flex-1 text-[14px] font-semibold">Videos</h2>
+				<h2 className="flex-1 text-[14px] font-semibold">Clips</h2>
 				<Dropdown>
 					<HeroButton
 						isIconOnly
 						variant="ghost"
 						size="sm"
-						aria-label="Video library actions"
+						aria-label="Clip library actions"
 					>
 						<DotsThree className="size-5" />
 					</HeroButton>
 					<Dropdown.Popover placement="bottom end">
-						<Dropdown.Menu aria-label="Video library actions">
+						<Dropdown.Menu aria-label="Clip library actions">
 							<Dropdown.Item
 								id="folder"
 								textValue="Open recordings folder"
@@ -115,7 +115,7 @@ export function RecordingLibraryPanel({
 					variant="ghost"
 					size="icon"
 					className="size-7"
-					aria-label="Close Videos"
+					aria-label="Close Clips"
 					onClick={() => library.setOpen(false)}
 				>
 					<X />

@@ -88,10 +88,10 @@ export function EditorSidebar({
 					}}
 				>
 					<Tooltip>
-						<ToggleButton id="videos" variant="ghost" isIconOnly aria-label="Videos">
+						<ToggleButton id="videos" variant="ghost" isIconOnly aria-label="Clips">
 							<File weight={panelContent ? "fill" : "regular"} className="size-5" />
 						</ToggleButton>
-						<Tooltip.Content placement="right">Videos</Tooltip.Content>
+						<Tooltip.Content placement="right">Clips</Tooltip.Content>
 					</Tooltip>
 					{sections.map((section) => (
 						<Tooltip key={section.id}>
@@ -128,7 +128,7 @@ export function EditorSidebar({
 				</Tooltip>
 			</nav>
 			<aside
-				aria-label={panelContent ? "Videos" : undefined}
+				aria-label={panelContent ? "Clips" : undefined}
 				className="editor-inspector [--text-sm:0.8125rem] [--text-base:0.8125rem] flex w-[320px] min-h-0 flex-col"
 			>
 				<Card className="min-h-0 flex-1 gap-0 overflow-hidden p-0">

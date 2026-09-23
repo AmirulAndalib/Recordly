@@ -11,6 +11,7 @@ import {
 	type SpringState,
 	stepSpringValue,
 } from "./motionSmoothing";
+import { TRANSITION_WINDOW_MS, ZOOM_IN_TRANSITION_WINDOW_MS } from "./constants";
 import { computeRegionStrength, findDominantRegion } from "./zoomRegionUtils";
 
 // ---------------------------------------------------------------------------
@@ -332,10 +333,44 @@ describe("computeRegionStrength", () => {
 
 	it("falls smoothly during zoom-out", () => {
 		// Sample the zoom-out ramp after the animation delay.
-		const zoomOutStart = region.endMs - 150;
+		const zoomOutStart = region.endMs - 500;
 		const s = computeRegionStrength(region, zoomOutStart + 700);
 		expect(s).toBeGreaterThan(0);
 		expect(s).toBeLessThan(1);
+	});
+
+	it("removes 500ms of hold without changing either ramp", () => {
+		const entranceStart = region.startMs + 1000 - ZOOM_IN_TRANSITION_WINDOW_MS + 500;
+		const exitStart = region.endMs - 500;
+		for (const fraction of [0, 0.25, 0.5, 0.75, 1]) {
+			expect(
+				computeRegionStrength(
+					region,
+					entranceStart + fraction * ZOOM_IN_TRANSITION_WINDOW_MS,
+				),
+			).toBeCloseTo(easeOutZoom(fraction));
+			expect(
+				computeRegionStrength(region, exitStart + fraction * TRANSITION_WINDOW_MS),
+			).toBeCloseTo(1 - easeOutZoom(fraction));
+		}
+		expect(computeRegionStrength(region, exitStart - 1)).toBe(1);
+	});
+
+	it("only removes the available hold for short blocks", () => {
+		const short = { ...region, endMs: 3700 };
+		// The original 200ms plateau is removed; neither ramp is shortened.
+		expect(computeRegionStrength(short, 3500)).toBe(1);
+		expect(computeRegionStrength(short, 3500 + TRANSITION_WINDOW_MS / 2)).toBeCloseTo(
+			1 - easeOutZoom(0.5),
+		);
+	});
+
+	it("uses the shortened exit for the final zoom in a connected sequence", () => {
+		const first = { ...region, id: "first", startMs: 0, endMs: 2000 };
+		const time = region.endMs - 500 + TRANSITION_WINDOW_MS / 2;
+		expect(
+			findDominantRegion([first, region], time, { connectZooms: true }).strength,
+		).toBeCloseTo(1 - easeOutZoom(0.5));
 	});
 
 	it("shifts zoom timing when custom durations are provided", () => {

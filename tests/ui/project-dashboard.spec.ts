@@ -137,7 +137,8 @@ test("home dashboard explains an empty library", async ({ page }) => {
 	await page.goto("/?windowType=editor");
 	await page.getByRole("button", { name: "Home", exact: true }).click();
 	await expect(page.getByText("No projects yet")).toBeVisible();
-	await page.getByRole("button", { name: "Back to editor" }).click();
+	await expect(page.getByRole("button", { name: "Back to editor" })).toHaveCount(0);
+	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: "Rename project" })).toBeVisible();
 });
 
@@ -326,8 +327,8 @@ test("dashboard supports creation sort, independent folders, shared settings and
 		});
 	});
 	await page.goto("/?windowType=editor");
-	await page.getByRole("radio", { name: "Videos", exact: true }).click();
-	await expect(page.getByRole("complementary", { name: "Videos" })).toBeVisible();
+	await page.getByRole("radio", { name: "Clips", exact: true }).click();
+	await expect(page.getByRole("complementary", { name: "Clips" })).toBeVisible();
 	await page.getByRole("button", { name: "Home", exact: true }).click();
 	const home = page.getByRole("dialog", { name: "Projects dashboard" });
 	await expect(home.getByLabel("Announcements", { exact: true })).toHaveCount(0);
@@ -339,7 +340,8 @@ test("dashboard supports creation sort, independent folders, shared settings and
 	await home.getByRole("button", { name: "Add folder to Old" }).click();
 	await page.getByRole("menuitem", { name: "Personal", exact: true }).click();
 	await expect(home.getByRole("button", { name: "Remove Old from Work" })).toBeVisible();
-	await expect(home.locator('[aria-label="1 more folders: Personal"]')).toBeVisible();
+	await expect(home.getByRole("button", { name: "Remove Old from Personal" })).toBeVisible();
+	await expect(home.locator('[aria-label="1 more folders: Personal"]')).toHaveCount(0);
 	const membership = await page.evaluate(() =>
 		JSON.parse(localStorage.getItem("recordly.project-folders.v1") || "[]"),
 	);
@@ -433,7 +435,7 @@ test("Solar navigation selection, circular initials, and Raw sources are consist
 	});
 	await page.goto("/?windowType=editor");
 	const scene = page.getByRole("radio", { name: "Scene", exact: true });
-	const videos = page.getByRole("radio", { name: "Videos", exact: true });
+	const videos = page.getByRole("radio", { name: "Clips", exact: true });
 	await expect(scene).toBeChecked();
 	await expect(scene.locator("svg")).toHaveAttribute("data-icon-style", "bold");
 	await videos.click();
@@ -650,8 +652,67 @@ test("folder actions stay inside narrow project cards without clipping", async (
 		});
 		expect(bounds).toEqual({ inside: true, fullWidth: true, reachable: true });
 	}
+	await card.evaluate((element) => {
+		element.style.width = "600px";
+	});
+	await expect(
+		card.getByRole("button", { name: "Remove Project 1 from Work", exact: true }),
+	).toBeVisible();
+	await expect(card.locator('[aria-label="1 more folders: Work"]')).toHaveCount(0);
+	await card.evaluate((element) => {
+		element.style.width = "340px";
+	});
+	await expect(card.locator('[aria-label="1 more folders: Work"]')).toBeVisible();
 	await add.click();
 	await expect(page.getByRole("menuitem", { name: "Work", exact: true })).toBeVisible();
 	await page.keyboard.press("Escape");
 	await page.screenshot({ path: "test-results/folder-actions.png", animations: "disabled" });
+});
+
+test("sidebar cards, separate Import, and shortcut settings use the dashboard flow", async ({
+	page,
+}) => {
+	await installDesktopBridge(page);
+	await page.goto("/?windowType=editor");
+	await page.getByRole("button", { name: "Home", exact: true }).click();
+	const home = page.getByRole("dialog", { name: "Projects dashboard" });
+	const sidebar = home.getByRole("complementary", { name: "Library navigation" });
+	await expect(sidebar.getByRole("button", { name: "Import", exact: true })).toHaveCount(0);
+	const banner = sidebar.getByRole("img", { name: "Placeholder banner" });
+	await expect
+		.poll(() => banner.evaluate((image: HTMLImageElement) => image.naturalWidth))
+		.toBeGreaterThan(0);
+	const settings = sidebar.getByRole("button", { name: "Settings", exact: true });
+	expect((await banner.boundingBox())!.y).toBeLessThan((await settings.boundingBox())!.y);
+	const importButton = home.getByRole("button", { name: "Import", exact: true });
+	const all = home.getByRole("button", { name: "All", exact: true });
+	expect(
+		Math.abs((await importButton.boundingBox())!.y - (await all.boundingBox())!.y),
+	).toBeLessThan(2);
+	expect(await all.evaluate((element) => element.parentElement!.textContent)).not.toContain(
+		"Import",
+	);
+	await settings.click();
+	await home.getByRole("button", { name: "Customize", exact: true }).click();
+	const shortcuts = page.getByRole("dialog", { name: "Keyboard Shortcuts", exact: true });
+	await expect(shortcuts).toBeVisible();
+	const change = shortcuts.getByRole("button", { name: "Change Add Zoom shortcut", exact: true });
+	await change.click();
+	await page.keyboard.press("j");
+	await expect(change).toHaveText("J");
+	await shortcuts.getByRole("button", { name: "Save", exact: true }).scrollIntoViewIfNeeded();
+	await page.screenshot({ path: "test-results/dashboard-shortcuts.png", animations: "disabled" });
+	await shortcuts.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(shortcuts).not.toBeVisible();
+	await home.getByRole("button", { name: "Customize", exact: true }).click();
+	await expect(change).toHaveText("J");
+	await page.setViewportSize({ width: 800, height: 600 });
+	await expect(shortcuts.getByRole("button", { name: "Save", exact: true })).toBeInViewport();
+	await expect(
+		shortcuts.getByRole("heading", { name: "Keyboard Shortcuts", exact: true }),
+	).toBeInViewport();
+	await page.screenshot({
+		path: "test-results/dashboard-shortcuts-compact.png",
+		animations: "disabled",
+	});
 });

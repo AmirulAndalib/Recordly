@@ -1,3 +1,4 @@
+import { ProjectFolderChips } from "./ProjectFolderChips";
 import { RawThumbnail } from "./RawRecordings";
 import { AccountAvatar } from "@/components/ui/account-avatar";
 import { Dropdown } from "@heroui/react";
@@ -148,44 +149,11 @@ export function ProjectCard({
 								day: "numeric",
 							})}
 						</p>
-						<div
-							aria-label={`Folders for ${entry.name}`}
-							className="flex min-w-0 flex-1 items-center gap-1.5"
-						>
-							{assignedFolders.slice(0, 1).map((item) => (
-								<Button
-									key={item.id}
-									variant="ghost"
-									size="sm"
-									aria-label={`Remove ${entry.name} from ${item.name}`}
-									title={item.name}
-									onClick={() => assignFolder(entry.path, item.id)}
-									className="h-6 min-w-0 max-w-28 shrink gap-1.5 rounded-full bg-default/40 px-2.5 text-[11px]"
-								>
-									<FolderSimple
-										weight="fill"
-										className="size-3 shrink-0"
-										style={{ color: item.color }}
-									/>
-									<span className="truncate">{item.name}</span>
-								</Button>
-							))}
-							{assignedFolders.length > 1 && (
-								<span
-									className="shrink-0 text-[11px] text-muted-foreground"
-									aria-label={`${assignedFolders.length - 1} more folders: ${assignedFolders
-										.slice(1)
-										.map((item) => item.name)
-										.join(", ")}`}
-									title={assignedFolders
-										.slice(1)
-										.map((item) => item.name)
-										.join(", ")}
-								>
-									+{assignedFolders.length - 1}
-								</span>
-							)}
-						</div>
+						<ProjectFolderChips
+							folders={assignedFolders}
+							name={entry.name}
+							onRemove={(id) => assignFolder(entry.path, id)}
+						/>
 						<Dropdown>
 							<Button
 								variant="ghost"
