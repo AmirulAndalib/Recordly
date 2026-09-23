@@ -106,7 +106,7 @@ export function ProjectCard({
 					</span>
 				)}
 			</Button>
-			<div className="flex items-start justify-between gap-4 pt-5">
+			<div className="relative flex items-start justify-between gap-4 pt-5">
 				<AccountAvatar label={accountLabel} className="!size-[48px]" />
 				<div data-project-caption className="h-12 min-w-0 flex-1">
 					{editing ? (
@@ -119,7 +119,7 @@ export function ProjectCard({
 							<input
 								autoFocus
 								aria-label={entry.rawSource ? "Raw file name" : "Project name"}
-								className="inline-project-name h-5 w-full text-[12px] font-medium"
+								className="inline-project-name h-5 w-full pr-8 text-[12px] font-medium"
 								value={name}
 								disabled={busy}
 								maxLength={120}
@@ -136,12 +136,12 @@ export function ProjectCard({
 					) : (
 						<p
 							title={entry.name}
-							className="truncate text-[12px] font-medium leading-5"
+							className="truncate pr-8 text-[12px] font-medium leading-5"
 						>
 							{entry.name}
 						</p>
 					)}
-					<div className="mt-1 flex h-6 min-w-0 items-center gap-3 overflow-x-auto [scrollbar-width:none]">
+					<div className="mt-1 flex h-6 min-w-0 items-center gap-2">
 						<p className="shrink-0 text-[11px] text-muted-foreground">
 							{new Date(entry.updatedAt).toLocaleDateString(undefined, {
 								month: "short",
@@ -150,16 +150,17 @@ export function ProjectCard({
 						</p>
 						<div
 							aria-label={`Folders for ${entry.name}`}
-							className="flex min-w-0 items-center gap-2"
+							className="flex min-w-0 flex-1 items-center gap-1.5"
 						>
-							{assignedFolders.map((item) => (
+							{assignedFolders.slice(0, 1).map((item) => (
 								<Button
 									key={item.id}
 									variant="ghost"
 									size="sm"
 									aria-label={`Remove ${entry.name} from ${item.name}`}
+									title={item.name}
 									onClick={() => assignFolder(entry.path, item.id)}
-									className="h-6 min-w-0 max-w-28 shrink-0 gap-1.5 rounded-full bg-default/40 px-2.5 text-[11px]"
+									className="h-6 min-w-0 max-w-28 shrink gap-1.5 rounded-full bg-default/40 px-2.5 text-[11px]"
 								>
 									<FolderSimple
 										weight="fill"
@@ -169,52 +170,67 @@ export function ProjectCard({
 									<span className="truncate">{item.name}</span>
 								</Button>
 							))}
-							<Dropdown>
-								<Button
-									variant="ghost"
-									size="sm"
-									aria-label={`Add folder to ${entry.name}`}
-									className="h-6 min-w-0 shrink-0 gap-1.5 rounded-full px-2.5 text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+							{assignedFolders.length > 1 && (
+								<span
+									className="shrink-0 text-[11px] text-muted-foreground"
+									aria-label={`${assignedFolders.length - 1} more folders: ${assignedFolders
+										.slice(1)
+										.map((item) => item.name)
+										.join(", ")}`}
+									title={assignedFolders
+										.slice(1)
+										.map((item) => item.name)
+										.join(", ")}
 								>
-									<Plus className="size-3" />
-									Add folder
-								</Button>
-								<Dropdown.Popover>
-									<Dropdown.Menu aria-label="Assign project folder">
-										{folders.map((item) => (
-											<Dropdown.Item
-												key={item.id}
-												id={item.id}
-												textValue={item.name}
-												onAction={() => assignFolder(entry.path, item.id)}
-											>
-												<FolderSimple
-													weight="fill"
-													style={{ color: item.color }}
-												/>
-												{item.name}
-												{item.paths.includes(entry.path) && (
-													<Check className="size-3" />
-												)}
-											</Dropdown.Item>
-										))}
-										{folder && (
-											<Dropdown.Item
-												id="remove"
-												onAction={() => assignFolder(entry.path, "none")}
-											>
-												Remove from all folders
-											</Dropdown.Item>
-										)}
-										{!folders.length && (
-											<Dropdown.Item id="empty" isDisabled>
-												Create a folder in the sidebar
-											</Dropdown.Item>
-										)}
-									</Dropdown.Menu>
-								</Dropdown.Popover>
-							</Dropdown>
+									+{assignedFolders.length - 1}
+								</span>
+							)}
 						</div>
+						<Dropdown>
+							<Button
+								variant="ghost"
+								size="sm"
+								aria-label={`Add folder to ${entry.name}`}
+								className="h-6 min-w-0 shrink-0 gap-1.5 rounded-full px-2.5 text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+							>
+								<Plus className="size-3" />
+								Add folder
+							</Button>
+							<Dropdown.Popover>
+								<Dropdown.Menu aria-label="Assign project folder">
+									{folders.map((item) => (
+										<Dropdown.Item
+											key={item.id}
+											id={item.id}
+											textValue={item.name}
+											onAction={() => assignFolder(entry.path, item.id)}
+										>
+											<FolderSimple
+												weight="fill"
+												style={{ color: item.color }}
+											/>
+											{item.name}
+											{item.paths.includes(entry.path) && (
+												<Check className="size-3" />
+											)}
+										</Dropdown.Item>
+									))}
+									{folder && (
+										<Dropdown.Item
+											id="remove"
+											onAction={() => assignFolder(entry.path, "none")}
+										>
+											Remove from all folders
+										</Dropdown.Item>
+									)}
+									{!folders.length && (
+										<Dropdown.Item id="empty" isDisabled>
+											Create a folder in the sidebar
+										</Dropdown.Item>
+									)}
+								</Dropdown.Menu>
+							</Dropdown.Popover>
+						</Dropdown>
 					</div>
 				</div>
 				<Dropdown>
@@ -222,7 +238,7 @@ export function ProjectCard({
 						variant="ghost"
 						size="icon"
 						aria-label={`Options for ${entry.name}`}
-						className="size-6 min-w-6 text-muted-foreground"
+						className="absolute right-0 top-5 size-6 min-w-6 text-muted-foreground"
 					>
 						<DotsThree weight="bold" className="size-5" />
 					</Button>

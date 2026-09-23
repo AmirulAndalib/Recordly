@@ -339,7 +339,7 @@ test("dashboard supports creation sort, independent folders, shared settings and
 	await home.getByRole("button", { name: "Add folder to Old" }).click();
 	await page.getByRole("menuitem", { name: "Personal", exact: true }).click();
 	await expect(home.getByRole("button", { name: "Remove Old from Work" })).toBeVisible();
-	await expect(home.getByRole("button", { name: "Remove Old from Personal" })).toBeVisible();
+	await expect(home.locator('[aria-label="1 more folders: Personal"]')).toBeVisible();
 	const membership = await page.evaluate(() =>
 		JSON.parse(localStorage.getItem("recordly.project-folders.v1") || "[]"),
 	);
@@ -583,4 +583,75 @@ test("Home opens normally without a current recording", async ({ page }) => {
 	await expect(home.getByRole("textbox", { name: "Search projects" })).toBeVisible();
 	await expect(page.getByText("No video to load.", { exact: false })).toHaveCount(0);
 	await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("folder actions stay inside narrow project cards without clipping", async ({ page }) => {
+	await installDesktopBridge(page);
+	await page.addInitScript(() => {
+		const entries = Array.from({ length: 4 }, (_, index) => ({
+			path: `/projects/card-${index}.recordly`,
+			name: `Project ${index + 1}`,
+			updatedAt: 1,
+			thumbnailPath: null,
+			isCurrent: false,
+			isInProjectsDirectory: true,
+		}));
+		localStorage.setItem(
+			"recordly.project-folders.v1",
+			JSON.stringify([
+				{
+					id: "one",
+					name: "A very long folder name",
+					color: "#123abc",
+					paths: entries.map((entry) => entry.path),
+				},
+				{
+					id: "two",
+					name: "Work",
+					color: "#123abc",
+					paths: entries.map((entry) => entry.path),
+				},
+			]),
+		);
+		window.electronAPI.listProjectFiles = async () => ({ success: true, entries });
+	});
+	await page.goto("/?windowType=editor");
+	await page.getByRole("button", { name: "Home", exact: true }).click();
+	const home = page.getByRole("dialog", { name: "Projects dashboard" });
+	const card = home.getByRole("list", { name: "Your projects" }).locator("li").first();
+	const add = card.getByRole("button", { name: "Add folder to Project 1", exact: true });
+	for (const width of [800, 1280, 1440]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await card.hover();
+		const folderFits = await card
+			.getByRole("button", {
+				name: "Remove Project 1 from A very long folder name",
+				exact: true,
+			})
+			.evaluate((element) => {
+				const chip = element.getBoundingClientRect();
+				const group = element.parentElement!.getBoundingClientRect();
+				return (
+					chip.left >= group.left &&
+					chip.right <= group.right + 1 &&
+					element.scrollWidth <= element.clientWidth + 1
+				);
+			});
+		expect(folderFits).toBe(true);
+		const bounds = await add.evaluate((element) => {
+			const button = element.getBoundingClientRect();
+			const caption = element.closest("[data-project-caption]")!.getBoundingClientRect();
+			const hit = document.elementFromPoint(button.right - 3, button.top + button.height / 2);
+			return {
+				inside: button.left >= caption.left && button.right <= caption.right + 1,
+				fullWidth: element.scrollWidth <= element.clientWidth + 1,
+				reachable: hit !== null && element.contains(hit),
+			};
+		});
+		expect(bounds).toEqual({ inside: true, fullWidth: true, reachable: true });
+	}
+	await add.click();
+	await expect(page.getByRole("menuitem", { name: "Work", exact: true })).toBeVisible();
+	await page.keyboard.press("Escape");
+	await page.screenshot({ path: "test-results/folder-actions.png", animations: "disabled" });
 });
