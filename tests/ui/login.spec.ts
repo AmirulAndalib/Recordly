@@ -40,7 +40,7 @@ test("banner login animates email expansion, rejects incorrect credentials, and 
 	}));
 	expect(textSize.height).toBeLessThanOrEqual(textSize.lineHeight + 1);
 	expect(textSize.scrollWidth).toBeLessThanOrEqual(textSize.width);
-	const artwork = await login.locator('img[src$="wallpaper1.jpg"]').boundingBox();
+	const artwork = await login.locator('img[src$="login-banner.png"]').boundingBox();
 	expect(artwork!.y + artwork!.height).toBeLessThan(heading!.y);
 	await page.keyboard.press("Tab");
 	await login.evaluate((element: HTMLElement) => element.focus());

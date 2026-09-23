@@ -137,7 +137,7 @@ export function RecordlySignInDialog({
 	};
 	const disabled = Boolean(busy);
 	const expanded = email.trim().length > 0;
-	const artwork = `${import.meta.env.BASE_URL}wallpapers/wallpaper1.jpg`;
+	const artwork = `${import.meta.env.BASE_URL}auth/login-banner.png`;
 	return (
 		<Modal isOpen={open} onOpenChange={onOpenChange}>
 			<Modal.Backdrop>
@@ -145,17 +145,25 @@ export function RecordlySignInDialog({
 					<MotionDialog
 						layout
 						transition={transition}
-						className={`h-auto min-h-0 w-full max-h-[calc(100dvh-48px)] gap-0 overflow-y-auto rounded-[32px] p-2 ${wide ? "max-w-[1120px] aspect-[28/19]" : "max-w-[600px]"}`}
+						className={`h-auto min-h-0 w-full max-h-[calc(100dvh-48px)] gap-0 overflow-y-auto rounded-[32px] p-2 ${wide ? "max-w-[1120px] md:grid md:grid-cols-2 md:aspect-[28/19]" : "max-w-[600px]"}`}
 					>
 						<div
 							aria-hidden="true"
-							className="relative h-32 shrink-0 overflow-hidden rounded-[24px] sm:h-36"
+							className={`relative h-32 shrink-0 overflow-hidden rounded-[24px] sm:h-36 ${wide ? "md:order-2 md:h-full md:min-h-0" : ""}`}
 						>
-							<img
-								src={artwork}
-								alt=""
-								className="absolute inset-0 size-full object-cover"
-							/>
+							<picture>
+								{wide && (
+									<source
+										media="(min-width: 768px)"
+										srcSet={`${import.meta.env.BASE_URL}auth/login-side.png`}
+									/>
+								)}
+								<img
+									src={artwork}
+									alt=""
+									className="absolute inset-0 size-full object-cover"
+								/>
+							</picture>
 						</div>
 						<Modal.CloseTrigger
 							aria-label={t("common.actions.close")}
@@ -165,7 +173,7 @@ export function RecordlySignInDialog({
 						<motion.div
 							layout="position"
 							transition={transition}
-							className="flex flex-1 flex-col justify-center px-6 py-7 sm:px-10"
+							className={`flex flex-1 flex-col justify-center px-6 py-7 sm:px-10 ${wide ? "md:order-1 md:min-w-0" : ""}`}
 						>
 							<div className="w-full max-w-[420px] self-center space-y-5 @container">
 								<motion.div {...reveal}>
