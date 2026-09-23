@@ -33,7 +33,7 @@ test("recording HUD uses uniform controls and a readable timer", async ({ page }
 	await installDesktopBridge(page);
 	await page.addInitScript(() => {
 		window.electronAPI.onRecordingStateChanged = (callback) => {
-			const listener = () => callback({ recording: true });
+			const listener = () => callback({ recording: true, sourceName: "Built-in Display" });
 			window.addEventListener("test-recording-started", listener);
 			return () => window.removeEventListener("test-recording-started", listener);
 		};

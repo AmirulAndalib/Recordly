@@ -1,6 +1,6 @@
 import { moveProjectFolderReferences } from "../dashboard/useProjectFolders";
 import { moveProjectShareLink } from "../cloud/projectShareLinks";
-import { type RefObject, useCallback, useEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { toast } from "@/components/ui/toast";
 import { createProjectData, type EditorProjectData } from "../projectPersistence";
 import type { useProjectState } from "../state/useProjectState";
@@ -61,9 +61,13 @@ export function useProjectSaveActions({
 	} = project;
 	const savingNameRef = useRef(false);
 	const activePathRef = useRef(currentProjectPath);
-	activePathRef.current = currentProjectPath;
 	const activeSourceRef = useRef(currentSourcePath);
-	activeSourceRef.current = currentSourcePath;
+	useLayoutEffect(() => {
+		activePathRef.current = currentProjectPath;
+	}, [currentProjectPath]);
+	useLayoutEffect(() => {
+		activeSourceRef.current = currentSourcePath;
+	}, [currentSourcePath]);
 	const autosaveTimeoutRef = useRef<number | null>(null);
 	const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 	const clearPendingAutosave = useCallback(() => {

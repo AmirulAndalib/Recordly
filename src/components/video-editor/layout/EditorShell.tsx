@@ -7,7 +7,7 @@ import { useRecordingLibrary } from "../library/useRecordingLibrary";
 import { RecordingLibraryPanel } from "../library/RecordingLibraryPanel";
 import { RECORDING_DRAG_TYPE } from "@/types/recordingLibrary";
 import { Button } from "@/components/ui/button";
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
+import { useCallback, useMemo, useEffect, useRef, useState, type ComponentProps } from "react";
 import { EditorAnnouncementBanner } from "@/components/announcements/EditorAnnouncementBanner";
 import { Toaster } from "@/components/ui/toast";
 import type { useI18n } from "@/contexts/I18nContext";
@@ -133,19 +133,21 @@ export function EditorShell(props: Props) {
 		handleAutoSuggestZoomsConsumed,
 	} = editing;
 	const { dialogActions, status: exportStatus, exportMessage } = exportController;
+	const dashboardSettingsContent = useMemo(
+		() => (
+			<SettingsPanel
+				{...settingsPanelProps}
+				activeEffectSection="settings"
+				selectedAnnotationId={null}
+				selectedClipId={null}
+				advanced
+			/>
+		),
+		[settingsPanelProps],
+	);
 	const editorDialogs = (
 		<AccountProfileContext.Provider value={auth.user}>
-			<DashboardSettingsContext.Provider
-				value={
-					<SettingsPanel
-						{...settingsPanelProps}
-						activeEffectSection="settings"
-						selectedAnnotationId={null}
-						selectedClipId={null}
-						advanced
-					/>
-				}
-			>
+			<DashboardSettingsContext.Provider value={dashboardSettingsContent}>
 				<EditorDialogs
 					t={t}
 					projectSaveDialogOpen={project.projectSaveDialogOpen}

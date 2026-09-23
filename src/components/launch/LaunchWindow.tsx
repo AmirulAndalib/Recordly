@@ -195,8 +195,8 @@ function LaunchWindowContent() {
 			variant="ghost"
 			size="icon"
 			iconSize="lg"
-			aria-label="Home"
-			title="Home"
+			aria-label={t("recording.home")}
+			title={t("recording.home")}
 			onClick={openHome}
 		>
 			<House weight="fill" className="size-5" />

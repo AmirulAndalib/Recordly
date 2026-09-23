@@ -41,7 +41,7 @@ export function RecordingControls({
 				isIconOnly
 				variant="ghost"
 				className={actionClass}
-				aria-label="Home"
+				aria-label={t("recording.home")}
 				onPress={onHome}
 			>
 				<House weight="fill" className="size-4" />

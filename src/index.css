@@ -188,6 +188,7 @@
  color: inherit;
 }
 .inline-project-name:focus { outline: none; box-shadow: none; }
+.inline-project-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .dashboard-shell {
  background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%);

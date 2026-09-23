@@ -4,7 +4,7 @@ import VideoPlayback, { type VideoPlaybackRef } from "../VideoPlayback";
 import { normalizeProjectEditor } from "../projectPersistence";
 import type { CursorTelemetryPoint } from "../types";
 
-const ignore = () => {};
+const ignore = () => undefined;
 /** One muted five-second pass through the saved timeline using the editor renderer. */
 export function ProjectHoverPreview({
 	data,

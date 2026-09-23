@@ -42,6 +42,7 @@ export function useProjectFolders() {
 		try {
 			localStorage.setItem(KEY, JSON.stringify(next));
 			setFolders(next);
+			window.dispatchEvent(new CustomEvent("recordly-folders-changed", { detail: next }));
 		} catch {
 			toast.error("Could not save folders");
 		}

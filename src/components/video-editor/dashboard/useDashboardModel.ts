@@ -21,6 +21,7 @@ export function useDashboardModel({
 		setSelected((prev) =>
 			prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path],
 		);
+	const { folders, save } = useProjectFolders();
 	const assignFolder = (path: string, id: string) =>
 		save(
 			folders.map((f) => ({
@@ -52,7 +53,6 @@ export function useDashboardModel({
 	};
 	const libraryEntries = isRaw ? raw.entries : entries;
 	const [busy, setBusy] = useState(false);
-	const { folders, save } = useProjectFolders();
 	const visible = useMemo(
 		() =>
 			libraryEntries

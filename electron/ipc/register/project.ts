@@ -1,3 +1,4 @@
+import { persistRecentMetadata } from "../project/recentMetadata";
 import { renameLibraryProject } from "../project/renameLibraryProject";
 import { createUntitledProject } from "../project/createUntitledProject";
 import { trashLibraryProjects } from "../project/trashProjects";
@@ -45,6 +46,7 @@ import {
 	getTelemetryPathForVideo,
 	isAutoRecordingPath,
 	normalizeVideoSourcePath,
+	normalizePath,
 	parseJsonWithByteOrderMark,
 } from "../utils";
 
@@ -227,9 +229,10 @@ export function registerProjectHandlers() {
 				entries.entries.map((entry) => entry.path),
 				(value) => [getProjectThumbnailPath(value), getProjectBackupPath(value)],
 			);
-			if (currentProjectPath === source) setCurrentProjectPath(target);
-			await rememberRecentProject(target);
-			return { success: true, path: target };
+			if (currentProjectPath && normalizePath(currentProjectPath) === normalizePath(source))
+				setCurrentProjectPath(target);
+			const warning = await persistRecentMetadata(() => rememberRecentProject(target));
+			return { success: true, path: target, warning };
 		} catch (error) {
 			return { success: false, error: String(error) };
 		}
@@ -711,13 +714,13 @@ export function registerProjectHandlers() {
 					JSON.stringify(prepared.projectData, null, 2),
 				);
 				setCurrentProjectPath(target);
-				await rememberRecentProject(target);
+				const warning = await persistRecentMetadata(() => rememberRecentProject(target));
 				try {
 					await saveProjectThumbnail(target, thumbnailDataUrl);
 				} catch (error) {
 					console.warn("Could not save project thumbnail", error);
 				}
-				return { success: true, path: target, projectId: prepared.projectId };
+				return { success: true, path: target, projectId: prepared.projectId, warning };
 			} catch (error) {
 				return { success: false, message: String(error) };
 			}
@@ -732,12 +735,14 @@ export function registerProjectHandlers() {
 			});
 			if (currentProjectPath && result.deleted.includes(path.resolve(currentProjectPath)))
 				setCurrentProjectPath(null);
-			await saveRecentProjectPaths(
-				(await loadRecentProjectPaths()).filter(
-					(p) => !result.deleted.includes(path.resolve(p)),
+			const warning = await persistRecentMetadata(async () =>
+				saveRecentProjectPaths(
+					(await loadRecentProjectPaths()).filter(
+						(p) => !result.deleted.includes(path.resolve(p)),
+					),
 				),
 			);
-			return { success: result.errors.length === 0, ...result };
+			return { success: result.errors.length === 0, ...result, warning };
 		} catch (error) {
 			return { success: false, deleted: [], errors: [String(error)] };
 		}

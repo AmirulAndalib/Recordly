@@ -180,12 +180,9 @@ export function useProjectOpenActions({
 		}
 		videoPlaybackRef.current?.pause();
 		setIsPlaying(false);
-		if (
-			project.videoPath &&
-			!project.error &&
-			!(await saveProject(false, { remountPreviewAfterSave: false }))
-		)
-			return;
+		if (project.videoPath && !project.error) {
+			await saveProject(false, { remountPreviewAfterSave: false });
+		}
 		project.setProjectBrowserOpen(true);
 		void refreshProjectLibrary();
 	}, [
@@ -236,14 +233,17 @@ export function useProjectOpenActions({
 		},
 		[project, refreshProjectLibrary],
 	);
-	const handleRenameLibraryProject = async (path: string, name: string) => {
-		const result = await window.electronAPI.renameLibraryProject(path, name);
-		if (!result.success || !result.path)
-			throw new Error(result.error || "Could not rename project");
-		if (project.currentProjectPath === path) project.setCurrentProjectPath(result.path);
-		await refreshProjectLibrary();
-		return result.path;
-	};
+	const handleRenameLibraryProject = useCallback(
+		async (path: string, name: string) => {
+			const result = await window.electronAPI.renameLibraryProject(path, name);
+			if (!result.success || !result.path)
+				throw new Error(result.error || "Could not rename project");
+			if (project.currentProjectPath === path) project.setCurrentProjectPath(result.path);
+			await refreshProjectLibrary();
+			return result.path;
+		},
+		[project, refreshProjectLibrary],
+	);
 
 	return {
 		handleRenameLibraryProject,

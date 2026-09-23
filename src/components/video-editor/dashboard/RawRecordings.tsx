@@ -15,7 +15,7 @@ export function RawThumbnail({ entry, active }: { entry: RecordingLibraryEntry; 
 				.then((result) => {
 					if (active && result.success) setPoster(result.value);
 				})
-				.catch(() => {});
+				.catch(() => undefined);
 		return () => {
 			active = false;
 		};
@@ -30,7 +30,7 @@ export function RawThumbnail({ entry, active }: { entry: RecordingLibraryEntry; 
 		}
 		const timer = window.setTimeout(() => {
 			element.currentTime = 0;
-			void element.play().catch(() => {});
+			void element.play().catch(() => undefined);
 		}, 300);
 		const stop = () => {
 			if (document.hidden) element.pause();

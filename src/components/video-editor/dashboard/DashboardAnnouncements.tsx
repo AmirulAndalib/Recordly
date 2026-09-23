@@ -36,6 +36,7 @@ export function DashboardAnnouncements({
 				{href ? (
 					<Link
 						href={href}
+						onAuxClick={(event) => event.preventDefault()}
 						className="block w-full"
 						onClick={(event) => {
 							event.preventDefault();
@@ -67,7 +68,7 @@ export function DashboardAnnouncements({
 					>
 						{banners.map((banner, slide) => (
 							<Button
-								key={banner.src}
+								key={`${slide}:${banner.src}`}
 								isIconOnly
 								variant="ghost"
 								aria-label={`Announcement ${slide + 1}`}

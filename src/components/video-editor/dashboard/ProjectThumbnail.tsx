@@ -32,7 +32,7 @@ export function ProjectThumbnail({
 				.then((result) => {
 					if (active && !document.hidden && result.success) setPreview(result.value);
 				})
-				.catch(() => {});
+				.catch(() => undefined);
 		}, 300);
 		const observer = new IntersectionObserver((entries) => {
 			if (entries.every((entry) => !entry.isIntersecting)) {

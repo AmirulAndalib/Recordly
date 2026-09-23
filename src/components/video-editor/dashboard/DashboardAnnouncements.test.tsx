@@ -30,7 +30,10 @@ describe("announcement configuration", () => {
 			<DashboardAnnouncements
 				config={{
 					enabled: true,
-					banners: [{ ...banner, href: "javascript:alert(1)" }, banner],
+					banners: [
+						{ ...banner, src: "/banner-1.svg", href: "javascript:alert(1)" },
+						{ ...banner, src: "/banner-2.svg" },
+					],
 				}}
 			/>,
 		);
