@@ -1,14 +1,12 @@
 import type { DashboardProps } from "./types";
 import { Dropdown } from "@heroui/react";
-import { CaretDown, Trash, UploadSimple } from "@/components/ui/icons";
+import { CaretDown, Trash } from "@/components/ui/icons";
 
 import { Button } from "@/components/ui/button";
 
 import type { DashboardModel } from "./useDashboardModel";
 
 export function DashboardFilters({
-	onImportFile,
-	run,
 	isRaw,
 	period,
 	setPeriod,
@@ -23,8 +21,6 @@ export function DashboardFilters({
 	setConfirmDelete,
 }: Pick<
 	DashboardModel & DashboardProps,
-	| "onImportFile"
-	| "run"
 	| "isRaw"
 	| "period"
 	| "setPeriod"
@@ -74,16 +70,6 @@ export function DashboardFilters({
 						<Trash weight="fill" className="size-4" />
 					</Button>
 				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					disabled={busy}
-					onClick={() => void run(onImportFile)}
-					className="h-7 shrink-0 gap-2 text-xs"
-				>
-					<UploadSimple className="size-3.5" />
-					Import
-				</Button>
 				<div className="ml-auto">
 					<Dropdown>
 						<Button

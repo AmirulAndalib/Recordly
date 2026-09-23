@@ -184,7 +184,7 @@ export function EditorHeader(props: Props) {
 						</Button>
 					)}
 				</div>
-				<Separator orientation="vertical" className="mx-3 h-5 shrink-0" />
+				<Separator orientation="vertical" className="mx-3 h-5 shrink-0 self-center" />
 				<Button
 					variant="secondary"
 					size="sm"
@@ -202,7 +202,7 @@ export function EditorHeader(props: Props) {
 				style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
 			>
 				<div className="flex items-center gap-1">
-					<div className="mx-2 h-4 w-px shrink-0 bg-separator" />
+					<Separator orientation="vertical" className="mx-3 h-5 shrink-0 self-center" />
 					<Button
 						type="button"
 						variant="ghost"

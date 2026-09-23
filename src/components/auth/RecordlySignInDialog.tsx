@@ -1,9 +1,9 @@
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { demoLoginEnabled } from "@/lib/auth/demoSession";
-import { WindowsLogo } from "@phosphor-icons/react";
 import { useI18n } from "@/contexts/I18nContext";
-import { GoogleLogo, SignOut } from "@/components/ui/icons";
+import { SignOut } from "@/components/ui/icons";
 import type { User } from "@supabase/supabase-js";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState, useRef } from "react";
 import {
 	Modal,
 	Button,
@@ -23,9 +23,12 @@ import {
 	signOutRecordly,
 } from "@/lib/auth/recordlyAuth";
 
+const MotionDialog = motion.create(Modal.Dialog);
+
 export type SignInReason = "account" | "share";
 
 type Props = {
+	variant?: "compact" | "wide";
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	reason?: SignInReason;
@@ -52,15 +55,17 @@ function friendlyAuthError(
 }
 
 export function RecordlySignInDialog({
+	variant = "compact",
 	open,
 	onOpenChange,
-	reason = "account",
 	user,
 	configured,
 	callbackError,
 	onAuthenticated,
 }: Props) {
 	const { t } = useI18n();
+	const awaitingSignIn = useRef(false);
+	const wide = variant === "wide";
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [busy, setBusy] = useState<string>();
@@ -70,6 +75,7 @@ export function RecordlySignInDialog({
 	useEffect(() => {
 		if (!open) {
 			setPassword("");
+			awaitingSignIn.current = false;
 			setBusy(undefined);
 			setMessage(undefined);
 			setResetSent(false);
@@ -77,8 +83,14 @@ export function RecordlySignInDialog({
 	}, [open]);
 
 	useEffect(() => {
-		if (open && user && reason === "share") onAuthenticated();
-	}, [onAuthenticated, open, reason, user]);
+		if (!open) return;
+		if (!user) awaitingSignIn.current = true;
+		else if (awaitingSignIn.current) {
+			awaitingSignIn.current = false;
+			setMessage(undefined);
+			onAuthenticated();
+		}
+	}, [open, user, onAuthenticated]);
 
 	const run = async (label: string, action: () => Promise<unknown>) => {
 		setBusy(label);
@@ -101,7 +113,6 @@ export function RecordlySignInDialog({
 				throw new Error("Email sign-in is not available yet.");
 			}
 			await signInWithEmail(email.trim(), password);
-			onAuthenticated();
 		});
 	};
 
@@ -117,37 +128,73 @@ export function RecordlySignInDialog({
 		});
 	};
 
+	const reduceMotion = useReducedMotion();
+	const transition = { duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] as const };
+	const reveal = {
+		initial: { opacity: 0, y: reduceMotion ? 0 : 10 },
+		animate: { opacity: 1, y: 0 },
+		transition,
+	};
 	const disabled = Boolean(busy);
 	const expanded = email.trim().length > 0;
 	const artwork = `${import.meta.env.BASE_URL}wallpapers/wallpaper1.jpg`;
 	return (
 		<Modal isOpen={open} onOpenChange={onOpenChange}>
-			<Modal.Backdrop
-				className="bg-cover bg-center"
-				style={{
-					backgroundImage: `linear-gradient(#10102066, #10102066), url(${artwork})`,
-				}}
-			>
+			<Modal.Backdrop>
 				<Modal.Container size="cover" placement="center" className="p-4 sm:p-8">
-					<Modal.Dialog className="grid h-[min(760px,calc(100dvh-64px))] min-h-0 w-full max-w-[1120px] grid-cols-1 gap-0 overflow-hidden rounded-[32px] p-2 md:grid-cols-2">
+					<MotionDialog
+						layout
+						transition={transition}
+						className={`h-auto min-h-0 w-full max-h-[calc(100dvh-48px)] gap-0 overflow-y-auto rounded-[32px] p-2 ${wide ? "max-w-[1120px] aspect-[28/19]" : "max-w-[600px]"}`}
+					>
+						<div
+							aria-hidden="true"
+							className="relative h-32 shrink-0 overflow-hidden rounded-[24px] sm:h-36"
+						>
+							<img
+								src={artwork}
+								alt=""
+								className="absolute inset-0 size-full object-cover"
+							/>
+						</div>
 						<Modal.CloseTrigger
 							aria-label={t("common.actions.close")}
 							className="z-20"
 						/>
-						<div className="flex min-h-0 items-center justify-center overflow-y-auto px-6 py-10 sm:px-10">
-							<div className="my-auto w-full max-w-[340px] space-y-7">
-								<Modal.Header className="items-center text-center">
-									<Modal.Heading className="text-4xl font-semibold tracking-tight">
-										{user ? "Your account" : "Welcome back"}
-									</Modal.Heading>
-									<Description className="text-sm">
-										{user
-											? user.email
-											: reason === "share"
-												? "Sign in to share your recordings."
-												: "Sign in to your Recordly account."}
-									</Description>
-								</Modal.Header>
+
+						<motion.div
+							layout="position"
+							transition={transition}
+							className="flex flex-1 flex-col justify-center px-6 py-7 sm:px-10"
+						>
+							<div className="w-full max-w-[420px] self-center space-y-5 @container">
+								<motion.div {...reveal}>
+									<Modal.Header className="items-center gap-4 text-center">
+										<div
+											className="flex items-center gap-3"
+											aria-label="Recordly"
+										>
+											<img
+												src={`${import.meta.env.BASE_URL}app-icons/recordly-128.png`}
+												alt=""
+												className="size-12 rounded-xl"
+											/>
+											<span className="text-3xl font-semibold tracking-tight">
+												Recordly
+											</span>
+										</div>
+										<Modal.Heading className="whitespace-nowrap text-[clamp(12px,5cqw,22px)] font-semibold leading-tight tracking-tight">
+											{user
+												? "Your account"
+												: "Beautiful, shareable screen recordings"}
+										</Modal.Heading>
+										{user && (
+											<Description className="text-sm">
+												{user.email}
+											</Description>
+										)}
+									</Modal.Header>
+								</motion.div>
 								{user ? (
 									<Button
 										variant="secondary"
@@ -162,10 +209,18 @@ export function RecordlySignInDialog({
 									</Button>
 								) : (
 									<>
-										<div className="grid grid-cols-2 gap-3">
+										<motion.div
+											{...reveal}
+											transition={{
+												...transition,
+												delay: reduceMotion ? 0 : 0.05,
+											}}
+											className="flex flex-col items-center gap-3"
+										>
 											<Button
 												variant="secondary"
-												className="h-11 w-full rounded-xl"
+												size="lg"
+												className="w-full gap-3"
 												isDisabled={disabled || !configured}
 												onPress={() =>
 													void run("google", () =>
@@ -173,12 +228,17 @@ export function RecordlySignInDialog({
 													)
 												}
 											>
-												<GoogleLogo className="size-5" />
-												Google
+												<img
+													src={`${import.meta.env.BASE_URL}auth/google-logo.png`}
+													alt=""
+													className="size-5 shrink-0"
+												/>
+												Continue with Google
 											</Button>
 											<Button
 												variant="secondary"
-												className="h-11 w-full rounded-xl"
+												size="lg"
+												className="w-full gap-3"
 												isDisabled={disabled || !configured}
 												onPress={() =>
 													void run("azure", () =>
@@ -186,10 +246,14 @@ export function RecordlySignInDialog({
 													)
 												}
 											>
-												<WindowsLogo className="size-5" />
-												Microsoft
+												<img
+													src={`${import.meta.env.BASE_URL}auth/microsoft-logo.svg`}
+													alt=""
+													className="size-5 shrink-0"
+												/>
+												Continue with Microsoft
 											</Button>
-										</div>
+										</motion.div>
 										<div className="flex items-center gap-4">
 											<Separator className="flex-1" />
 											<span className="text-xs text-muted">
@@ -197,10 +261,7 @@ export function RecordlySignInDialog({
 											</span>
 											<Separator className="flex-1" />
 										</div>
-										<Form
-											className="flex flex-col gap-5"
-											onSubmit={submitEmail}
-										>
+										<Form className="flex flex-col" onSubmit={submitEmail}>
 											<TextField
 												name="email"
 												type="email"
@@ -215,54 +276,76 @@ export function RecordlySignInDialog({
 											>
 												<Label>Email</Label>
 												<Input
-													className="h-12 rounded-xl bg-default/50 shadow-none"
+													className="h-12"
 													placeholder="you@example.com"
 													autoComplete="email"
 												/>
 												<FieldError />
 											</TextField>
-											{expanded && (
-												<div className="flex flex-col gap-5">
-													<TextField
-														name="password"
-														type="password"
-														value={password}
-														onChange={setPassword}
-														isRequired
-														isDisabled={disabled}
+											<AnimatePresence initial={false}>
+												{expanded && (
+													<motion.div
+														key="password-fields"
+														initial={{ height: 0, opacity: 0 }}
+														animate={{ height: "auto", opacity: 1 }}
+														exit={{ height: 0, opacity: 0 }}
+														transition={transition}
+														className="overflow-hidden"
+														inert={!expanded}
 													>
-														<Label>Password</Label>
-														<Input
-															className="h-12 rounded-xl bg-default/50 shadow-none"
-															autoComplete="current-password"
-														/>
-														<FieldError />
-													</TextField>
-													{configured && (
-														<Button
-															variant="ghost"
-															size="sm"
-															className="-mt-3 self-end"
-															isDisabled={disabled}
-															onPress={forgotPassword}
+														<motion.div
+															initial={{ y: reduceMotion ? 0 : -8 }}
+															animate={{ y: 0 }}
+															exit={{ y: reduceMotion ? 0 : -8 }}
+															transition={transition}
+															className="flex flex-col gap-5 px-1 pb-1 pt-5"
 														>
-															{t("editor.cloud.forgotPassword")}
-														</Button>
-													)}
-													<Button
-														type="submit"
-														className="h-12 w-full rounded-xl"
-														isDisabled={
-															disabled ||
-															(!configured && !demoLoginEnabled)
-														}
-													>
-														{busy === "email"
-															? t("editor.cloud.signingIn")
-															: "Sign in"}
-													</Button>
-												</div>
-											)}
+															<TextField
+																name="password"
+																type="password"
+																value={password}
+																onChange={setPassword}
+																isRequired
+																isDisabled={disabled}
+															>
+																<Label>Password</Label>
+																<Input
+																	className="h-12"
+																	autoComplete="current-password"
+																/>
+																<FieldError />
+															</TextField>
+															{configured && (
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="-mt-3 self-end"
+																	isDisabled={disabled}
+																	onPress={forgotPassword}
+																>
+																	{t(
+																		"editor.cloud.forgotPassword",
+																	)}
+																</Button>
+															)}
+															<Button
+																type="submit"
+																size="lg"
+																className="w-full"
+																isDisabled={
+																	disabled ||
+																	(!configured &&
+																		!demoLoginEnabled)
+																}
+															>
+																{busy === "email"
+																	? t("editor.cloud.signingIn")
+																	: "Sign in"}
+															</Button>
+														</motion.div>
+													</motion.div>
+												)}
+											</AnimatePresence>
 										</Form>
 									</>
 								)}
@@ -284,24 +367,8 @@ export function RecordlySignInDialog({
 									</Description>
 								)}
 							</div>
-						</div>
-						<div className="relative hidden min-h-0 overflow-hidden rounded-[26px] md:block">
-							<img
-								src={artwork}
-								alt=""
-								className="absolute inset-0 size-full object-cover"
-							/>
-							<div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/10" />
-							<span className="absolute left-8 top-8 text-lg font-semibold tracking-tight text-white">
-								Recordly
-							</span>
-							<p className="absolute bottom-10 left-8 right-8 text-4xl font-light leading-tight tracking-tight text-white">
-								Make something
-								<br />
-								<strong className="font-semibold">worth sharing.</strong>
-							</p>
-						</div>
-					</Modal.Dialog>
+						</motion.div>
+					</MotionDialog>
 				</Modal.Container>
 			</Modal.Backdrop>
 		</Modal>

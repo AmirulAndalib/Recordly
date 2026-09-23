@@ -55,8 +55,10 @@ test("home dashboard searches, sorts, opens projects and returns to the editor",
 	await home.getByRole("button", { name: "Sort projects" }).click();
 	await page.getByRole("menuitem", { name: "Name", exact: true }).click();
 	await expect(cards.nth(1)).toHaveAccessibleName("Getting started");
+	const normalCardWidth = (await cards.first().boundingBox())!.width;
 	await home.getByRole("textbox", { name: "Search projects" }).fill("launch");
 	await expect(cards).toHaveCount(1);
+	expect(Math.abs((await cards.first().boundingBox())!.width - normalCardWidth)).toBeLessThan(1);
 	await home.getByRole("textbox", { name: "Search projects" }).fill("missing");
 	await expect(home.getByText("No matching projects")).toBeVisible();
 	await home.getByRole("button", { name: "Clear search" }).click();
@@ -102,7 +104,7 @@ test("home dashboard searches, sorts, opens projects and returns to the editor",
 	await home.getByRole("button", { name: "Settings", exact: true }).click();
 	await expect(home.getByRole("region", { name: "Dashboard settings" })).toBeVisible();
 	await home.getByRole("button", { name: "Home", exact: true }).click();
-	await home.getByRole("button", { name: "New", exact: true }).click();
+	await home.getByRole("complementary", { name: "Library navigation" }).getByRole("button", { name: "Record new", exact: true }).click();
 	await expect(page.locator("html")).toHaveAttribute("data-hud-opened", "true");
 	await home.getByRole("button", { name: "Select projects to delete" }).click();
 	await cards.first().click();
@@ -136,7 +138,19 @@ test("home dashboard explains an empty library", async ({ page }) => {
 	await installDesktopBridge(page);
 	await page.goto("/?windowType=editor");
 	await page.getByRole("button", { name: "Home", exact: true }).click();
-	await expect(page.getByText("No projects yet")).toBeVisible();
+	await expect(page.getByText("It's looking empty in here...")).toBeVisible();
+	await expect(page.getByRole("button", { name: "Record new", exact: true })).toHaveCount(1);
+	await page.getByRole("button", { name: "Record your first video", exact: true }).click();
+	await expect(page.locator("html")).toHaveAttribute("data-hud-opened", "true");
+	await page.evaluate(() => {
+		delete document.documentElement.dataset.hudOpened;
+	});
+	await page
+		.getByRole("complementary", { name: "Library navigation" })
+		.getByRole("button", { name: "Record new", exact: true })
+		.click();
+	await expect(page.locator("html")).toHaveAttribute("data-hud-opened", "true");
+	await page.screenshot({ path: "test-results/dashboard-empty.png", animations: "disabled" });
 	await expect(page.getByRole("button", { name: "Back to editor" })).toHaveCount(0);
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("button", { name: "Rename project" })).toBeVisible();
@@ -694,8 +708,8 @@ test("sidebar cards, separate Import, and shortcut settings use the dashboard fl
 	const importButton = home.getByRole("button", { name: "Import", exact: true });
 	const all = home.getByRole("button", { name: "All", exact: true });
 	expect(
-		Math.abs((await importButton.boundingBox())!.y - (await all.boundingBox())!.y),
-	).toBeLessThan(2);
+		(await importButton.boundingBox())!.y - (await all.boundingBox())!.y,
+	).toBeLessThan(0);
 	expect(await all.evaluate((element) => element.parentElement!.textContent)).not.toContain(
 		"Import",
 	);

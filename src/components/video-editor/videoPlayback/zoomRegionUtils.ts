@@ -13,7 +13,6 @@ const CONNECTED_ZOOM_PAN_DURATION_MS = 1000;
 const ZOOM_IN_OVERLAP_MS = 1000;
 // Playback offset relative to timeline blocks; positive values delay the animation.
 const ZOOM_ANIMATION_DELAY_MS = 500;
-const ZOOM_HOLD_REDUCTION_MS = 500;
 
 type DominantRegionOptions = {
 	connectZooms?: boolean;
@@ -36,12 +35,14 @@ type ConnectedPanTransition = {
 	endScale: number;
 };
 
-function getRegionTiming(
+export function computeRegionStrength(
 	region: ZoomRegion,
+	timeMs: number,
 	options: Pick<DominantRegionOptions, "zoomInDurationMs" | "zoomOutDurationMs"> = {},
 ) {
 	const zoomInDurationMs = Math.max(1, options.zoomInDurationMs ?? ZOOM_IN_TRANSITION_WINDOW_MS);
 	const zoomOutDurationMs = Math.max(1, options.zoomOutDurationMs ?? TRANSITION_WINDOW_MS);
+	const adjustedTimeMs = timeMs - ZOOM_ANIMATION_DELAY_MS;
 	const leadInStart = region.startMs + ZOOM_IN_OVERLAP_MS - ZOOM_IN_TRANSITION_WINDOW_MS;
 	let zoomOutStart = region.endMs - ZOOM_OUT_EARLY_START_MS;
 	let zoomInEnd = leadInStart + zoomInDurationMs;
@@ -52,19 +53,6 @@ function getRegionTiming(
 		zoomOutStart = midpoint;
 	}
 
-	// Consume only the plateau: keep both animation durations and the entrance fixed.
-	zoomOutStart = Math.max(zoomInEnd, zoomOutStart - ZOOM_HOLD_REDUCTION_MS);
-	return { leadInStart, zoomInEnd, zoomOutStart, zoomInDurationMs, zoomOutDurationMs };
-}
-
-export function computeRegionStrength(
-	region: ZoomRegion,
-	timeMs: number,
-	options: Pick<DominantRegionOptions, "zoomInDurationMs" | "zoomOutDurationMs"> = {},
-) {
-	const { leadInStart, zoomInEnd, zoomOutStart, zoomInDurationMs, zoomOutDurationMs } =
-		getRegionTiming(region, options);
-	const adjustedTimeMs = timeMs - ZOOM_ANIMATION_DELAY_MS;
 	const leadOutEnd = zoomOutStart + zoomOutDurationMs;
 
 	if (adjustedTimeMs < leadInStart || adjustedTimeMs > leadOutEnd) {
@@ -128,7 +116,8 @@ function getActiveRegion(
 				}
 
 				const zoomOutStart =
-					getRegionTiming(outgoingPair.currentRegion, options).zoomOutStart +
+					outgoingPair.currentRegion.endMs -
+					ZOOM_OUT_EARLY_START_MS +
 					ZOOM_ANIMATION_DELAY_MS;
 				if (timeMs >= zoomOutStart) {
 					return { region, strength: 1 };
@@ -142,7 +131,8 @@ function getActiveRegion(
 				}
 
 				const nextRegionZoomOutStart =
-					getRegionTiming(incomingPair.nextRegion, options).zoomOutStart +
+					incomingPair.nextRegion.endMs -
+					ZOOM_OUT_EARLY_START_MS +
 					ZOOM_ANIMATION_DELAY_MS;
 				if (timeMs < nextRegionZoomOutStart) {
 					return { region, strength: 1 };

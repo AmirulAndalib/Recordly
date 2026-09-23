@@ -69,6 +69,16 @@ test("header breadcrumb fits long names, native chrome and compact windows", asy
 				"padding-left",
 				trafficLightsVisible ? "76px" : "0px",
 			);
+			const header = await page.locator(".editor-header").boundingBox();
+			const dividers = await page.locator(".editor-header").getByRole("separator").all();
+			expect(dividers).toHaveLength(2);
+			for (const divider of dividers) {
+				const box = await divider.boundingBox();
+				expect(box!.height).toBe(20);
+				expect(
+					Math.abs(box!.y + box!.height / 2 - (header!.y + header!.height / 2)),
+				).toBeLessThanOrEqual(1);
+			}
 			const stage = await page.locator(".editor-preview-stage").boundingBox();
 			const frame = await page.locator(".editor-preview-frame").boundingBox();
 			expect(

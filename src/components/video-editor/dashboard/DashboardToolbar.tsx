@@ -1,4 +1,4 @@
-import { MagnifyingGlass, Plus } from "@/components/ui/icons";
+import { MagnifyingGlass, UploadSimple } from "@/components/ui/icons";
 import { type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -9,12 +9,16 @@ import type { DashboardProps } from "./types";
 import type { DashboardModel } from "./useDashboardModel";
 
 export function DashboardToolbar({
+	onImportFile,
 	isRaw,
 	query,
 	setQuery,
 	run,
 	busy,
-}: Pick<DashboardProps & DashboardModel, "query" | "setQuery" | "run" | "busy" | "isRaw">) {
+}: Pick<
+	DashboardProps & DashboardModel,
+	"onImportFile" | "query" | "setQuery" | "run" | "busy" | "isRaw"
+>) {
 	return (
 		<>
 			<header
@@ -34,16 +38,16 @@ export function DashboardToolbar({
 						className="h-11 w-full border-0 bg-default/30 pl-10 shadow-none"
 					/>
 				</div>
-				<Button
-					variant="default"
-					onClick={() => void run(() => window.electronAPI.showRecordingHud())}
-					disabled={busy}
-					className="h-10 gap-2 text-[13px]"
-					style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
-				>
-					<Plus className="size-4" />
-					New
-				</Button>
+				<div style={{ WebkitAppRegion: "no-drag" } as CSSProperties}>
+					<Button
+						disabled={busy}
+						onClick={() => void run(onImportFile)}
+						className="h-10 shrink-0 gap-2 text-[13px]"
+					>
+						<UploadSimple className="size-4" />
+						Import
+					</Button>
+				</div>
 			</header>
 		</>
 	);

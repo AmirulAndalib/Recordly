@@ -1,3 +1,4 @@
+import { RecordNewButton } from "./RecordNewButton";
 import { SidebarCards } from "./SidebarCards";
 import { FolderRow } from "./FolderRow";
 import { Cloud, File, GearSix, House, Plus, UserCircle } from "@/components/ui/icons";
@@ -10,6 +11,8 @@ import type { DashboardModel } from "./useDashboardModel";
 import { FOLDER_COLORS } from "./useProjectFolders";
 
 export function DashboardSidebar({
+	busy,
+	run,
 	folders,
 	save,
 	section,
@@ -21,6 +24,8 @@ export function DashboardSidebar({
 	accountLabel,
 }: Pick<
 	DashboardProps & DashboardModel,
+	| "busy"
+	| "run"
 	| "folders"
 	| "save"
 	| "section"
@@ -37,7 +42,7 @@ export function DashboardSidebar({
 				aria-label="Library navigation"
 				className="flex w-48 shrink-0 flex-col bg-transparent px-4 pb-5 pt-12 lg:w-56"
 			>
-				<div className="mb-9 flex h-10 items-center gap-2.5 px-3">
+				<div className="mb-4 flex h-10 items-center gap-2.5 px-3">
 					<img
 						src={`${import.meta.env.BASE_URL}app-icons/recordly-64.png`}
 						alt=""
@@ -45,6 +50,7 @@ export function DashboardSidebar({
 					/>
 					<span className="text-[15px] font-semibold tracking-tight">Recordly</span>
 				</div>
+				<RecordNewButton busy={busy} run={run} className="mb-5 w-full" />
 				<nav className="space-y-1">
 					<Button
 						variant="ghost"

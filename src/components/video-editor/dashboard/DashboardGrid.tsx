@@ -1,3 +1,4 @@
+import { RecordNewButton } from "./RecordNewButton";
 import { RawPreview } from "./RawRecordings";
 import { Cloud, ImageSquare } from "@/components/ui/icons";
 
@@ -89,7 +90,7 @@ export function DashboardGrid({
 				) : visible.length ? (
 					<ul
 						aria-label={isRaw ? "Raw files" : "Your projects"}
-						className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))] gap-x-7 gap-y-10 lg:gap-x-9"
+						className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-x-7 gap-y-10 lg:gap-x-9"
 					>
 						{visible.map((entry) => (
 							<ProjectCard
@@ -114,7 +115,13 @@ export function DashboardGrid({
 					</ul>
 				) : (
 					<div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-						<ImageSquare weight="fill" className="size-8 opacity-30" />
+						{!isRaw && !query ? (
+							<span aria-hidden="true" className="text-4xl">
+								🦗
+							</span>
+						) : (
+							<ImageSquare weight="fill" className="size-8 opacity-30" />
+						)}
 						<p>
 							{isRaw
 								? rawLoading
@@ -123,8 +130,11 @@ export function DashboardGrid({
 										(query ? "No matching raw files" : "No raw recordings yet")
 								: query
 									? "No matching projects"
-									: "No projects yet"}
+									: "It's looking empty in here..."}
 						</p>
+						{!isRaw && !query && (
+							<RecordNewButton busy={busy} run={run} first className="mt-2" />
+						)}
 						{isRaw && rawError && (
 							<Button onClick={() => void refreshRaw()}>Retry</Button>
 						)}
