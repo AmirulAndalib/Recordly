@@ -161,7 +161,7 @@ export function RecordlySignInDialog({
 								<img
 									src={artwork}
 									alt=""
-									className="absolute inset-0 size-full object-cover"
+									className={`absolute inset-0 size-full object-cover object-[center_30%] ${wide ? "md:object-center" : ""}`}
 								/>
 							</picture>
 						</div>
