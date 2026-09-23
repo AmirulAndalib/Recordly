@@ -40,6 +40,7 @@ export function DashboardToolbar({
 				</div>
 				<div style={{ WebkitAppRegion: "no-drag" } as CSSProperties}>
 					<Button
+						variant="secondary"
 						disabled={busy}
 						onClick={() => void run(onImportFile)}
 						className="h-10 shrink-0 gap-2 text-[13px]"
