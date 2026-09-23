@@ -11,8 +11,8 @@ import { clamp01, easeOutZoom } from "./mathUtils";
 const CHAINED_ZOOM_PAN_GAP_MS = 1350;
 const CONNECTED_ZOOM_PAN_DURATION_MS = 1000;
 const ZOOM_IN_OVERLAP_MS = 1000;
-// Positive offsets delay the animation; this is 300ms later than the previous -100ms offset.
-const ZOOM_ANIMATION_DELAY_MS = 200;
+// Playback offset relative to timeline blocks; positive values delay the animation.
+const ZOOM_ANIMATION_DELAY_MS = 500;
 
 type DominantRegionOptions = {
 	connectZooms?: boolean;
