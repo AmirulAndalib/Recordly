@@ -20,10 +20,15 @@ describe.skipIf(process.platform !== "darwin")("recorder process lifecycle", () 
 			source.indexOf("final class RecorderService"),
 			source.indexOf("guard CommandLine.arguments.count"),
 		);
-		const commands = source.slice(
-			source.indexOf("let service = RecorderService()"),
-			source.indexOf("if !service.waitUntilFinished()"),
-		);
+		const commands = source
+			.slice(
+				source.indexOf("let service = RecorderService()"),
+				source.indexOf("if !service.waitUntilFinished()"),
+			)
+			.replace(
+				"service.stop()",
+				"service.stop()\n\tservice.drainCommandsForTest()\n\tcommandsFinished.signal()",
+			);
 		writeFileSync(
 			join(directory, "main.swift"),
 			`
@@ -47,10 +52,14 @@ final class ScreenCaptureRecorder {
     func resumeCapture() async -> Bool { true }
 }
 ${service}
+extension RecorderService {
+    func drainCommandsForTest() { queue.sync {} }
+}
+let commandsFinished = DispatchSemaphore(value: 0)
 ${commands}
 let success = service.waitUntilFinished()
-// Keep the process alive long enough to expose a queued second group release.
-Thread.sleep(forTimeInterval: 0.2)
+// Wait for the reader to enqueue stop AND for the serialized operations to finish.
+commandsFinished.wait()
 exit(success ? 0 : 1)
 `,
 		);

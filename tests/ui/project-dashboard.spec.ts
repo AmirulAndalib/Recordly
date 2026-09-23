@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { hasFreshProjectThumbnail } from "../../electron/ipc/project/thumbnailFreshness";
 import { expect, test } from "@playwright/test";
-import { installDesktopBridge } from "./bridge";
+import { installDesktopBridge, installDesktopBridgeOverrides } from "./bridge";
 
 test("home dashboard searches, sorts, opens projects and returns to the editor", async ({
 	page,
@@ -746,7 +746,7 @@ test("sidebar cards, separate Import, and shortcut settings use the dashboard fl
 
 test("empty filtered libraries do not prompt for a first recording", async ({ page }) => {
 	await installDesktopBridge(page);
-	await page.addInitScript(() => {
+	await installDesktopBridgeOverrides(page, () => {
 		window.electronAPI.getCurrentVideoPath = async () => ({ success: false });
 	});
 	await page.goto("/?windowType=editor");
